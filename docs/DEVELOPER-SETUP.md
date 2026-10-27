@@ -58,6 +58,23 @@ dotnet build .\testExtension.sln --no-restore -c Debug -p:Platform=ARM64
 
 **Observed on the maintainer's Windows machine (SDK 10.0.403, OS build 19044):** `dotnet restore .\testExtension.sln` completed successfully (`RESTORE_EXIT=0`). The x64 and ARM64 builds each succeeded with `-p:DefaultLanguage=en-US` and again without the override; all four build commands returned exit code `0`. Outputs targeted `win-x64` and `win-arm64`, respectively. The earlier `APPX1685` failure with default language `en-AE` was resolved by the explicit `en-US` manifest resource language. These results were run locally by the maintainer.
 
+## Windows CI results and warnings (2026-10-27)
+
+The latest observed PR workflow run before this documentation update was Windows CI run [40514661047](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40514661047), using .NET SDK 10.0.403 on a GitHub-hosted Windows x64 runner. The workflow ran:
+
+```powershell
+dotnet restore .\testExtension.sln
+dotnet build .\testExtension.sln --configuration Release --no-restore
+```
+
+Restore succeeded. The Release build succeeded with exit code 0 and 0 errors. The build output targeted `win-arm64` and reported three warnings: one `APPX1707` and two `IL2104` warnings (the SDK/WinRT reference assemblies `Microsoft.Windows.SDK.NET` and `WinRT.Runtime` each reported trim warnings). The workflow is a build check, not a test suite; this solution currently contains no test project, so no unit tests were run.
+
+- **APPX1707:** MSIX packaging targets report that the SDK package's `Microsoft.CommandPalette.Extensions.winmd` reference has no implementation file metadata. This is emitted by the generated template/package combination during packaging validation. The build still succeeds, and the extension was manually deployed and loaded according to the maintainer's report. Do not invent an implementation file or add `Implementation` metadata for a contract WinMD just to silence the warning; change this only if the SDK/template's documented packaging guidance establishes a required mapping.
+- **IL2104:** the trimmer reports warnings in `Microsoft.Windows.SDK.NET` and `WinRT.Runtime` reference assemblies during the Release build. These are dependency/reference-assembly trim-analysis warnings, not build errors. Keep them visible; investigate separately if publishing/trimming becomes part of the release acceptance criteria.
+- **NETSDK1198:** this warning was not present in the captured output for the latest Windows CI run. Do not state that it was reproduced or fixed on CI. If it appears locally, capture the exact command, selected `Platform`, and the referenced `Properties\PublishProfiles\win-*.pubxml` file name; the project sets `PublishProfile` from `$(Platform)`, so diagnose the profile/platform mismatch before changing packaging settings.
+
+The source manifest language fix was also validated by CI without a command-line `DefaultLanguage` override: the workflow's restore and Release build use only the checked-in manifest, which now explicitly declares `en-US`. The maintainer separately reported successful local restore and x64/ARM64 Debug builds both with and without the override. CI validates the default solution configuration used by that workflow; it does not replace the maintainer's architecture-specific local builds or the manual Visual Studio deployment check.
+
 ## Contributor environment reporting
 
 The versions below are the environment in which the template was last validated, not a universal minimum. Contributors should record their own versions when reporting build/deployment results; do not infer required minimums from one successful machine.
