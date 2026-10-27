@@ -5,7 +5,7 @@
 ## Technical findings
 
 - Microsoft documents how to generate, deploy, reload, and develop a Command Palette extension: https://learn.microsoft.com/en-us/windows/powertoys/command-palette/creating-an-extension
-- The current repository contains the generated solution `testExtension.sln` and project `testExtension/testExtension.csproj`; build and local deployment still need verification.
+- The current repository contains the generated solution `testExtension.sln` and project `testExtension/testExtension.csproj`; build and local deployment are recorded in WERD-57.
 - Checked-in target framework is `net10.0-windows10.0.26100.0`; minimum supported Windows platform is `10.0.19041.0`; runtime identifiers are `win-x64;win-arm64`.
 - The central package file pins `Microsoft.CommandPalette.Extensions` to `0.9.260303001`, `Microsoft.Windows.CsWinRT` to `2.2.0`, and `Shmuelie.WinRTServer` to `2.1.1`. Source: https://github.com/werdscopez7347/PlayniteCmdPal/blob/main/Directory.Packages.props
 - Playnite documents `--start <gameId>` and `playnite://playnite/start/<gameId>`, plus `showgame` and `search` URI commands: https://api.playnite.link/docs/manual/advanced/cmdlineArguments.html
@@ -29,9 +29,9 @@ Validate demand through a working demo and community feedback; do not equate gal
 
 ## Remaining implementation checks
 
-- Build and deploy the checked-in template and record actual installed SDK/Visual Studio requirements.
+- Build and deploy the checked-in template and record actual installed SDK/Visual Studio requirements (WERD-57).
 - Test the documented Playnite launch URI with a real game ID.
-- Choose and implement the catalog transport.
+- Choose and implement the catalog transport (WERD-56).
 - Confirm provider refresh behavior from the current generated code and current Microsoft docs.
 - Check current packaging/gallery requirements before release.
 
