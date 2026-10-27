@@ -7,8 +7,9 @@ public static class GameSearch
 {
     /// <summary>
     /// Searches a catalog by title. Ranking is exact, prefix, word-prefix, then substring.
-    /// A null or whitespace query returns no results. Entries with the same game ID are
-    /// represented once; distinct IDs with duplicate titles remain distinct results.
+    /// Within a rank, earlier match positions come first, followed by stable title and ID
+    /// tie-breaks. A null or whitespace query returns no results. Entries with the same game
+    /// ID are represented once; distinct IDs with duplicate titles remain distinct results.
     /// </summary>
     /// <param name="catalog">Catalog entries supplied by the adapter.</param>
     /// <param name="query">User-entered title query.</param>
@@ -37,9 +38,10 @@ public static class GameSearch
             .Select(group => group.First());
 
         return canonicalEntries
-            .Select(entry => new SearchResult(entry, GetMatchRank(entry.Title, normalizedQuery)))
-            .Where(result => result.Rank >= 0)
-            .OrderBy(result => result.Rank)
+            .Select(entry => new SearchResult(entry, GetMatch(entry.Title, normalizedQuery)))
+            .Where(result => result.Match.Rank >= 0)
+            .OrderBy(result => result.Match.Rank)
+            .ThenBy(result => result.Match.Index)
             .ThenBy(result => result.Entry.Title, StringComparer.OrdinalIgnoreCase)
             .ThenBy(result => result.Entry.Title, StringComparer.Ordinal)
             .ThenBy(result => result.Entry.GameId, StringComparer.Ordinal)
@@ -50,30 +52,35 @@ public static class GameSearch
             .ToArray();
     }
 
-    private static int GetMatchRank(string title, string query)
+    private static SearchMatch GetMatch(string title, string query)
     {
         if (string.Equals(title, query, StringComparison.OrdinalIgnoreCase))
         {
-            return 0;
+            return new SearchMatch(0, 0);
         }
 
         if (title.StartsWith(query, StringComparison.OrdinalIgnoreCase))
         {
-            return 1;
+            return new SearchMatch(1, 0);
         }
 
-        for (var index = 1; index < title.Length; index++)
+        for (var index = 1; index <= title.Length - query.Length; index++)
         {
-            if (!char.IsLetterOrDigit(title[index - 1])
-                && char.IsLetterOrDigit(title[index])
-                && title.AsSpan(index).StartsWith(query, StringComparison.OrdinalIgnoreCase))
+            var startsWord = char.IsLetterOrDigit(title[index])
+                && !char.IsLetterOrDigit(title[index - 1]);
+            if (startsWord && title.AsSpan(index).StartsWith(query, StringComparison.OrdinalIgnoreCase))
             {
-                return 2;
+                return new SearchMatch(2, index);
             }
         }
 
-        return title.Contains(query, StringComparison.OrdinalIgnoreCase) ? 3 : -1;
+        var substringIndex = title.IndexOf(query, StringComparison.OrdinalIgnoreCase);
+        return substringIndex >= 0
+            ? new SearchMatch(3, substringIndex)
+            : new SearchMatch(-1, int.MaxValue);
     }
 
-    private sealed record SearchResult(GameEntry Entry, int Rank);
+    private sealed record SearchResult(GameEntry Entry, SearchMatch Match);
+
+    private readonly record struct SearchMatch(int Rank, int Index);
 }
