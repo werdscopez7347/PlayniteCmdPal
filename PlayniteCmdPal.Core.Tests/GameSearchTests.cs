@@ -10,7 +10,7 @@ public sealed class GameSearchTests
     {
         var catalog = new[]
         {
-            new GameEntry("substring", "Super Halo"),
+            new GameEntry("substring", "Superhalo"),
             new GameEntry("word", "The Halo Effect"),
             new GameEntry("prefix", "Halo Infinite"),
             new GameEntry("exact", "Halo"),
@@ -29,6 +29,16 @@ public sealed class GameSearchTests
             "hAlO");
 
         Assert.Equal(new[] { "1", "2" }, results.Select(game => game.GameId));
+    }
+
+    [Fact]
+    public void RanksEarlierWordPrefixBeforeLaterWordPrefix()
+    {
+        var results = GameSearch.Search(
+            new[] { new GameEntry("later", "Super Halo"), new GameEntry("earlier", "The Halo Effect") },
+            "halo");
+
+        Assert.Equal(new[] { "earlier", "later" }, results.Select(game => game.GameId));
     }
 
     [Fact]
@@ -88,7 +98,7 @@ public sealed class GameSearchTests
             new GameEntry("3", "The Halo Effect"),
             new GameEntry("2", "Halo Infinite"),
             new GameEntry("1", "Halo"),
-            new GameEntry("4", "Super Halo"),
+            new GameEntry("4", "Superhalo"),
             new GameEntry("5", "Halo Infinite"),
         };
 
