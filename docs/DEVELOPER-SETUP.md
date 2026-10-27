@@ -1,6 +1,6 @@
 # Developer Setup
 
-**Status (2026-10-27):** Checked-in template configuration inspected. Maintainer-reported restore succeeded with .NET SDK 10.0.403; the reported build failed for `win-arm64` with `APPX1685: Default language 'en-AE' is not valid`. The manifest now declares `en-US` explicitly. This hosted task environment cannot run Windows/MSIX builds or Visual Studio deployment, so the fix, full architecture matrix, and runtime loop remain unverified. Do not regenerate the template.
+**Status (2026-10-27):** Validated on the maintainer's Windows machine with .NET SDK 10.0.403 and Windows 10.0.19044. Restore succeeded; x64 and ARM64 builds succeeded both with and without `-p:DefaultLanguage=en-US`; Visual Studio package deployment succeeded; the extension was reloaded in Command Palette and its placeholder page was confirmed. The manifest explicitly declares `en-US` to prevent the earlier locale-dependent `APPX1685` failure. Exact Visual Studio version/workloads and PowerToys version were not captured. Do not regenerate the template.
 
 ## Checked-in toolchain
 
@@ -56,7 +56,7 @@ dotnet build .\testExtension.sln --no-restore -c Debug -p:Platform=x64
 dotnet build .\testExtension.sln --no-restore -c Debug -p:Platform=ARM64
 ```
 
-The maintainer reported `dotnet restore testExtension.sln` succeeded using SDK `10.0.403`. The reported `dotnet build testExtension.sln --no-restore` failed for `win-arm64` with `APPX1685` and default language `en-AE`. These are maintainer-reported results, not independently rerun in this environment. No post-fix build exit codes are available here because Windows/MSBuild packaging is unavailable. Do not describe either architecture as passing until the commands above have actually completed.
+**Observed on the maintainer's Windows machine (SDK 10.0.403, OS build 19044):** `dotnet restore .\testExtension.sln` completed successfully (`RESTORE_EXIT=0`). The x64 and ARM64 builds each succeeded with `-p:DefaultLanguage=en-US` and again without the override; all four build commands returned exit code `0`. Outputs targeted `win-x64` and `win-arm64`, respectively. The earlier `APPX1685` failure with default language `en-AE` was resolved by the explicit `en-US` manifest resource language. These results were run locally by the maintainer.
 
 ## Deploy, reload, and debug
 
@@ -99,6 +99,8 @@ Sources: [create an extension](https://learn.microsoft.com/en-us/windows/powerto
 
 - [x] Checked-in solution, project, shared props, package versions, manifest, provider, page, extension lifecycle, and package launch profile inspected.
 - [x] Deterministic manifest language fix applied on the issue branch.
-- [ ] Clean Windows restore/build rerun after fix for x64 and ARM64.
-- [ ] Visual Studio MSIX deploy/reload/debug loop observed.
-- [ ] Exact installed Windows/PowerToys/Visual Studio/workload details recorded.
+- [x] Windows restore succeeded after fix (`dotnet restore .\\testExtension.sln`, exit code 0).
+- [x] x64 and ARM64 builds succeeded with and without the `DefaultLanguage=en-US` override (all four builds exit code 0).
+- [x] Visual Studio package deployment succeeded; Command Palette extension reload and placeholder-page runtime check succeeded.
+- [x] Windows version recorded as 10.0.19044 and .NET SDK as 10.0.403.
+- [ ] Exact installed Visual Studio version/workloads and PowerToys version recorded.
