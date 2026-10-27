@@ -22,6 +22,14 @@ Observed from checked-in project files:
 
 Sources: [project](../testExtension/testExtension.csproj), [package versions](../Directory.Packages.props), [shared build properties](../Directory.Build.props). These values describe the checked-in template; they do not prove that a clean build or local deployment succeeds.
 
+## Template validation update (2026-10-27)
+
+The generated project was inspected without regeneration. Its current source pins `net10.0-windows10.0.26100.0`, Windows SDK package property `10.0.26100.68-preview`, minimum/supported platform `10.0.19041.0`, and RIDs `win-x64;win-arm64`. Shared build platforms are `x64;ARM64`. Central package versions are recorded in `Directory.Packages.props`; the primary extension packages are `Microsoft.CommandPalette.Extensions` 0.9.260303001, `Microsoft.Windows.CsWinRT` 2.2.0, `Shmuelie.WinRTServer` 2.1.1, and `Microsoft.Windows.SDK.BuildTools.MSIX` 1.7.20250829.1. Maintainer-reported SDK: .NET SDK 10.0.403. The solution metadata reports VS 17.13.35507.96 as generator environment, not as a verified minimum.
+
+The reported build failure was `APPX1685` because `x-generate` selected default language `en-AE`. The source manifest now explicitly declares `<Resource Language="en-US"/>`; this is an explicit valid language tag and keeps manifest validation enabled. This environment cannot run Windows/MSIX builds or Visual Studio, so post-fix x64/ARM64 builds and the deploy/reload/debug loop remain unverified. See [developer setup](DEVELOPER-SETUP.md) for reproducible commands and honest status.
+
+Generated lifecycle inspected: the `IExtension` implementation returns a single `CommandProvider` for `ProviderType.Commands`; its provider returns a cached top-level command; the placeholder page is a static `ListPage` whose `GetItems()` returns one placeholder and which does not implement dynamic search. Microsoft documents `DynamicListPage.UpdateSearchText(oldSearch, newSearch)` for reactive filtering and `RaiseItemsChanged()` to notify the host after data changes. The official guide requires **Build > Deploy**, then **Reload > Reload Command Palette extensions**; the packaged launch profile is required, not the unpackaged profile.
+
 ## Stack and framework
 
 - C# extension using the current official Microsoft Command Palette extension template.
