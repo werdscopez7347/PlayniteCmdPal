@@ -58,6 +58,48 @@ dotnet build .\testExtension.sln --no-restore -c Debug -p:Platform=ARM64
 
 **Observed on the maintainer's Windows machine (SDK 10.0.403, OS build 19044):** `dotnet restore .\testExtension.sln` completed successfully (`RESTORE_EXIT=0`). The x64 and ARM64 builds each succeeded with `-p:DefaultLanguage=en-US` and again without the override; all four build commands returned exit code `0`. Outputs targeted `win-x64` and `win-arm64`, respectively. The earlier `APPX1685` failure with default language `en-AE` was resolved by the explicit `en-US` manifest resource language. These results were run locally by the maintainer.
 
+## Contributor environment reporting
+
+The versions below are the environment in which the template was last validated, not a universal minimum. Contributors should record their own versions when reporting build/deployment results; do not infer required minimums from one successful machine.
+
+| Component | Validated environment / current evidence |
+|---|---|
+| Windows | Windows 10.0.19044 (maintainer machine) |
+| .NET SDK | 10.0.403; SDK 10.0.302 was also installed, but the validation commands used 10.0.403 |
+| Visual Studio | Installed and used for package deployment; exact version and installed workloads were not captured |
+| PowerToys / Command Palette | Package deployed and extension loaded; exact PowerToys version was not captured |
+| Target architectures | x64 and ARM64 builds succeeded; runtime test was on the maintainer's machine (record host architecture if reporting architecture-specific runtime tests) |
+
+Run this PowerShell snippet and include the output when reporting a setup/build issue. Missing optional commands are expected; they do not by themselves indicate a broken build.
+
+```powershell
+dotnet --info
+dotnet --list-sdks
+winver
+
+# Visual Studio installation details, if vswhere is present
+$vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+if (Test-Path $vswhere) {
+    & $vswhere -all -products * -format json -utf8
+} else {
+    'vswhere.exe not found; record the Visual Studio version from Help > About and workloads from Visual Studio Installer.'
+}
+
+# PowerToys package version, when installed as an MSIX package
+Get-AppxPackage Microsoft.PowerToys | Select-Object Name, Version, Architecture
+
+# Build results
+dotnet restore .\testExtension.sln
+$restoreExit = $LASTEXITCODE
+dotnet build .\testExtension.sln --no-restore -c Debug -p:Platform=x64
+$x64Exit = $LASTEXITCODE
+dotnet build .\testExtension.sln --no-restore -c Debug -p:Platform=ARM64
+$arm64Exit = $LASTEXITCODE
+"restore=$restoreExit x64=$x64Exit arm64=$arm64Exit"
+```
+
+For Visual Studio, use **Help > About Microsoft Visual Studio** to capture the version and **Visual Studio Installer > Modify > Workloads** to record installed workloads relevant to Windows app/MSIX development. Do not describe a particular Visual Studio release or workload as the minimum supported requirement until verified against the current Microsoft template documentation and a clean setup.
+
 ## Deploy, reload, and debug
 
 1. Open `testExtension.sln` in Visual Studio on Windows.
