@@ -81,13 +81,13 @@ The GitHub run records were inspected, including actual job conclusions:
 
 - **Windows CI, default-branch push:** [run 40351115311](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40351115311) on `main` completed successfully (restore and Release build).
 - **Windows CI, pull request:** [run 40833436815](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40833436815) completed successfully, including restore, Release build, and the core search test.
-- **Windows CI, WERD-64 PR:** [run 40834510392](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40834510392) completed successfully on a GitHub-hosted Windows runner; the shared-script step passed.
+- **Windows CI, WERD-64 implementation PR:** [run 40835007856](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40835007856) completed successfully on a GitHub-hosted Windows runner; the shared-script step passed.
 - **CodeQL, default-branch push:** [run 40351115315](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40351115315) completed successfully.
 - **CodeQL, scheduled main run:** [run 40490182715](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40490182715) completed successfully.
 - **CodeQL, pull request:** [run 40833436859](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40833436859) completed successfully.
-- **CodeQL, WERD-64 PR:** [run 40834510410](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40834510410) completed successfully; both the shared-script and analysis steps passed.
+- **CodeQL, WERD-64 implementation PR:** [run 40835007751](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40835007751) completed successfully; both the shared-script and analysis steps passed.
 
-The main/earlier PR runs establish the baseline workflow status. The WERD-64 PR runs executed the new shared script on Windows and completed restore, Release build, core search tests, and CodeQL analysis successfully. This verifies the script in GitHub-hosted Windows CI; the separate local Windows invocation remains unverified because the Agent sandbox is Linux without PowerShell or the .NET SDK.
+The main/earlier PR runs establish the baseline workflow status. The WERD-64 implementation PR runs executed the new shared script on Windows and completed restore, Release build, core search tests, and CodeQL analysis successfully. This verifies the script in GitHub-hosted Windows CI; the separate local Windows invocation remains unverified because the Agent sandbox is Linux without PowerShell or the .NET SDK. A default-branch run of the new script will occur after merge and remains a follow-up.
 
 ## Dependabot verification (2026-10-29)
 
