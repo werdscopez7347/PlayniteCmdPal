@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping improve PlayniteCmdPal.
+Thanks for your interest in improving PlayniteCmdPal. The maintainer has not yet selected a project license or established contribution licensing terms. Please discuss those terms with the maintainer before submitting code; do not assume contributions are accepted under a particular license. See [licensing and release readiness](../docs/LICENSING-AND-RELEASE.md).
 
 ## Before starting
 

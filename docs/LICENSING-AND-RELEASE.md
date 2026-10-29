@@ -1,0 +1,28 @@
+# Licensing and release readiness
+
+This is an inventory and release checklist, not a legal opinion. The maintainer has **not selected a license** for project-authored material. Do not interpret a third-party license as a license for the whole repository. Public source visibility does not by itself grant a general reuse license. Discuss contribution terms with the maintainer before submitting code; do not assume inbound contributions are licensed under any particular terms.
+
+## License decision for the maintainer
+
+- **MIT:** permissive reuse, modification and redistribution, including proprietary use, with preservation of copyright and license notices; no express patent grant.
+- **Apache-2.0:** permissive, including proprietary use, with an express patent grant and termination terms; requires preservation of applicable notices and identification of modifications. Check compatibility and NOTICE obligations for the actual dependencies and distribution.
+- **GPL-3.0-only:** copyleft; distribution of covered derivatives generally requires corresponding source and the same license. Compatibility of linked components and distributed combinations needs particular care.
+- **Remain unlicensed:** no general license is offered for project-authored material; obtain permission before reuse or contribution. Third-party components retain their own terms. This is the current state, not a decision to make the repository private.
+
+These are summaries, not substitutes for the license texts or legal advice. The maintainer must choose whether to license project-authored material, which license and copyright holder to use, and contribution terms. A future companion plugin's license and distribution model need their own compatibility review. If a license is chosen, add its exact text at the root, document its scope and update contribution guidance; do not replace third-party notices.
+
+## Inventory and unresolved checks
+
+- Four generated C# files in `testExtension/` carry Microsoft copyright and MIT notices. Their original root-license references pointed to a nonexistent file; the Microsoft PowerToys MIT text is retained separately at [`third-party/Microsoft-PowerToys-LICENSE.txt`](../third-party/Microsoft-PowerToys-LICENSE.txt). Keep the file headers and include the notice when distributing covered material. This notice does not license project-authored code.
+- The seven checked-in `testExtension/Assets/` PNGs have identical Git blob hashes to the [PowerToys extension template assets at commit 24d81fc](https://github.com/microsoft/PowerToys/tree/24d81fc687c88a230f40ee9a907823d14afa4155/src/modules/cmdpal/ExtensionTemplate/TemplateCmdPalExtension/TemplateCmdPalExtension/Assets). They are template placeholders, not verified release branding. The [PowerToys MIT license](https://github.com/microsoft/PowerToys/blob/24d81fc687c88a230f40ee9a907823d14afa4155/LICENSE) does not itself grant trademark rights. Confirm asset and branding permissions or replace them with appropriately licensed original artwork before release; check any new assets individually.
+- `Directory.Packages.props` lists centrally managed versions, not necessarily the resolved dependency graph. The extension directly references `Microsoft.CommandPalette.Extensions`, `Microsoft.Windows.CsWinRT`, `Shmuelie.WinRTServer` and `Microsoft.Windows.SDK.BuildTools.MSIX`; test projects reference `Microsoft.NET.Test.Sdk`, `xunit` and `xunit.runner.visualstudio`. The Windows SDK and transitive/runtime dependencies may add more. Package license texts, redistribution terms, notices and binary inclusion have **not** been verified: nuget.org was not accessible in this review environment and no resolved graph was available. Before distributing, restore on the supported Windows setup, inventory exact direct and transitive versions and published contents, inspect each package's license/terms (including non-SPDX and SDK terms), and bundle required notices. Test/build-only dependencies still need review for their actual use but are not automatically shipped.
+- [Playnite](https://github.com/JosefNemec/Playnite/blob/master/LICENSE.md) declares MIT for its repository; this does not establish permission to use Playnite trademarks or artwork, or settle the terms of a future plugin and all its dependencies. No companion plugin is currently checked in. Review the exact SDK, plugin, assets and distribution once selected.
+- `testExtension/Package.appxmanifest` still has template identity, Microsoft publisher, display names and version `0.0.1.0`. These are not verified release metadata. Replace with the maintainer's actual package identity, publisher/signing identity and branding before distribution; do not imply Microsoft publishes the extension.
+
+## Before the first public release
+
+1. Resolve the project license, attribution, contribution terms and outstanding dependency/asset reviews above. Obtain permission where needed; do not ship unverified third-party artwork.
+2. Decide and document a versioning policy, including pre-release and breaking-change handling. Choose whether a checked-in changelog is warranted; do not treat the template's `0.0.1.0` as a published version.
+3. Decide where release notes live and their format (at minimum: version/date, changes, known issues, compatibility and upgrade instructions). Record the decision before publishing.
+4. Set and validate package identity, signing/publisher information, display names and consistent version metadata. Confirm artifact contents and required third-party notices for each distribution channel.
+5. Complete the Windows build, deployment, integration and security checks tracked by the project; do not describe the template as a verified release.

@@ -24,3 +24,7 @@ Tracking: https://linear.app/werdscopez7347/issue/WERD-56/spike-finalize-the-sup
 ## ADR-006: Clock/timer extension is separate
 **Status:** Accepted  
 Clock and timer functionality is out of scope for this repository and MVP.
+
+## ADR-007: Project licensing and release metadata remain open
+**Status:** Open; maintainer decision required (WERD-65)
+No general license has been selected for project-authored material, and contribution terms are not established. Microsoft template material retains its separate notices. License selection, versioning, release notes and changelog policy must be decided before public release. See [licensing and release readiness](LICENSING-AND-RELEASE.md) for the inventory and outstanding checks.
