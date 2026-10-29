@@ -1,8 +1,11 @@
 # PlayniteCmdPal
 
+[![Windows CI](https://github.com/werdscopez7347/PlayniteCmdPal/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/werdscopez7347/PlayniteCmdPal/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/werdscopez7347/PlayniteCmdPal/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/werdscopez7347/PlayniteCmdPal/actions/workflows/codeql.yml)
+
 Search and launch games from a Playnite library through Microsoft PowerToys Command Palette.
 
-> **Status:** The generated Command Palette template is committed. Core search and Playnite integration are under development. CI/security workflows are configured, but their first successful runs and the clean local build/deploy loop still need verification.
+> **Status:** The generated Command Palette template is committed and core search is under development. Windows CI and CodeQL run on pull requests and `main`, with verified successful runs. The clean local build/deploy loop and Playnite integration still need verification. There are no releases yet.
 
 ## Goal
 
@@ -31,9 +34,10 @@ Provide a keyboard-first route to a user's unified Playnite library: open Comman
 - Generated project: `testExtension/testExtension.csproj`
 - Central package versions: `Directory.Packages.props`
 - Repo-specific CmdPal instructions: `.github/copilot-instructions.md` and `.github/instructions/cmdpal-extension.instructions.md`
-- GitHub Actions: Windows build workflow and CodeQL workflow; Dependabot is configured for NuGet and Actions.
-- The first workflow runs have not yet been verified. Do not describe the repository as a working extension until the build, local deployment, and Playnite integration acceptance criteria pass.
+- GitHub Actions: Windows build workflow and CodeQL workflow (both verified green on `main` and pull requests); Dependabot is configured for NuGet and Actions.
+- Do not describe the repository as a working extension until the local deployment and Playnite integration acceptance criteria pass.
 - License not selected yet. Do not assume the repository is licensed for reuse until a license file is added.
+- Repository settings and release governance: [docs/REPO-GOVERNANCE.md](docs/REPO-GOVERNANCE.md).
 
 ## Development and project tracking
 
