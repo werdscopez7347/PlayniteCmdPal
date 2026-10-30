@@ -25,6 +25,7 @@ Tracking: https://linear.app/werdscopez7347/issue/WERD-56/spike-finalize-the-sup
 **Status:** Accepted  
 Clock and timer functionality is out of scope for this repository and MVP.
 
-## ADR-007: Project licensing and release metadata remain open
-**Status:** Open; maintainer decision required (WERD-65)
-No general license has been selected for project-authored material, and contribution terms are not established. Microsoft template material retains its separate notices. License selection, versioning, release notes and changelog policy must be decided before public release. See [licensing and release readiness](LICENSING-AND-RELEASE.md) for the inventory and outstanding checks.
+## ADR-007: Project license and release metadata
+**Status:** License accepted; release policy and verification pending (WERD-65)  
+PlayniteCmdPal-authored material is licensed under the MIT License in the repository root `LICENSE`. Microsoft PowerToys template material retains its separate MIT notice in `third-party/Microsoft-PowerToys-LICENSE.txt`; other third-party components and assets retain their own terms and notices. Contributions submitted to this repository are offered under the project MIT license, subject to the same third-party and attribution requirements. Before the first release, finish dependency/asset review and decide versioning, release notes and changelog policy.
+Tracking: https://linear.app/werdscopez7347/issue/WERD-65/choose-repository-license-and-add-releaselegal-metadata
