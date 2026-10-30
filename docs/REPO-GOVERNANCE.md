@@ -1,80 +1,99 @@
 # Repository Governance and Release Policy
 
-Status of GitHub-hosted repository settings for WERD-66. Last audited **2026-10-28** via the GitHub API.
-Committed files (workflows, Dependabot config, CODEOWNERS, SECURITY.md) do not enforce these settings by themselves; the items below must be confirmed in the repository's **Settings** UI or via an admin-scoped API token.
+Last audited **2026-10-30**. This document records the repository settings confirmed after the maintainer completed the GitHub UI configuration for WERD-66.
 
-Legend: **Verified** = confirmed true via API. **Blocked** = change attempted via API but denied (token lacks repository-administration permission); needs the maintainer to apply it in the GitHub UI. **Needs decision** = maintainer judgment required.
+Committed files (workflows, Dependabot config, CODEOWNERS, SECURITY.md) do not enforce repository-level settings by themselves; the GitHub-hosted controls below are configured separately.
 
-## Branch model (verified)
+## Branch model
 
-- Default and release branch: `main`. Integration branch: `dev`. Feature branches target `dev`; `dev` is merged to `main` via pull request.
-- Both `main` and `dev` currently have **no branch protection and no rulesets** (API: `GET /rulesets` → `[]`, both branches `protected: false`).
+- Repository visibility: **public**.
+- Default and release branch: `main`. Integration branch: `dev`.
+- Feature branches target `dev`; `dev` is merged to `main) via pull request.
+- The active `Protect main` ruleset targets the default branch.
 
-## Default-branch ruleset (blocked — apply in UI)
+## Default-branch ruleset: Protect main
 
-Creating the ruleset via API returned `403 Resource not accessible by integration`. Apply manually:
+<badge>Active</badge>
 
-**Settings → Rules → Rulesets → New ruleset → New branch ruleset**
+Confirmed through the GitHub rulesets API on 2026-10-30:
 
-1. Name: `Protect main`. Enforcement: **Active**.
-2. Target branches: add **Include default branch**.
-3. Enable **Restrict deletions** and **Block force pushes**.
-4. Enable **Require a pull request before merging** with **Required approvals: 0**.
-   - Rationale: this is a solo-maintained repository; GitHub does not count self-approval, so requiring ≥1 approval would make every merge impossible. The PR requirement itself still forces CI to pass and keeps history reviewable.
-5. Enable **Require status checks to pass** and add exactly these checks (both have successful runs on `main` and on PRs, verified 2026-10-28):
-   - `Restore, build, and test (Windows)` (Windows CI, `.github/workflows/ci.yml`)
-   - `Analyze C#` (CodeQL, `.github/workflows/codeql.yml`)
-   - Do not add the GitHub Advanced Security `CodeQL` check or `CodeRabbit`; they are app-reported and not guaranteed on every PR.
-   - Leave "Require branches to be up to date" off initially to avoid merge-queue friction for a solo maintainer; revisit if stale merges cause breakage.
+- Target: **Include default branch** (`~DEFAULT_BRANCH`).
+- **Restrict deletions:** enabled.
+- **Block force pushes:** enabled.
+- **Require a pull request before merging:** enabled.
+- Required approving reviews: **0**. This is intentional for a solo-maintained repository; GitHub does not count self-approval.
+- **Require status checks to pass:** enabled, with these exact job/check names:
+  - `Analyze C#` (CodeQL workflow).
+  - `Restore and build (Windows)` (Windows CI workflow).
+- **Require branches to be up to date:** disabled.
+- Bypass actors: none.
+- Allowed merge methods in the ruleset: squash and rebase.
 
-Optionally create a second, lighter ruleset for `dev` with only **Restrict deletions** and **Block force pushes** (needs decision).
+The required checks have successful runs recorded on `main`. The workflow job names must remain aligned with the ruleset if the workflows are renamed.
+
+### CI test coverage gap
+
+The current `.github/workflows/ci.yml` job is named `Restore and build (Windows)` and runs:
+
+1. `dotnet restore .\\testExtension.sln`
+2. `dotnet build .\\testExtension.sln --configuration Release --no-restore`
+
+It does **not** currently run `dotnet test`. The required Windows check therefore confirms restore/build only; it must not be described as proving the automated test suite passed. Add a test step when the solution's automated tests are ready to be run in CI, and then update this document and the required-check configuration if the job name changes.
 
 ## Security settings
 
-| Setting | State (2026-10-28) | Action |
+| Setting | Confirmed state on 2026-10-30 | Notes |
 | --- | --- | --- |
-| Private vulnerability reporting | **Disabled** (verified: API returned `enabled: false`; enabling via API was blocked with 403) | Enable at **Settings → Advanced Security → Private vulnerability reporting**. SECURITY.md already points reporters at this flow. |
-| Dependabot alerts | Unverified (API read/write denied) | Confirm enabled at **Settings → Advanced Security → Dependabot → Dependabot alerts**. |
-| Dependabot security updates | Unverified (API read/write denied) | Confirm enabled at the same page. Version updates are already configured in `.github/dependabot.yml` (verified: Dependabot update runs exist on `dev`). |
-| CodeQL code scanning | **Working** (verified: successful scheduled and push-triggered `CodeQL` runs; GHAS check reports on PRs) | None. |
-| Secret scanning / push protection | Unverified (API denied) | Confirm enabled at **Settings → Advanced Security** (free for public repositories). |
+| Private vulnerability reporting | **Enabled** | Confirmed by GitHub API: `enabled: true`. |
+| Dependabot alerts | **Enabled** | GitHub API returned HTTP 204 for the vulnerability-alerts endpoint. |
+| Dependabot security updates | **Enabled** | Confirmed by the maintainer in repository settings. |
+| CodeQL code scanning | **Working** | Successful scheduled, push-triggered, and pull-request runs have been observed. |
+| Secret scanning / push protection | **Not verified** | Re-check under Settings → Advanced Security if needed. |
 
-## Actions permissions (unverified — confirm in UI)
+Dependabot version updates are configured in `.github/dependabot.yml`.
 
-API read of Actions permissions was denied. Confirm at **Settings → Actions → General**:
+## Actions permissions
 
-- Workflow permissions: **Read repository contents and packages permissions** (read-only default).
-- "Allow GitHub Actions to create and approve pull requests": **off**.
+Confirmed through the GitHub Actions workflow-permissions API on 2026-10-30:
 
-Defense-in-depth already committed: both workflows declare top-level `permissions: contents: read` (CodeQL's job adds only `security-events: write`), use `persist-credentials: false`, timeouts, and concurrency cancellation.
+- Default workflow permissions: **Read repository contents and packages** (`read`).
+- **Allow GitHub Actions to create and approve pull requests:** disabled.
 
-## Repository features
+The workflows also declare minimal top-level permissions, use `persist-credentials: false` for checkout, and configure timeouts/concurrency cancellation where applicable.
 
-- Visibility: **public** (verified). Needs maintainer confirmation this is intentional — note the repository currently has **no LICENSE file** (verified: `licenseInfo: null`), so the code is publicly visible but not licensed for reuse. Choose and commit a license before any release.
-- Discussions: **enabled** (verified). Needs decision — nothing in the repo links to Discussions; disable it at **Settings → General → Features** if it is not going to be used, to avoid an unwatched inbox.
-- Wiki: disabled (verified, good). Issues and Projects: enabled (verified; issue templates are in use).
-- "Automatically delete head branches" after merge: **off** (verified). Recommended **on** for tidiness (needs decision; apply at **Settings → General**).
+## Repository features and licensing
+
+- Visibility: **public**.
+- Discussions: **disabled**.
+- Wiki: disabled. Issues and Projects: enabled.
+- No license file is currently committed. Public visibility does not grant permission to reuse the code; choose and commit a license before any release.
+- No GitHub Release or release tag has been created.
+- Automatic deletion of merged head branches is not recorded here as verified.
 
 ## CI status badges
 
-README badges for Windows CI and CodeQL were added only after verifying first successful runs on `main` (Windows CI run `40351115311`, CodeQL runs `40490182715` and `40351115315`).
+The README contains Windows CI and CodeQL badges. Successful runs on `main` were verified before adding them. The badge workflows are `.github/workflows/ci.yml` and `.github/workflows/codeql.yml`.
 
 ## Release policy
 
-- **No GitHub Releases or tags exist, and none should be created yet** (verified: `latestRelease: null`).
-- Preconditions for the first release, all currently unmet:
-  1. A license file is committed and licensing of all dependencies is reviewed.
-  2. A tagged build artifact has passed CI **and** a documented manual smoke test (local deployment + Playnite integration acceptance criteria).
-  3. A release checklist exists (artifact contents, versioning scheme, changelog, signing decision).
-- Until then, the only "supported version" remains the default branch head, as stated in SECURITY.md.
+Do not create a GitHub Release or version tag until all of the following are complete:
 
-## Re-audit checklist
+1. A license file is committed and licensing of direct and transitive dependencies is reviewed.
+2. A tagged build artifact passes CI and a documented manual smoke test covering local deployment and Playnite integration.
+3. A release checklist exists, covering artifact contents, versioning, changelog, and signing decision.
 
-After applying the UI changes above, re-verify with:
+Until then, the project is pre-release and the default branch is the current development baseline.
 
-```bash
+## Re-audit commands
+
+Run these commands with an authenticated GitHub CLI session:
+
+```powershell
 gh api repos/werdscopez7347/PlayniteCmdPal/rulesets
+gh api repos/werdscopez7347/PlayniteCmdPal/rulesets/26190984
 gh api repos/werdscopez7347/PlayniteCmdPal/private-vulnerability-reporting
-gh api repos/werdscopez7347/PlayniteCmdPal/vulnerability-alerts -i   # 204 = alerts enabled
+gh api repos/werdscopez7347/PlayniteCmdPal/vulnerability-alerts -i
 gh api repos/werdscopez7347/PlayniteCmdPal/actions/permissions/workflow
+gh workflow list --repo werdscopez7347/PlayniteCmdPal
+gh run list --repo werdscopez7347/PlayniteCmdPal --branch main --limit 20
 ```
