@@ -7,16 +7,16 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using Microsoft.CommandPalette.Extensions;
 
-namespace testExtension;
+namespace PlayniteCmdPal;
 
 [Guid("5fa90ed5-fcab-47c0-bbc0-e0b72f39aa16")]
-public sealed partial class testExtension : IExtension, IDisposable
+public sealed partial class PlayniteCmdPalExtension : IExtension, IDisposable
 {
     private readonly ManualResetEvent _extensionDisposedEvent;
 
-    private readonly testExtensionCommandsProvider _provider = new();
+    private readonly PlayniteCmdPalCommandsProvider _provider = new();
 
-    public testExtension(ManualResetEvent extensionDisposedEvent)
+    public PlayniteCmdPalExtension(ManualResetEvent extensionDisposedEvent)
     {
         this._extensionDisposedEvent = extensionDisposedEvent;
     }

@@ -5,18 +5,18 @@
 using Microsoft.CommandPalette.Extensions;
 using Microsoft.CommandPalette.Extensions.Toolkit;
 
-namespace testExtension;
+namespace PlayniteCmdPal;
 
-public partial class testExtensionCommandsProvider : CommandProvider
+public partial class PlayniteCmdPalCommandsProvider : CommandProvider
 {
     private readonly ICommandItem[] _commands;
 
-    public testExtensionCommandsProvider()
+    public PlayniteCmdPalCommandsProvider()
     {
-        DisplayName = "testExtension";
+        DisplayName = "PlayniteCmdPal";
         Icon = IconHelpers.FromRelativePath("Assets\\StoreLogo.png");
         _commands = [
-            new CommandItem(new testExtensionPage()) { Title = DisplayName },
+            new CommandItem(new PlayniteCmdPalPage()) { Title = DisplayName },
         ];
     }
 
