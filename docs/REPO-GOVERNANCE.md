@@ -8,12 +8,10 @@ Committed files (workflows, Dependabot config, CODEOWNERS, SECURITY.md) do not e
 
 - Repository visibility: **public**.
 - Default and release branch: `main`. Integration branch: `dev`.
-- Feature branches target `dev`; `dev` is merged to `main) via pull request.
+- Feature branches target `dev`; `dev` is merged to `main` via pull request.
 - The active `Protect main` ruleset targets the default branch.
 
 ## Default-branch ruleset: Protect main
-
-<badge>Active</badge>
 
 Confirmed through the GitHub rulesets API on 2026-10-30:
 
@@ -31,12 +29,12 @@ Confirmed through the GitHub rulesets API on 2026-10-30:
 
 The required checks have successful runs recorded on `main`. The workflow job names must remain aligned with the ruleset if the workflows are renamed.
 
-### CI test coverage gap
+## CI test coverage gap
 
 The current `.github/workflows/ci.yml` job is named `Restore and build (Windows)` and runs:
 
-1. `dotnet restore .\\testExtension.sln`
-2. `dotnet build .\\testExtension.sln --configuration Release --no-restore`
+1. `dotnet restore .\testExtension.sln`
+2. `dotnet build .\testExtension.sln --configuration Release --no-restore`
 
 It does **not** currently run `dotnet test`. The required Windows check therefore confirms restore/build only; it must not be described as proving the automated test suite passed. Add a test step when the solution's automated tests are ready to be run in CI, and then update this document and the required-check configuration if the job name changes.
 
