@@ -46,7 +46,9 @@ Evidence:
 **Status:** Accepted  
 Clock and timer functionality is out of scope for this repository and MVP.
 
-## ADR-007: Project license and release metadata
-**Status:** License accepted; release policy and verification pending (WERD-65)  
-PlayniteCmdPal-authored material is licensed under the MIT License in the repository root `LICENSE`. Microsoft PowerToys template material retains its separate MIT notice in `third-party/Microsoft-PowerToys-LICENSE.txt`; other third-party components and assets retain their own terms and notices. Contributions submitted to this repository are offered under the project MIT license, subject to the same third-party and attribution requirements. Before the first release, finish dependency/asset review and decide versioning, release notes and changelog policy.
+## ADR-007: Project license and release policy
+**Status:** MIT license and initial release policy accepted; distribution verification pending (WERD-65)  
+PlayniteCmdPal-authored material is licensed under the MIT License in the repository root `LICENSE`. Microsoft PowerToys template source retains its separate MIT notice in `third-party/Microsoft-PowerToys-LICENSE.txt`; third-party dependencies and other materials retain their own terms. Contributions are intended under the project MIT terms, subject to third-party rights and notice preservation.
+
+Use Semantic Versioning; before 1.0.0, use `0.y.z` and increment the minor version for incompatible changes. Publish version-tagged releases through GitHub Releases. Use the release description as the release notes; defer a separate `CHANGELOG.md` until release volume justifies it. Mark preview versions as prereleases using SemVer prerelease identifiers. Before public distribution, finish the dependency license/redistribution audit, verify the original project artwork, and validate the MSIX identity and signing certificate. See [Licensing and release readiness](LICENSING-AND-RELEASE.md).
 Tracking: https://linear.app/werdscopez7347/issue/WERD-65/choose-repository-license-and-add-releaselegal-metadata
