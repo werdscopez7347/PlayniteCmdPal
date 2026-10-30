@@ -1,8 +1,11 @@
 # PlayniteCmdPal
 
+[![Windows CI](https://github.com/werdscopez7347/PlayniteCmdPal/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/werdscopez7347/PlayniteCmdPal/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/werdscopez7347/PlayniteCmdPal/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/werdscopez7347/PlayniteCmdPal/actions/workflows/codeql.yml)
+
 Search and launch games from a Playnite library through Microsoft PowerToys Command Palette.
 
-> **Status:** The generated Command Palette template is committed. Core search and Playnite integration are under development. CI/security workflows are configured, but their first successful runs and the clean local build/deploy loop still need verification.
+> **Status:** The generated Command Palette template is committed and core search is under development. Windows CI and CodeQL run on pull requests and `main`, with verified successful runs. The clean local build/deploy loop and Playnite integration still need verification. There are no releases yet.
 
 ## Goal
 
@@ -38,6 +41,7 @@ Provide a keyboard-first route to a user's unified Playnite library: open Comman
 ## Development and project tracking
 
 - [Developer setup](docs/DEVELOPER-SETUP.md)
+- Run the same Windows restore/build/test checks as CI with `.\scripts\ci.ps1` from PowerShell on Windows with the .NET 10 SDK; see Developer Setup for details and verification status.
 - [Contributing](.github/CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
