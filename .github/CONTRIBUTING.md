@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in improving PlayniteCmdPal. The maintainer has not yet selected a project license or established contribution licensing terms. Please discuss those terms with the maintainer before submitting code; do not assume contributions are accepted under a particular license. See [licensing and release readiness](../docs/LICENSING-AND-RELEASE.md).
+Contributions to PlayniteCmdPal are accepted under the repository's MIT License. By submitting a contribution, you agree that it may be distributed under those MIT terms. You must have the right to submit the contribution and must identify and preserve any third-party code, assets, notices or restrictions included with it. The project license does not relicense third-party material.
 
 ## Before starting
 
