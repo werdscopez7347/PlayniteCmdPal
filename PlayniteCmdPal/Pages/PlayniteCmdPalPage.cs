@@ -5,14 +5,14 @@
 using Microsoft.CommandPalette.Extensions;
 using Microsoft.CommandPalette.Extensions.Toolkit;
 
-namespace testExtension;
+namespace PlayniteCmdPal;
 
-internal sealed partial class testExtensionPage : ListPage
+internal sealed partial class PlayniteCmdPalPage : ListPage
 {
-    public testExtensionPage()
+    public PlayniteCmdPalPage()
     {
         Icon = IconHelpers.FromRelativePath("Assets\\StoreLogo.png");
-        Title = "testExtension";
+        Title = "PlayniteCmdPal";
         Name = "Open";
     }
 

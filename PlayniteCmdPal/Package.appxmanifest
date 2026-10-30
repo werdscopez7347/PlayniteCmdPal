@@ -45,7 +45,7 @@
       <Extensions>
         <com:Extension Category="windows.comServer">
           <com:ComServer>
-            <com:ExeServer Executable="testExtension.exe" Arguments="-RegisterProcessAsComServer" DisplayName="PlayniteCmdPal">
+            <com:ExeServer Executable="PlayniteCmdPal.exe" Arguments="-RegisterProcessAsComServer" DisplayName="PlayniteCmdPal">
               <com:Class Id="5fa90ed5-fcab-47c0-bbc0-e0b72f39aa16" DisplayName="PlayniteCmdPal" />
             </com:ExeServer>
           </com:ComServer>
