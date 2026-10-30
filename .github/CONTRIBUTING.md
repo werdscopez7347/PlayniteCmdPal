@@ -31,7 +31,7 @@ Contributions to PlayniteCmdPal are accepted under the repository's MIT License.
 
 ## Local build
 
-Use the SDK and commands documented in [Developer Setup](../docs/DEVELOPER-SETUP.md). The checked-in solution is `testExtension.sln`. If the generated template fails to build, report the exact command, SDK version, and sanitized error output rather than silently changing package versions.
+Use the SDK and commands documented in [Developer Setup](../docs/DEVELOPER-SETUP.md). The checked-in solution is `PlayniteCmdPal.sln`. If the generated template fails to build, report the exact command, SDK version, and sanitized error output rather than silently changing package versions.
 
 ## Security
 
