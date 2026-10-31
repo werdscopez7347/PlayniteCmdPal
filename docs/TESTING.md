@@ -2,7 +2,7 @@
 
 This page explains what is tested, where each check runs, and how to run it. For installing the toolchain and deploying the extension, see [Developer Setup](DEVELOPER-SETUP.md).
 
-**Status (2026-10-31):** Automated coverage is synthetic and is designed to run without Playnite, PowerToys, a personal game library, or secrets. The test commands below are the ones executed by `scripts/ci.ps1`, which Windows CI and CodeQL run on `windows-latest`. The latest verified Windows CI run passed restore, Release build, both test projects, and the .NET Framework smoke test ([run 41177945707](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41177945707)); see the verification evidence section of [Developer Setup](DEVELOPER-SETUP.md) for the evidence trail and its limits.
+**Status (2026-10-31):** Automated coverage is synthetic and is designed to run without Playnite, PowerToys, a personal game library, or secrets. The test commands below are the ones executed by `scripts/ci.ps1`, which Windows CI and CodeQL run on `windows-latest`. The latest verified Windows CI run passed restore, Release build, 66 core tests, 183 adapter tests, and the .NET Framework smoke test ([run 41184115994](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41184115994)); see the verification evidence section of [Developer Setup](DEVELOPER-SETUP.md) for the evidence trail and its limits.
 
 ## Test projects
 
@@ -60,7 +60,22 @@ Test data is generated in the test process and written to a temporary directory 
 | Real-library verification (`tools/CatalogVerifier` and the [Catalog Bridge checklist](CATALOG-BRIDGE.md#manual-playnite-verification-still-required)) | Manual | No | No | Yes | Playnite (PowerToys only for the launch UI) |
 | Launch-by-ID URI smoke test | Manual | No | No | Yes | Playnite + PowerToys, plus one real game |
 
-Run status honesty: the suites described here were written and reviewed in a Linux environment that has no .NET SDK, PowerShell, or access to Microsoft's SDK/CDN hosts or NuGet, so they could not be executed there. Syntax and convention checks were run instead, and none of that counts as a passing test run. The authoritative result is the Windows CI run (and the .NET Framework smoke step) attached to the pull request that adds or changes them. Do not mark a test as passing locally unless you actually ran it.
+Run status: the suites described here were authored in a Linux environment with no .NET
+SDK, so they were never executed there — only parsed and reviewed. They have since run for
+real on GitHub-hosted Windows runners. Run
+[41184115994](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41184115994)
+(Windows CI, commit `aec765b`) passed restore, the Release build, `66/66` core tests,
+`183/183` adapter tests, and the .NET Framework snapshot smoke step; the matching CodeQL run
+[41184115933](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41184115933)
+passed with the same script. Three defects had to be fixed before that run went green: a
+ranking theory that asserted a query-independent result count, a parser test whose hand-built
+envelope was missing its closing brace, and a contract test that expected the game ID to be
+trimmed. Each was a defect in the test, not in the code under test.
+
+The authoritative result is still the Windows CI run (and the .NET Framework smoke step)
+attached to the pull request that adds or changes a test. A green run elsewhere proves the
+code compiled and the assertions held on that runner; it does not prove your local machine is
+set up. Do not mark a test as passing locally unless you actually ran it.
 
 The real-library and launch smoke tests are intentionally outside the automated suites: they depend on a particular installed Playnite, a particular PowerToys version, and one user's library. Normal CI must never require them.
 
@@ -102,7 +117,7 @@ dotnet test .\PlayniteCmdPal.Core.Tests\PlayniteCmdPal.Core.Tests.csproj --logge
 
 ### Coverage at a glance
 
-The suites hold 249 test cases (facts plus `[InlineData]` rows) split across the two projects: 66 for domain/search and 183 for the snapshot contract, publication, refresh, and adapter policy. The coverage added for [WERD-62](https://linear.app/werdscopez7347/issue/WERD-62/expand-automated-tests-and-finalize-the-developer-setup-guide) accounts for 148 of them. Counts drift as tests change; the per-file table above is the authoritative map.
+The suites hold 249 test cases (facts plus `[InlineData]` rows) split across the two projects: 66 for domain/search and 183 for the snapshot contract, publication, refresh, and adapter policy. The coverage added for [WERD-62](https://linear.app/werdscopez7347/issue/WERD-62/expand-automated-tests-and-finalize-the-developer-setup-guide) accounts for 148 of them. Counts drift as tests change; the per-file table above is the authoritative map, and the counts are cross-checked against the totals printed by `dotnet test` on Windows.
 
 ### Expected outcome
 
@@ -120,12 +135,17 @@ A passing run ends with `Passed! - Failed: 0, Passed: <n>, Skipped: 0, Total: <n
 
 ## Platform-sensitive assertions
 
-Two assertions depend on operating-system behavior rather than on project code, so treat a failure there as "check Windows semantics first" rather than "the adapter regressed":
+Two assertions depend on operating-system behavior rather than on project code. Both passed on
+Windows in run
+[41184115994](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41184115994), so
+they are recorded here only so a future failure reads as "check Windows semantics first" rather
+than "the adapter regressed":
 
-- `PlayniteCatalogAdapterPolicyTests.DirectoryPathInsteadOfFileIsReportedAsUnavailableRatherThanMissing` opens a **directory** as if it were the snapshot file. Windows reports that as `UnauthorizedAccessException` and Linux as an I/O error; the adapter maps both to `Unavailable`. Neither code path could be executed while this suite was written, so if the mapping differs on Windows this test is the one to inspect first.
-- `SnapshotFilePublisherContractTests.TemporaryFilesNeverRemainAfterAFailedPublication` occupies the destination with a directory so `File.Replace`/`File.Move` fail deterministically. Directory placement is not covered by any recorded Windows run either.
+- `PlayniteCatalogAdapterPolicyTests.DirectoryPathInsteadOfFileIsReportedAsUnavailableRatherThanMissing` opens a **directory** as if it were the snapshot file. Windows reports that as `UnauthorizedAccessException`; the adapter maps both that and an I/O error to `Unavailable`, so the test holds on either platform.
+- `SnapshotFilePublisherContractTests.TemporaryFilesNeverRemainAfterAFailedPublication` occupies the destination with a directory so `File.Replace`/`File.Move` fail deterministically, then asserts no temporary files remain.
 
-Everything else asserts project-defined behavior (validation, ranking, parsing, publication, caching) and should behave identically on any OS with .NET 10.
+Everything else asserts project-defined behavior (validation, ranking, parsing, publication,
+caching) and should behave identically on any OS with .NET 10.
 
 ## Known gaps
 
