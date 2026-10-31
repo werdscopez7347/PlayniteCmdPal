@@ -101,20 +101,20 @@
   </PropertyGroup>
 
 
-  <!-- Self-contained publishes must carry the notices from the exact runtime pack restored. -->
+  <!-- Self-contained publishes must carry the notices from the .NET runtime pack restored. -->
   <Target Name="CopyDotNetRuntimeThirdPartyNotices"
           AfterTargets="Publish"
-          DependsOnTargets="ResolveFrameworkReferences"
           Condition="'$(SelfContained)' == 'true' and '$(RuntimeIdentifier)' != ''">
     <ItemGroup>
-      <!-- Use the SDK-resolved runtime pack, not RuntimeFrameworkVersion, which may be empty. -->
-      <_DotNetRuntimeNoticeFiles Include="@(ResolvedRuntimePack->'%(PackageDirectory)\THIRD-PARTY-NOTICES.TXT')" />
+      <!-- Match only Microsoft.NETCore.App.Runtime, not the Windows Desktop, ASP.NET Core,
+           or Windows SDK reference packs that may also appear in ResolvedRuntimePack. -->
+      <_DotNetRuntimeNoticeFiles Include="$(NuGetPackageRoot)microsoft.netcore.app.runtime.$(RuntimeIdentifier)\*\THIRD-PARTY-NOTICES.TXT" />
     </ItemGroup>
 
     <Error Condition="'@(_DotNetRuntimeNoticeFiles)' == ''"
-           Text="The .NET runtime third-party notices were not found in the resolved runtime pack for $(RuntimeIdentifier). Do not distribute this self-contained publish without the notices." />
+           Text="The .NET runtime third-party notices were not found for $(RuntimeIdentifier). Do not distribute this self-contained publish without the notices." />
     <Error Condition="'@(_DotNetRuntimeNoticeFiles->Count())' != '1'"
-           Text="Expected exactly one .NET runtime third-party notices file for $(RuntimeIdentifier), found: @(_DotNetRuntimeNoticeFiles)." />
+           Text="Expected exactly one Microsoft.NETCore.App runtime third-party notices file for $(RuntimeIdentifier), found: @(_DotNetRuntimeNoticeFiles)." />
 
     <Copy SourceFiles="@(_DotNetRuntimeNoticeFiles)"
           DestinationFiles="$(PublishDir)dotnet-runtime-THIRD-PARTY-NOTICES.txt" />
