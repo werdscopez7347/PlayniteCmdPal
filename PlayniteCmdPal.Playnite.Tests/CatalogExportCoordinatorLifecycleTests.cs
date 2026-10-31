@@ -63,7 +63,7 @@ public sealed class CatalogExportCoordinatorLifecycleTests
         var exports = 0;
         var gate = new object();
         var firstStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        // Two exports must run: the requested one plus the follow-up requested during it.
+        var releaseFirstExport = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var twoExports = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var coordinator = new CatalogExportCoordinator(async _ =>
         {
@@ -72,36 +72,36 @@ public sealed class CatalogExportCoordinatorLifecycleTests
             {
                 maximumConcurrency = Math.Max(maximumConcurrency, Interlocked.Increment(ref active));
                 exportNumber = ++exports;
-            }
-
-            if (exportNumber == 1)
-            {
-                firstStarted.TrySetResult();
-            }
-            else
-            {
-                twoExports.TrySetResult();
+                if (exportNumber == 2)
+                {
+                    twoExports.TrySetResult();
+                }
             }
 
             try
             {
-                await Task.Delay(20);
+                if (exportNumber == 1)
+                {
+                    firstStarted.TrySetResult();
+                    await releaseFirstExport.Task;
+                }
             }
             finally
             {
                 Interlocked.Decrement(ref active);
             }
-        }, TimeSpan.FromMilliseconds(5));
+        }, TimeSpan.FromMilliseconds(1));
 
         var run = coordinator.RunAsync();
         coordinator.RequestExport();
 
-        // Wait until the first export is definitely in flight, then request more work. These
-        // requests land inside the export, so exactly one follow-up export is scheduled.
+        // Issue the follow-up burst while the first export is held open.
         await firstStarted.Task.WaitAsync(Timeout);
         await Task.WhenAll(Enumerable.Range(0, 16).Select(_ => Task.Run(() => coordinator.RequestExport())));
-        await twoExports.Task.WaitAsync(Timeout);
+        releaseFirstExport.TrySetResult();
 
+        await twoExports.Task.WaitAsync(Timeout);
+        await Task.Delay(Settle);
         coordinator.Dispose();
         await run.WaitAsync(Timeout);
 
@@ -113,35 +113,64 @@ public sealed class CatalogExportCoordinatorLifecycleTests
     public async Task RequestsInsideTheDebounceWindowCollapseIntoOneExport()
     {
         var exports = 0;
+        var exported = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        // A long debounce keeps the window open while the burst is issued; no export can start
+        // until it elapses, so every request below lands inside the same window.
+        using var coordinator = new CatalogExportCoordinator(_ =>
+        {
+            Interlocked.Increment(ref exports);
+            exported.TrySetResult();
+            return Task.CompletedTask;
+        }, TimeSpan.FromMilliseconds(200));
+
+        var run = coordinator.RunAsync();
+        for (var index = 0; index < 10; index++)
+        {
+            coordinator.RequestExport();
+        }
+
+        await exported.Task.WaitAsync(Timeout);
+        await Task.Delay(Settle);
+        coordinator.Dispose();
+        await run.WaitAsync(Timeout);
+
+        Assert.Equal(1, Volatile.Read(ref exports));
+    }
+
+    [Fact]
+    public async Task RequestsDuringAnExportScheduleExactlyOneFollowUp()
+    {
+        var exports = 0;
         var firstStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var holdFirstExport = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseFirstExport = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var secondExportFinished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var coordinator = new CatalogExportCoordinator(async _ =>
         {
             if (Interlocked.Increment(ref exports) == 1)
             {
                 firstStarted.TrySetResult();
-                await holdFirstExport.Task;
+                await releaseFirstExport.Task;
+                return;
             }
+
+            secondExportFinished.TrySetResult();
         }, TimeSpan.FromMilliseconds(1));
 
         var run = coordinator.RunAsync();
         coordinator.RequestExport();
         await firstStarted.Task.WaitAsync(Timeout);
 
-        // Every request below arrives while the only export is still running. Requests made
-        // during an export schedule exactly one follow-up, so a second export here would mean
-        // the debounce did not coalesce this burst.
-        for (var index = 0; index < 10; index++)
-        {
-            coordinator.RequestExport();
-        }
+        // Hold the first export open until every extra request has been issued, so they are all
+        // guaranteed to arrive while it is running.
+        await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => Task.Run(() => coordinator.RequestExport())));
+        releaseFirstExport.TrySetResult();
 
-        holdFirstExport.TrySetResult();
-        await Task.Delay(Settle * 2);
+        await secondExportFinished.Task.WaitAsync(Timeout);
+        await Task.Delay(Settle);
         coordinator.Dispose();
         await run.WaitAsync(Timeout);
 
-        Assert.Equal(1, Volatile.Read(ref exports));
+        Assert.Equal(2, Volatile.Read(ref exports));
     }
 
     [Fact]
@@ -241,7 +270,7 @@ public sealed class CatalogExportCoordinatorLifecycleTests
     [Fact]
     public async Task RunAsyncCanOnlyBeStartedOnce()
     {
-        using var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var coordinator = new CatalogExportCoordinator(_ => release.Task, TimeSpan.Zero);
 
         var run = coordinator.RunAsync();

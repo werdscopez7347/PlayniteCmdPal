@@ -342,7 +342,9 @@ public sealed class PlayniteCatalogAdapterPolicyTests : IDisposable
         Assert.Equal(games.Select(game => game.Name), result.Games.Select(game => game.Title));
         Assert.Equal(games.Select(game => game.Source), result.Games.Select(game => game.Source));
         Assert.Equal(games.Select(game => game.Platform), result.Games.Select(game => game.Platform));
-        Assert.Equal(games.Select(game => game.IsInstalled), result.Games.Select(game => game.IsInstalled));
+        Assert.Equal(
+            games.Select(game => (bool?)game.IsInstalled),
+            result.Games.Select(game => game.IsInstalled));
     }
 
     [Fact]
