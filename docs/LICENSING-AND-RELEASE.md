@@ -39,7 +39,7 @@ Audit date: 2026-10-31. This section records an evidence-based inventory of ever
   pwsh -File scripts/licensing/New-DependencyInventory.ps1 -Configuration Release
   ```
 
-  The generator was added by this audit and its PowerShell syntax was checked, but it has **not been executed** in the audit environment (no .NET SDK, no network access to nuget.org). Run it on the supported Windows build machine and review the output, including the resolved transitive versions, before relying on this section for a release. Transitive dependencies reached only through version ranges (for example `System.Reflection.Metadata >= 1.6.0`, `Newtonsoft.Json >= 13.0.1`) resolve to whatever NuGet selects at restore time; those resolved versions must come from the generator.
+  The generator was added by this audit. It has not yet been executed on the supported Windows build machine; run it after a clean restore and review the output, including resolved transitive versions, before relying on this section for a release. File-based nuspec licenses are always marked for manual review; the generator does not treat the presence of a license-file path as an approval. Transitive dependencies reached only through version ranges (for example `System.Reflection.Metadata >= 1.6.0`, `Newtonsoft.Json >= 13.0.1`) resolve to whatever NuGet selects at restore time; those resolved versions must come from the generator.
 - Publish profiles, project properties and `scripts/package-playnite-plugin.ps1` were read to determine what each artifact actually contains. Trimming, single-file settings and `ExcludeAssets` change the shipped set, so the checklist below also requires inspecting an actual publish/MSIX layout.
 
 ### Redistributed runtime dependencies — Command Palette extension
@@ -85,35 +85,34 @@ No Apache-2.0 assembly is redistributed, so no Apache-2.0 notice is required in 
 
 ### Declared central versions with no package reference
 
-`Directory.Packages.props` pins versions for `Microsoft.CodeAnalysis.NetAnalyzers` 9.0.0-preview.24508.2, `Microsoft.Web.WebView2` 1.0.3719.77, `Microsoft.Windows.CsWin32` 0.3.183, `Microsoft.Windows.SDK.BuildTools` 10.0.26100.4188, `Microsoft.WindowsAppSDK` 2.0.1 and `StyleCop.Analyzers` 1.2.0-beta.556. No project references them, so they are not restored, not shipped, and carry no obligation here. Their presence makes the inventory harder to audit; see open item 4.
+Six previously declared but unreferenced central package versions were removed from `Directory.Packages.props`; the remaining central entries correspond to package references in the project files.
 
 ### Notices, attribution and redistribution obligations
 
-The obligations identified above are satisfied in these locations.
+The obligations identified above are handled as follows; publish-time output still requires Windows verification.
 
 | Obligation | Where satisfied |
 | --- | --- |
 | MIT notice and copyright for the Command Palette SDK, C#/WinRT, `Shmuelie.WinRTServer` and PowerToys template material | `third-party/THIRD-PARTY-NOTICES.md` (MIT text plus one copyright line per component) and `third-party/Microsoft-PowerToys-LICENSE.txt`, both copied into the extension build/publish output and `.pext` publish output by the project files |
 | Project MIT notice | Root `LICENSE`; add the license text to the MSIX payload or release download |
-| .NET runtime third-party notices | Must be added to each release from the runtime pack actually restored (open item 3) |
+| .NET runtime third-party notices | `CopyDotNetRuntimeThirdPartyNotices` copies the exact restored runtime pack's `THIRD-PARTY-NOTICES.TXT` to `dotnet-runtime-THIRD-PARTY-NOTICES.txt` in self-contained publish output; verify both RIDs on Windows |
 | Windows SDK projections | Not yet satisfied — pending redistributability confirmation (open items 1 and 2) |
 | Source-availability offers / reciprocal licenses | None identified. No dependency uses GPL, LGPL, AGPL, SSPL, EUPL, MPL or similar terms; the only non-OSI component is the Microsoft Windows SDK preview license |
 | Trademark and artwork permissions | `third-party/THIRD-PARTY-NOTICES.md` records that no trademark rights are granted and that `PlayniteCmdPal/Assets/` holds original artwork only |
 
 ### Open items requiring maintainer or qualified legal review
 
-1. **Windows SDK projection redistribution.** `Microsoft.Windows.SDK.NET.Ref` declares the Microsoft Windows SDK (preview) license and requires acceptance, rather than an open-source license. Confirm whether the projection assemblies (`Microsoft.Windows.SDK.NET.dll`, `WinRT.Runtime.dll`) may be redistributed in the extension package, and whether any additional notice is required. Do not publish a public binary that contains them until this is settled.
-2. **Preview Windows SDK targeting pack.** `PlayniteCmdPal.csproj` sets `<WindowsSdkPackageVersion>10.0.26100.68-preview</WindowsSdkPackageVersion>`. Review whether a stable targeting pack exists for this target framework and prefer it for release builds; a preview-licensed build component increases both licensing and support risk.
-3. **.NET runtime notices.** Choose and document the mechanism that ships the runtime's `THIRD-PARTY-NOTICES.TXT` (for example a build step that copies it from the `Microsoft.NETCore.App.Runtime.*` package that was restored, named `dotnet-runtime-THIRD-PARTY-NOTICES.txt`). A repository copy would go stale. The release notes must also reference the .NET Library License.
-4. **Unused central package versions.** Remove the six unreferenced `PackageVersion` entries, or record why they are retained. Removing them is the cheaper option and keeps the audited surface equal to the restored surface.
-5. **Inventory regeneration.** Run `scripts/licensing/New-DependencyInventory.ps1` on the supported Windows build machine, confirm the resolved transitive versions and runtime/trimmed asset classification, and record the generated JSON path or hash in the release notes for the first public release.
-6. **Package signing and identity.** Unrelated to licensing but still release-blocking: `Package.appxmanifest` uses the provisional publisher `CN=PlayniteCmdPal` with package version `0.0.1.0`. The publisher must match the signing certificate subject, and the version must be synchronized with the release version.
+1. **Windows SDK projection redistribution — release blocker.** `Microsoft.Windows.SDK.NET.Ref` declares the Microsoft Windows SDK (preview) license and requires acceptance, rather than an open-source license. No redistribution permission has been established. Do not publish a public binary containing the projection assemblies (`Microsoft.Windows.SDK.NET.dll`, `WinRT.Runtime.dll`) unless and until the maintainer obtains authoritative confirmation that redistribution is permitted and records any required notice. Engineering approval is not legal approval.
+2. **Preview Windows SDK targeting pack.** `PlayniteCmdPal.csproj` still sets `<WindowsSdkPackageVersion>10.0.26100.68-preview</WindowsSdkPackageVersion>`. Evaluate a stable targeting pack compatible with the selected Windows target framework and switch only after a Windows build/test confirms compatibility. Until then, this remains a release blocker together with item 1.
+3. **.NET runtime notices — implementation added, verification pending.** `CopyDotNetRuntimeThirdPartyNotices` runs after self-contained publish and copies the `THIRD-PARTY-NOTICES.TXT` from the runtime pack selected by `RuntimeIdentifier` and `RuntimeFrameworkVersion`. It fails the publish if that file is absent. Verify the source path and resulting notice for both `win-x64` and `win-arm64` on Windows; release notes must also reference the .NET Library License.
+4. **Inventory regeneration.** Run `scripts/licensing/New-DependencyInventory.ps1` on the supported Windows build machine, confirm the resolved transitive versions and runtime/trimmed asset classification, and record the generated JSON path or hash in the release notes for the first public release.
+5. **Package signing and identity.** Unrelated to licensing but still release-blocking: `Package.appxmanifest` uses the provisional publisher `CN=PlayniteCmdPal` with package version `0.0.1.0`. The publisher must match the signing certificate subject, and the version must be synchronized with the release version.
 
-No item above is resolved by this document alone; each needs a maintainer decision (and, for items 1 and 3, a legal check).
+Items 1 and 2 remain release blockers. Item 3 has an implementation but requires Windows publish verification. Item 4 is implemented; item 5 remains pending. The signing/identity item remains a separate release blocker. No engineering change in this PR constitutes legal confirmation.
 
 ### Audit limitations
 
-- The audit reads declared package metadata and project/build configuration. A Windows CI restore/build/test run passed after the notice packaging items were added, but no publish, MSIX packaging or `.pext` packaging step was run, and the inventory generator was only syntax-checked. The exact published file list, the trimmed asset set, and the resolved versions of range-only transitive dependencies therefore still need confirmation from a release build before this document is treated as release evidence.
+- The audit reads declared package metadata and project/build configuration. A Windows CI restore/build/test run passed after the notice packaging items were added, but no publish, MSIX packaging or `.pext` packaging step was run, and the inventory generator has not been executed, and the runtime-notice publish target has not been exercised. The exact published file list, the trimmed asset set, and the resolved versions of range-only transitive dependencies therefore still need confirmation from a release build before this document is treated as release evidence.
 - Package metadata can change between versions; every dependency upgrade requires re-running the generator and revisiting this section.
 - This document is not legal advice. Escalate open items to the maintainer and, where warranted, to qualified counsel before the first public binary release.
 
