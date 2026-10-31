@@ -1,6 +1,6 @@
 # Research: Market and Feasibility
 
-**Last reviewed:** 2026-10-30. Findings below distinguish documented facts from implementation checks that remain.
+**Last reviewed:** 2026-10-31. Findings below distinguish documented facts from implementation checks that remain.
 
 ## Technical findings
 
@@ -70,3 +70,7 @@ The shared snapshot project targets `net462` and `net10.0` so the Playnite plugi
 User-reported Windows evidence: the 0.1.0 plugin loaded, but `extensions.log` showed `FileNotFoundException` for `System.Text.Json, Version=9.0.0.0` during publication, despite the DLL being present in its extension directory. Playnite 10.63's [assembly resolver](https://github.com/JosefNemec/Playnite/blob/10.63/source/Playnite/App/PlayniteApplication.cs) handles Magick.NET, not arbitrary extension dependencies. The 0.1.1 export path removes the `System.Text.Json` dependency rather than adding a process-wide resolver. A maintainer later reported that the snapshot exists and the real adapter verifier loaded four records, used its cache, and explicitly refreshed without errors or skipped records. Verification across library changes and recovery remains outstanding.
 
 Validation status: C#/PowerShell syntax and project XML/solution consistency checks were run in the Linux workspace; the .NET build and xUnit tests could not be run there because no .NET SDK is installed. A maintainer reported Windows CI and packaging passed at `398044e`, before the dependency change. The current revision's .NET Framework smoke test and the real-library checklist in [Catalog Bridge](CATALOG-BRIDGE.md) must be completed before claiming the acceptance criterion.
+
+## Extension metadata and description display (2026-10-31)
+
+Investigated for WERD-70: Command Palette shows the extension's logo but never its manifest `Description`. Finding: the host does not read that attribute. `Microsoft.CmdPal.UI.ViewModels/Models/ExtensionWrapper.cs` projects `AppExtension.DisplayName` and `Package.DisplayName` into `IExtensionWrapper`, which has no description member, and every secondary line in the UI is computed from the command model — `TopLevelViewModel.Subtitle` from `ICommandItem.Subtitle`, and `ProviderSettingsViewModel.ExtensionSubtext` from `Resources.builtin_extension_subtext` (`"{0}, {1} commands"`). Microsoft's `uap3:AppExtension` schema makes `DisplayName` required and `Description` optional without requiring a host to display it, and `uap3:Properties` is documented as stored but not read by the OS. The behaviour is identical at the `v0.103.3012` tag, so it is not a regression. The declared description is registered correctly and is left unchanged; it remains useful for package inspection and Store/Gallery review. Full write-up: [Command Palette extension metadata](CMDPAL-EXTENSION-METADATA.md).

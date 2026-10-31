@@ -3,6 +3,7 @@
     <OutputType>WinExe</OutputType>
     <RootNamespace>PlayniteCmdPal</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\PlayniteCmdPal-Brand-Assets\icons\ico\PlayniteCmdPal.ico</ApplicationIcon>
     <DefaultLanguage>en-US</DefaultLanguage>
     <WindowsSdkPackageVersion>10.0.26100.68-preview</WindowsSdkPackageVersion>
     <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
@@ -100,16 +101,22 @@
   </PropertyGroup>
 
 
-  <!-- Self-contained publishes must carry the notices from the exact runtime pack restored. -->
-  <Target Name="CopyDotNetRuntimeThirdPartyNotices" AfterTargets="Publish"
+  <!-- Self-contained publishes must carry the notices from the .NET runtime pack restored. -->
+  <Target Name="CopyDotNetRuntimeThirdPartyNotices"
+          AfterTargets="Publish"
           Condition="'$(SelfContained)' == 'true' and '$(RuntimeIdentifier)' != ''">
-    <PropertyGroup>
-      <_DotNetRuntimePackageDir>$(NuGetPackageRoot)microsoft.netcore.app.runtime.$(RuntimeIdentifier)\\$(RuntimeFrameworkVersion)</_DotNetRuntimePackageDir>
-      <_DotNetRuntimeNotices>$(_DotNetRuntimePackageDir)\\THIRD-PARTY-NOTICES.TXT</_DotNetRuntimeNotices>
-    </PropertyGroup>
-    <Error Condition="!Exists('$(_DotNetRuntimeNotices)')"
-           Text="The .NET runtime third-party notices were not found at '$(_DotNetRuntimeNotices)'. Do not distribute this self-contained publish without the notices for the restored runtime pack." />
-    <Copy SourceFiles="$(_DotNetRuntimeNotices)"
+    <ItemGroup>
+      <!-- Match only Microsoft.NETCore.App.Runtime, not the Windows Desktop, ASP.NET Core,
+           or Windows SDK reference packs that may also appear in ResolvedRuntimePack. -->
+      <_DotNetRuntimeNoticeFiles Include="$(NuGetPackageRoot)microsoft.netcore.app.runtime.$(RuntimeIdentifier)\*\THIRD-PARTY-NOTICES.TXT" />
+    </ItemGroup>
+
+    <Error Condition="'@(_DotNetRuntimeNoticeFiles)' == ''"
+           Text="The .NET runtime third-party notices were not found for $(RuntimeIdentifier). Do not distribute this self-contained publish without the notices." />
+    <Error Condition="'@(_DotNetRuntimeNoticeFiles->Count())' != '1'"
+           Text="Expected exactly one Microsoft.NETCore.App runtime third-party notices file for $(RuntimeIdentifier), found: @(_DotNetRuntimeNoticeFiles)." />
+
+    <Copy SourceFiles="@(_DotNetRuntimeNoticeFiles)"
           DestinationFiles="$(PublishDir)dotnet-runtime-THIRD-PARTY-NOTICES.txt" />
   </Target>
 

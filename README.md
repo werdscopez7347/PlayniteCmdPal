@@ -1,5 +1,10 @@
 # PlayniteCmdPal
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="PlayniteCmdPal-Brand-Assets/svg/wordmark-horizontal-dark.svg">
+  <img alt="PlayniteCmdPal" src="PlayniteCmdPal-Brand-Assets/svg/wordmark-horizontal.svg">
+</picture>
+
 [![Windows CI](https://github.com/werdscopez7347/PlayniteCmdPal/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/werdscopez7347/PlayniteCmdPal/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/werdscopez7347/PlayniteCmdPal/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/werdscopez7347/PlayniteCmdPal/actions/workflows/codeql.yml)
 
@@ -52,6 +57,8 @@ Provide a keyboard-first route to a user's unified Playnite library: open Comman
 
 ## Project docs
 
+- [Branding and asset integration](docs/BRANDING.md)
+- [Command Palette extension metadata](docs/CMDPAL-EXTENSION-METADATA.md)
 - [PRD](docs/PRD.md)
 - [Technical design](docs/TECHNICAL-DESIGN.md)
 - [Catalog Bridge](docs/CATALOG-BRIDGE.md)
