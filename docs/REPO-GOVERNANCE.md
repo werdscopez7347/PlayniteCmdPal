@@ -64,7 +64,7 @@ The workflows also declare minimal top-level permissions, use `persist-credentia
 - Visibility: **public**.
 - Discussions: **disabled**.
 - Wiki: disabled. Issues and Projects: enabled.
-- No license file is currently committed. Public visibility does not grant permission to reuse the code; choose and commit a license before any release.
+- The root `LICENSE` is committed and applies the MIT License to PlayniteCmdPal-authored material. Third-party code, assets, SDKs, trademarks, and dependencies retain their own terms; see [Licensing and release readiness](LICENSING-AND-RELEASE.md) and `third-party/THIRD-PARTY-NOTICES.md`. Public visibility alone does not grant permission to reuse third-party material.
 - No GitHub Release or release tag has been created.
 - Automatic deletion of merged head branches is not recorded here as verified.
 
