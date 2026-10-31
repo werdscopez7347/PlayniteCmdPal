@@ -16,6 +16,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Third-party notices and the retained PowerToys template license travel with the
+         published package. See docs/LICENSING-AND-RELEASE.md. -->
+    <Content Include="..\third-party\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\third-party\Microsoft-PowerToys-LICENSE.txt" Link="Microsoft-PowerToys-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="Assets\SplashScreen.scale-200.png" />
     <Content Include="Assets\LockScreenLogo.scale-200.png" />
     <Content Include="Assets\Square150x150Logo.scale-200.png" />
