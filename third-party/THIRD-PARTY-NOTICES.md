@@ -87,11 +87,13 @@ runtime embeds components under other licenses that are listed in the runtime pa
 Obligations for each release:
 
 - The `CopyDotNetRuntimeThirdPartyNotices` MSBuild target copies the runtime's
-  `THIRD-PARTY-NOTICES.TXT` from the exact runtime pack selected by
-  `RuntimeIdentifier` and `RuntimeFrameworkVersion` to
-  `dotnet-runtime-THIRD-PARTY-NOTICES.txt` after self-contained publish. The target fails
-  if the source file is missing. Verify both `win-x64` and `win-arm64` publish outputs
-  on Windows before release.
+  `THIRD-PARTY-NOTICES.TXT` to `dotnet-runtime-THIRD-PARTY-NOTICES.txt` after a
+  self-contained publish. It resolves the file from the restored
+  `Microsoft.NETCore.App.Runtime.<RID>` package under `$(NuGetPackageRoot)`, so it does
+  not depend on `RuntimeFrameworkVersion` (which can be empty at publish time) and does
+  not pick up the Windows Desktop, ASP.NET Core or Windows SDK packs. The target fails
+  the publish when no notice file or more than one notice file is found. Verify both
+  `win-x64` and `win-arm64` publish outputs on Windows before release.
 - Reproduce the .NET Library License reference and this notice in the release notes, or
   ship the license text alongside the package.
 - Re-check the runtime version and notices for every release; a repository copy would go

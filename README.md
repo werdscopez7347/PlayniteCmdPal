@@ -56,7 +56,7 @@ Provide a keyboard-first route to a user's unified Playnite library: open Comman
 ## Project docs
 
 - [Branding and asset integration](docs/BRANDING.md)
-
+- [Command Palette extension metadata](docs/CMDPAL-EXTENSION-METADATA.md)
 - [PRD](docs/PRD.md)
 - [Technical design](docs/TECHNICAL-DESIGN.md)
 - [Catalog Bridge](docs/CATALOG-BRIDGE.md)
