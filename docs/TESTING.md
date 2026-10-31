@@ -2,7 +2,7 @@
 
 This page explains what is tested, where each check runs, and how to run it. For installing the toolchain and deploying the extension, see [Developer Setup](DEVELOPER-SETUP.md).
 
-**Status (2026-10-31):** Automated coverage is synthetic and is designed to run without Playnite, PowerToys, a personal game library, or secrets. The test commands below are the ones executed by `scripts/ci.ps1`, which Windows CI and CodeQL run on `windows-latest`. The latest verified Windows CI run passed restore, Release build, 66 core tests, 183 adapter tests, and the .NET Framework smoke test ([run 41184115994](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41184115994)); see the verification evidence section of [Developer Setup](DEVELOPER-SETUP.md) for the evidence trail and its limits.
+**Status (2026-10-31):** Automated coverage is synthetic and is designed to run without Playnite, PowerToys, a personal game library, or secrets. The test commands below are the ones executed by `scripts/ci.ps1`, which Windows CI and CodeQL run on `windows-latest`. The latest verified Windows CI run passed restore, Release build, 66 core tests, 183 adapter tests, and the .NET Framework smoke test ([run 41184813275](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41184813275)); see the verification evidence section of [Developer Setup](DEVELOPER-SETUP.md) for the evidence trail and its limits.
 
 ## Test projects
 
@@ -44,7 +44,7 @@ Test data is generated in the test process and written to a temporary directory 
 | `CatalogExportCoordinatorTests` (pre-existing) | Burst coalescing, follow-up scheduling, failure isolation, dispose semantics. |
 | `CatalogExportCoordinatorLifecycleTests` | Constructor validation, zero debounce, requests made before the loop starts, a burst inside the debounce window collapsing to one export, requests during an export scheduling exactly one follow-up, exports never overlapping, error reporting without escaping the loop, faulted-task handling, disposal canceling the delegate's token, single-run enforcement, idempotent disposal, and disposing before or while running. |
 | `PlayniteCatalogAdapterTests` (pre-existing) | Missing file, mapping to `GameEntry`, empty library, staleness boundary, last-known-good retention, reconnect, cache interval, coalescing, skipped records. |
-| `PlayniteCatalogAdapterPolicyTests` | Default path and policy constants, the adapter never creating or deleting the snapshot, reading while a writer holds the file open, a directory at the snapshot path being reported as unavailable rather than missing, invalid records keeping the library usable, empty/unsupported files, adapter output ranking through `GameSearch`, interval boundary behavior, repeated failures retaining the same last-known-good data, concurrent callers sharing a read, pre-canceled callers, immutability of returned results, and a 2,000-game round trip through the real publisher and adapter. |
+| `PlayniteCatalogAdapterPolicyTests` | Default path and policy constants, the adapter never creating or deleting the snapshot, reading while a writer holds the file open, a directory at the snapshot path being reported as unavailable rather than missing, invalid records keeping the library usable, empty/unsupported files, adapter output ranking through `GameSearch`, interval boundary behavior, repeated failures retaining the same last-known-good data, concurrent callers sharing a read, pre-canceled callers, immutability of returned results, and a 2,000-game round trip through the real publisher and adapter. All of it passed on Windows in run [41184115994](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41184115994). |
 
 ## What runs where
 
@@ -60,17 +60,20 @@ Test data is generated in the test process and written to a temporary directory 
 | Real-library verification (`tools/CatalogVerifier` and the [Catalog Bridge checklist](CATALOG-BRIDGE.md#manual-playnite-verification-still-required)) | Manual | No | No | Yes | Playnite (PowerToys only for the launch UI) |
 | Launch-by-ID URI smoke test | Manual | No | No | Yes | Playnite + PowerToys, plus one real game |
 
-Run status: the suites described here were authored in a Linux environment with no .NET
-SDK, so they were never executed there — only parsed and reviewed. They have since run for
-real on GitHub-hosted Windows runners. Run
-[41184115994](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41184115994)
-(Windows CI, commit `aec765b`) passed restore, the Release build, `66/66` core tests,
-`183/183` adapter tests, and the .NET Framework snapshot smoke step; the matching CodeQL run
-[41184115933](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41184115933)
-passed with the same script. Three defects had to be fixed before that run went green: a
-ranking theory that asserted a query-independent result count, a parser test whose hand-built
-envelope was missing its closing brace, and a contract test that expected the game ID to be
-trimmed. Each was a defect in the test, not in the code under test.
+Run status: the suites described here were authored in a Linux environment with no .NET SDK,
+so they were never executed there — only parsed and reviewed. They have since run for real on
+GitHub-hosted Windows runners:
+
+- [41184115994](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41184115994) — Windows CI on `aec765b`: restore, Release build, `66/66` core tests, `183/183` adapter
+  tests, and the .NET Framework snapshot smoke step all passed.
+- [41184115933](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41184115933) — CodeQL on the same commit, running the same shared script, passed.
+- [41184813275](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41184813275) — Windows CI on the final head `ad1caa5`, after the documentation updates, passed again.
+
+Three defects in the new tests had to be fixed before the first green run: a ranking theory
+that asserted a query-independent result count, a parser test whose hand-built envelope was
+missing its closing brace, and a contract test that expected the game ID to be trimmed. Each
+was a defect in the test, not in the code under test — the suites are the first execution these
+code paths have had, so expect that to keep happening until they have run a few more times.
 
 The authoritative result is still the Windows CI run (and the .NET Framework smoke step)
 attached to the pull request that adds or changes a test. A green run elsewhere proves the
