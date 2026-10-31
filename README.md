@@ -1,6 +1,9 @@
 # PlayniteCmdPal
 
-![PlayniteCmdPal](PlayniteCmdPal-Brand-Assets/svg/wordmark-horizontal.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="PlayniteCmdPal-Brand-Assets/svg/wordmark-horizontal-dark.svg">
+  <img alt="PlayniteCmdPal" src="PlayniteCmdPal-Brand-Assets/svg/wordmark-horizontal.svg">
+</picture>
 
 [![Windows CI](https://github.com/werdscopez7347/PlayniteCmdPal/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/werdscopez7347/PlayniteCmdPal/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/werdscopez7347/PlayniteCmdPal/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/werdscopez7347/PlayniteCmdPal/actions/workflows/codeql.yml)
