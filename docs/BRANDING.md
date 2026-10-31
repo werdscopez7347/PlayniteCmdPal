@@ -11,7 +11,8 @@ The authoritative brand source package is [PlayniteCmdPal-Brand-Assets](../Playn
 | MSIX square tile | `PlayniteCmdPal/Assets/Square150x150Logo.scale-200.png` | `icons/png/msix/Square150x150Logo.scale-200.png` |
 | MSIX small tile | `PlayniteCmdPal/Assets/Square44x44Logo.scale-200.png` | `icons/png/msix/Square44x44Logo.scale-200.png` |
 | Small unplated glyph | `PlayniteCmdPal/Assets/Square44x44Logo.targetsize-24_altform-unplated.png` | `icons/png/msix/Square44x44Logo.targetsize-24_altform-unplated.png` |
-| Wide tile and splash | `PlayniteCmdPal/Assets/Wide310x150Logo.scale-200.png`, `SplashScreen.scale-200.png` | `icons/png/msix/Wide310x150Logo.scale-200.png` |
+| Wide tile | `PlayniteCmdPal/Assets/Wide310x150Logo.scale-200.png` | `icons/png/msix/Wide310x150Logo.scale-200.png` |
+| Splash screen | `PlayniteCmdPal/Assets/SplashScreen.scale-200.png` (1240×600) | `icons/png/msix/Wide310x150Logo.scale-400.png` (1240×600) |
 
 The MSIX manifest owns the asset filenames and logical surfaces. Keep the manifest references and checked-in files in sync. The existing package identity, publisher, COM class, and Command Palette extension registration are not branding assets and must not be changed as part of a visual refresh.
 
