@@ -35,7 +35,7 @@ Rounded Windows-style plate in Launch Cobalt. Inside: a command-prompt chevron (
 - Square tiles carry the rounded plate with transparent corners. Set the manifest tile `BackgroundColor` to `transparent` to avoid a plate inside a plate.
 - `Wide310x150Logo*` is full-bleed Graphite (`#14181F`) with the lockup. Use it only if the manifest declares a wide tile.
 - `*_altform-unplated` files are white glyphs, `*_altform-lightunplated` are Cobalt glyphs, both without plate.
-- The original splash screen slot is populated from the matching 310:150 wide lockup at scale 200. The package identity and Command Palette registration remain unchanged.
+- The splash-screen slot uses `icons/png/msix/Wide310x150Logo.scale-400.png` (1240×600), copied to `PlayniteCmdPal/Assets/SplashScreen.scale-200.png`. This is intentionally a 2×-density splash asset; it is not the `Wide310x150Logo.scale-200.png` tile (620×300). The package identity and Command Palette registration remain unchanged.
 
 ## Regenerate
 ```
@@ -109,7 +109,6 @@ Original artwork. Typeface Inter under SIL OFL 1.1. See `LICENSES/THIRD-PARTY-AS
 - `icons/png/glyph/glyph-white-310.png`  (4,775 bytes)
 - `icons/png/glyph/glyph-white-32.png`  (384 bytes)
 - `icons/png/glyph/glyph-white-40.png`  (638 bytes)
-- `icons/png/glyph/glyph-white-400.png`  (5,620 bytes)
 - `icons/png/glyph/glyph-white-48.png`  (816 bytes)
 - `icons/png/glyph/glyph-white-512.png`  (8,919 bytes)
 - `icons/png/glyph/glyph-white-64.png`  (1,043 bytes)
