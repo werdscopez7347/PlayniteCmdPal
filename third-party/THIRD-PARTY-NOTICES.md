@@ -67,7 +67,7 @@ self-contained build of the extension may copy into the package. The package dec
 a **Microsoft Windows SDK (preview) license** (`https://aka.ms/WinSDKPreviewLicenseURL`)
 and sets `requireLicenseAcceptance`; it is not MIT-licensed.
 
-Status: this component requires maintainer/legal confirmation that the projection
+Status: public redistribution of this component is blocked until authoritative confirmation that the projection
 assemblies may be redistributed as part of the extension, and a decision on shipping a
 stable (non-preview) Windows SDK targeting pack before the first public release. See
 the open items in `docs/LICENSING-AND-RELEASE.md`. Until that review is complete, a
@@ -86,10 +86,12 @@ runtime embeds components under other licenses that are listed in the runtime pa
 
 Obligations for each release:
 
-- Ship the runtime's `THIRD-PARTY-NOTICES.TXT` from the runtime pack actually restored
-  for `win-x64` and `win-arm64` (for example as
-  `dotnet-runtime-THIRD-PARTY-NOTICES.txt`), because a self-contained publish does not
-  copy it automatically.
+- The `CopyDotNetRuntimeThirdPartyNotices` MSBuild target copies the runtime's
+  `THIRD-PARTY-NOTICES.TXT` from the exact runtime pack selected by
+  `RuntimeIdentifier` and `RuntimeFrameworkVersion` to
+  `dotnet-runtime-THIRD-PARTY-NOTICES.txt` after self-contained publish. The target fails
+  if the source file is missing. Verify both `win-x64` and `win-arm64` publish outputs
+  on Windows before release.
 - Reproduce the .NET Library License reference and this notice in the release notes, or
   ship the license text alongside the package.
 - Re-check the runtime version and notices for every release; a repository copy would go
