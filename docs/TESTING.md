@@ -2,7 +2,7 @@
 
 This page explains what is tested, where each check runs, and how to run it. For installing the toolchain and deploying the extension, see [Developer Setup](DEVELOPER-SETUP.md).
 
-**Status (2026-10-31):** Automated coverage is synthetic and is designed to run without Playnite, PowerToys, a personal game library, or secrets. The test commands below are the ones executed by `scripts/ci.ps1`, which Windows CI and CodeQL run on `windows-latest`. The latest verified Windows CI run passed restore, Release build, 66 core tests, 183 adapter tests, and the .NET Framework smoke test ([run 41184813275](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41184813275)); see the verification evidence section of [Developer Setup](DEVELOPER-SETUP.md) for the evidence trail and its limits.
+**Status (2026-10-31):** Automated coverage is synthetic and is designed to run without Playnite, PowerToys, a personal game library, or secrets. The test commands below are the ones executed by `scripts/ci.ps1`, which Windows CI and CodeQL run on `windows-latest`. The latest verified Windows CI run passed restore, Release build, 66 core tests, 183 adapter tests, and the .NET Framework smoke test ([run 41190710365](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41190710365)); see the verification evidence section of [Developer Setup](DEVELOPER-SETUP.md) for the evidence trail and its limits.
 
 ## Test projects
 
@@ -131,11 +131,16 @@ How that number is established, so it can be re-derived rather than trusted:
 |---|---|---|---|
 | Count of `[Fact]` plus `[InlineData]` rows in each project in this commit | 66 | 183 | 249 |
 | `dotnet test` totals in Windows CI run [41184115994](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41184115994) | 66 | 183 | 249 |
+| `dotnet test` totals re-captured on commit `82d5afa` | 66 | 183 | 249 |
 
-Both agree. Counts drift as tests change, so treat the per-file table above as the authoritative
-map and re-read the `Passed!` line rather than trusting a number written here. If the two
-disagree, the `dotnet test` output wins: it is the only measurement that actually executed the
-tests.
+All three agree. The count was previously stated here and in an earlier pull-request description
+as 251; that figure was produced by an editing-time estimate before any test had executed, not by
+`dotnet test`, and it was wrong. It has been corrected to 249.
+
+Counts drift as tests change, so treat the per-file table above as the authoritative map and
+re-read the `Passed!` line rather than trusting a number written here. If the written count and
+`dotnet test` disagree, the `dotnet test` output wins: it is the only measurement that actually
+executed the tests.
 
 ### Expected outcome
 
@@ -147,6 +152,7 @@ A passing run ends with `Passed! - Failed: 0, Passed: <n>, Skipped: 0, Total: <n
 - **No environment dependence.** Do not read `%LOCALAPPDATA%`, `%APPDATA%`, the registry, the clock, or the network. Pass an explicit path and use a fake `TimeProvider` when time matters.
 - **Own your temporary files.** Create `%TEMP%\PlayniteCmdPal.Tests\<guid>` in the constructor and delete it in `Dispose`, ignoring `IOException` during cleanup.
 - **Deterministic concurrency tests.** Prefer synchronization primitives (`TaskCompletionSource`, `SemaphoreSlim`) over fixed sleeps. When a test must prove *coalescing*, hold the in-flight export open until every extra request has been issued; a short sleep can let the export finish and split the burst into two exports. `TaskCompletionSource` is not `IDisposable`, so do not declare it with `using`.
+- **Repeat concurrency tests before trusting them.** `CatalogExportCoordinatorLifecycleTests` is the suite most likely to be flaky, so it was run 10 consecutive times on Windows in a single job (commit `82d5afa`): all iterations passed. Re-run it in a loop after changing it rather than concluding "it passed once" means deterministic.
 - **Assert after the loop exits, not after a sleep.** `RunAsync` only completes once the coordinator has stopped, and a stopped coordinator cannot start another export. For "and then nothing else happened" assertions, signal completion from the delegate or the error callback, then `Dispose()` and `await run` before reading the count. In `CatalogExportCoordinatorLifecycleTests` every such assertion now works this way; the only remaining `Task.Delay` is the infinite delay that *is* the cancellation behavior under test, plus the debounce window itself, which is time-based behavior and therefore needs a real interval.
 - **Assert one contract per test, with the reason.** When a test pins a rule that a future refactor might be tempted to "fix" (for example, only non-alphanumeric characters start a word match), say so in a comment.
 - **Do not assert behavior the code does not promise.** If a case depends on an unverified framework policy (for example, how a particular JSON reader treats a lone surrogate escape), do not encode it as a test. Move it to the "Known gaps" list instead.

@@ -250,7 +250,7 @@ dotnet build .\PlayniteCmdPal.sln --no-restore -c Debug -p:Platform=x64
 dotnet build .\PlayniteCmdPal.sln --no-restore -c Debug -p:Platform=ARM64
 ```
 
-**Observed on the maintainer's Windows machine (SDK 10.0.403, OS build 19044):** restore completed with exit code 0, and all four builds returned exit code 0. Outputs targeted `win-x64` and `win-arm64`. The earlier `APPX1685` failure with default language `en-AE` was resolved by the explicit `en-US` manifest resource language. These results were produced locally by the maintainer, not by an independent reviewer.
+**Observed on the maintainer's Windows machine (SDK 10.0.403, Windows 10 build 19041):** restore completed with exit code 0, and all four builds returned exit code 0. Outputs targeted `win-x64` and `win-arm64`. The earlier `APPX1685` failure with default language `en-AE` was resolved by the explicit `en-US` manifest resource language. These results were produced locally by the maintainer, not by an independent reviewer.
 
 ## Verification evidence
 
@@ -266,6 +266,8 @@ Recorded run identifiers, with what each run actually proves:
 | [41184115933](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41184115933) | CodeQL | `arena/c6f57282-playnitecmdpal`, commit `aec765b` | success | The same shared script plus CodeQL analysis passed with the expanded suites. |
 | [41184813275](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41184813275) | Windows CI | `arena/c6f57282-playnitecmdpal`, commit `ad1caa5` | success, 1 m 57 s | The final pull-request head still passes every step after the documentation updates and the removal of the temporary diagnostic workflow. |
 | [41184813264](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41184813264) | CodeQL | `arena/c6f57282-playnitecmdpal`, commit `ad1caa5` | success | Analysis also passes on the final head. |
+| [41190710365](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41190710365) | Windows CI | `arena/c6f57282-playnitecmdpal`, commit `82d5afa` | success | Still 66 core and 183 adapter tests passing after the concurrency tests were rewritten to use completion signals instead of fixed sleeps. |
+| [41190710362](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41190710362) | CodeQL | `arena/c6f57282-playnitecmdpal`, commit `82d5afa` | success | The same shared script plus analysis passes on that commit. |
 | [41016300900](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41016300900) | Windows CI | PR #10 head | success | The catalog bridge implementation passed the shared checks before merge. |
 | [41016300844](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41016300844) | CodeQL | PR #10 head | success | Analysis passed for the merged bridge change. |
 
@@ -353,7 +355,7 @@ For Playnite-side diagnostics, Playnite writes host loading errors to `playnite.
 - [x] Windows restore succeeded after the fix (`dotnet restore .\PlayniteCmdPal.sln`, exit code 0).
 - [x] x64 and ARM64 builds succeeded with and without the `DefaultLanguage=en-US` override (all four builds exit code 0).
 - [x] Visual Studio package deployment succeeded; Command Palette extension reload and placeholder-page runtime check succeeded.
-- [x] Windows version recorded as 10.0.19044 and .NET SDK as 10.0.403.
+- [ ] Exact Windows build recorded. The Windows 10 build 19041 environment is the documented development and test environment, but earlier notes on this page also mention `10.0.19044`, and the two have not been reconciled. Both are Windows 10 2004-family builds; re-check with `winver` before citing a specific build as verified.
 - [x] Shared script, both test projects, and the .NET Framework smoke test pass in Windows CI and the CodeQL workflow.
 - [ ] Exact installed Visual Studio version/workloads and PowerToys version recorded.
 - [ ] **Deferred, not passed:** this page replayed from a fresh Windows image by someone other than the maintainer. Deferred on 2026-10-31 because the maintainer's development and test machine is the Windows 10 build 19041 environment above and no separate clean Windows machine was available. This is environmental, not a recorded technical failure — do not mark it complete without a real clean-machine run.
