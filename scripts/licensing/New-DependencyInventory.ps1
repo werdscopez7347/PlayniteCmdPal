@@ -425,6 +425,12 @@ foreach ($recordKey in ($packageRecords.Keys | Sort-Object)) {
         $notes.Add("License expression '$($license.licenseExpression)' is not on the assessed list ($($allowedLicenseExpressions -join ', ')).")
         $requiresReview = $true
     }
+    elseif (-not [string]::IsNullOrWhiteSpace($license.licenseFile)) {
+        # A nuspec license-file path is not itself evidence that the file was read,
+        # identified, or assessed. Never mark file-only metadata as approved.
+        $notes.Add("Package declares a license file ('$($license.licenseFile)'); inspect the referenced file and record an explicit assessment before treating this package as cleared.")
+        $requiresReview = $true
+    }
 
     if ($license.requireLicenseAcceptance) {
         $notes.Add('Package sets requireLicenseAcceptance; confirm that the acceptance obligation is satisfied for redistribution.')
