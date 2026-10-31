@@ -1,0 +1,309 @@
+using PlayniteCmdPal.Snapshot;
+using Xunit;
+
+namespace PlayniteCmdPal.Playnite.Tests;
+
+/// <summary>
+/// Lifecycle and failure-isolation tests for the debounced export coordinator. The delegate is a
+/// synthetic stand-in for a Playnite export, so no Playnite installation is required.
+/// </summary>
+public sealed class CatalogExportCoordinatorLifecycleTests
+{
+    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan Settle = TimeSpan.FromMilliseconds(250);
+
+    [Fact]
+    public void ConstructorRejectsMissingDelegateOrNegativeDebounce()
+    {
+        Assert.Equal("exportAsync", Assert.Throws<ArgumentNullException>(() => new CatalogExportCoordinator(null!, TimeSpan.Zero)).ParamName);
+        Assert.Equal("debounce", Assert.Throws<ArgumentOutOfRangeException>(() => new CatalogExportCoordinator(_ => Task.CompletedTask, TimeSpan.FromMilliseconds(-1))).ParamName);
+    }
+
+    [Fact]
+    public async Task ZeroDebounceStillPerformsTheRequestedExport()
+    {
+        var exported = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var coordinator = new CatalogExportCoordinator(_ =>
+        {
+            exported.TrySetResult();
+            return Task.CompletedTask;
+        }, TimeSpan.Zero);
+
+        var run = coordinator.RunAsync();
+        coordinator.RequestExport();
+
+        await exported.Task.WaitAsync(Timeout);
+        coordinator.Dispose();
+        await run.WaitAsync(Timeout);
+    }
+
+    [Fact]
+    public async Task RequestMadeBeforeTheLoopStartsIsHonored()
+    {
+        var exported = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var coordinator = new CatalogExportCoordinator(_ =>
+        {
+            exported.TrySetResult();
+            return Task.CompletedTask;
+        }, TimeSpan.FromMilliseconds(10));
+
+        coordinator.RequestExport();
+        var run = coordinator.RunAsync();
+
+        await exported.Task.WaitAsync(Timeout);
+        coordinator.Dispose();
+        await run.WaitAsync(Timeout);
+    }
+
+    [Fact]
+    public async Task ExportsNeverOverlapEvenForFollowUpRequests()
+    {
+        var active = 0;
+        var maximumConcurrency = 0;
+        var exports = 0;
+        var gate = new object();
+        var firstStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        // Two exports must run: the requested one plus the follow-up requested during it.
+        var twoExports = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var coordinator = new CatalogExportCoordinator(async _ =>
+        {
+            int exportNumber;
+            lock (gate)
+            {
+                maximumConcurrency = Math.Max(maximumConcurrency, Interlocked.Increment(ref active));
+                exportNumber = ++exports;
+            }
+
+            if (exportNumber == 1)
+            {
+                firstStarted.TrySetResult();
+            }
+            else
+            {
+                twoExports.TrySetResult();
+            }
+
+            try
+            {
+                await Task.Delay(20);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref active);
+            }
+        }, TimeSpan.FromMilliseconds(5));
+
+        var run = coordinator.RunAsync();
+        coordinator.RequestExport();
+
+        // Wait until the first export is definitely in flight, then request more work. These
+        // requests land inside the export, so exactly one follow-up export is scheduled.
+        await firstStarted.Task.WaitAsync(Timeout);
+        await Task.WhenAll(Enumerable.Range(0, 16).Select(_ => Task.Run(() => coordinator.RequestExport())));
+        await twoExports.Task.WaitAsync(Timeout);
+
+        coordinator.Dispose();
+        await run.WaitAsync(Timeout);
+
+        Assert.Equal(1, Volatile.Read(ref maximumConcurrency));
+        Assert.Equal(2, Volatile.Read(ref exports));
+    }
+
+    [Fact]
+    public async Task RequestsInsideTheDebounceWindowCollapseIntoOneExport()
+    {
+        var exports = 0;
+        var firstStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var holdFirstExport = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var coordinator = new CatalogExportCoordinator(async _ =>
+        {
+            if (Interlocked.Increment(ref exports) == 1)
+            {
+                firstStarted.TrySetResult();
+                await holdFirstExport.Task;
+            }
+        }, TimeSpan.FromMilliseconds(1));
+
+        var run = coordinator.RunAsync();
+        coordinator.RequestExport();
+        await firstStarted.Task.WaitAsync(Timeout);
+
+        // Every request below arrives while the only export is still running. Requests made
+        // during an export schedule exactly one follow-up, so a second export here would mean
+        // the debounce did not coalesce this burst.
+        for (var index = 0; index < 10; index++)
+        {
+            coordinator.RequestExport();
+        }
+
+        holdFirstExport.TrySetResult();
+        await Task.Delay(Settle * 2);
+        coordinator.Dispose();
+        await run.WaitAsync(Timeout);
+
+        Assert.Equal(1, Volatile.Read(ref exports));
+    }
+
+    [Fact]
+    public async Task ErrorsAreReportedAndNeverEscapeTheLoop()
+    {
+        var reported = new System.Collections.Concurrent.ConcurrentQueue<Exception>();
+        var attempts = 0;
+        var successes = 0;
+        using var coordinator = new CatalogExportCoordinator(
+            async _ =>
+            {
+                if (Interlocked.Increment(ref attempts) == 1)
+                {
+                    await Task.Yield();
+                    throw new InvalidOperationException("synthetic export failure");
+                }
+
+                Interlocked.Increment(ref successes);
+            },
+            TimeSpan.FromMilliseconds(10),
+            exception => reported.Enqueue(exception));
+
+        var run = coordinator.RunAsync();
+        coordinator.RequestExport();
+        await Task.Delay(Settle * 2);
+        var firstError = Assert.Single(reported);
+        Assert.Equal("synthetic export failure", firstError.Message);
+        Assert.Equal(0, Volatile.Read(ref successes));
+
+        coordinator.RequestExport();
+        await Task.Delay(Settle * 2);
+        coordinator.Dispose();
+        await run.WaitAsync(Timeout);
+
+        Assert.Equal(1, Volatile.Read(ref successes));
+        Assert.Single(reported);
+    }
+
+    [Fact]
+    public async Task ADelegateThatReturnsAFaultedTaskIsTreatedAsAFailedExport()
+    {
+        var reported = new TaskCompletionSource<Exception>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var laterExport = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var attempts = 0;
+        using var coordinator = new CatalogExportCoordinator(_ =>
+        {
+            if (Interlocked.Increment(ref attempts) == 1)
+            {
+                return Task.FromException(new IOException("synthetic failure"));
+            }
+
+            laterExport.TrySetResult();
+            return Task.CompletedTask;
+        }, TimeSpan.FromMilliseconds(10), exception => reported.TrySetResult(exception));
+
+        var run = coordinator.RunAsync();
+        coordinator.RequestExport();
+        var error = await reported.Task.WaitAsync(Timeout);
+        Assert.IsAssignableFrom<IOException>(error);
+
+        coordinator.RequestExport();
+        await laterExport.Task.WaitAsync(Timeout);
+        coordinator.Dispose();
+        await run.WaitAsync(Timeout);
+        Assert.Equal(2, Volatile.Read(ref attempts));
+    }
+
+    [Fact]
+    public async Task DisposalCancelsTheTokenHandedToTheExport()
+    {
+        using var exportStarted = new SemaphoreSlim(0);
+        var observedCancellation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var coordinator = new CatalogExportCoordinator(async token =>
+        {
+            exportStarted.Release();
+            try
+            {
+                await Task.Delay(System.Threading.Timeout.InfiniteTimeSpan, token);
+                observedCancellation.TrySetResult(false);
+            }
+            catch (OperationCanceledException)
+            {
+                observedCancellation.TrySetResult(true);
+            }
+        }, TimeSpan.Zero);
+
+        var run = coordinator.RunAsync();
+        coordinator.RequestExport();
+        Assert.True(await exportStarted.WaitAsync(Timeout));
+
+        coordinator.Dispose();
+
+        Assert.True(await observedCancellation.Task.WaitAsync(Timeout));
+        await run.WaitAsync(Timeout);
+    }
+
+    [Fact]
+    public async Task RunAsyncCanOnlyBeStartedOnce()
+    {
+        using var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var coordinator = new CatalogExportCoordinator(_ => release.Task, TimeSpan.Zero);
+
+        var run = coordinator.RunAsync();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => coordinator.RunAsync());
+        release.TrySetResult();
+        coordinator.Dispose();
+        await run.WaitAsync(Timeout);
+    }
+
+    [Fact]
+    public async Task StopAfterDisposalIsNotFatalAndIgnoresLaterRequests()
+    {
+        var exports = 0;
+        var coordinator = new CatalogExportCoordinator(_ =>
+        {
+            Interlocked.Increment(ref exports);
+            return Task.CompletedTask;
+        }, TimeSpan.Zero);
+
+        var run = coordinator.RunAsync();
+        coordinator.Dispose();
+        coordinator.Dispose(); // Idempotent.
+
+        await run.WaitAsync(Timeout);
+        coordinator.RequestExport(); // Ignored: no exception, no export.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => coordinator.RunAsync());
+        Assert.Equal(0, Volatile.Read(ref exports));
+    }
+
+    [Fact]
+    public async Task DisposeWithoutEverRunningIsSafe()
+    {
+        var coordinator = new CatalogExportCoordinator(_ => Task.CompletedTask, TimeSpan.FromSeconds(1));
+
+        coordinator.Dispose();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => coordinator.RunAsync());
+    }
+
+    [Fact]
+    public async Task DisposeWhileWaitingForTheFirstRequestCompletesTheLoop()
+    {
+        var coordinator = new CatalogExportCoordinator(_ => Task.CompletedTask, TimeSpan.Zero);
+        var run = coordinator.RunAsync();
+
+        coordinator.Dispose();
+
+        await run.WaitAsync(Timeout);
+    }
+
+    [Fact]
+    public async Task ErrorDelegateIsOptional()
+    {
+        using var coordinator = new CatalogExportCoordinator(
+            _ => throw new IOException("synthetic failure"),
+            TimeSpan.FromMilliseconds(5));
+
+        var run = coordinator.RunAsync();
+        coordinator.RequestExport();
+        await Task.Delay(Settle);
+        coordinator.Dispose();
+
+        await run.WaitAsync(Timeout);
+    }
+}
