@@ -39,7 +39,7 @@ This is a direction for investigation, not permission to distribute. Store ident
 
 The repository has an original brand asset pack at `PlayniteCmdPal-Brand-Assets/`. Its `icons/png/app-icon-256.png` is documented as a 256×256 PNG (5,393 bytes), which fits the Gallery guide's recommended 256×256 size and 100 KB maximum. Use this asset as the candidate Gallery icon after checking the actual file and previewing it at small sizes.
 
-The MSIX-specific exports are in `PlayniteCmdPal-Brand-Assets/icons/png/msix/`. They are not automatically wired into `PlayniteCmdPal/Assets/`; do not assume that replacing the existing manifest assets is safe. Map each manifest path to the selected artwork and validate the package visually before changing those references.
+The MSIX-specific exports are in `PlayniteCmdPal-Brand-Assets/icons/png/msix/`. Their integration is being handled separately in [branding PR #18](https://github.com/werdscopez7347/PlayniteCmdPal/pull/18), which is still open against `dev` as of this revision; its proposed mapping is recorded in that PR's `docs/BRANDING.md` and asset-package README. This release branch is based on the current `dev` baseline and does not include that pending integration. Once PR #18 merges, update this guide against the merged `docs/BRANDING.md` mapping and verify the manifest-to-file paths and package visuals; do not treat the proposed mapping as integrated before then.
 
 ### Gallery listing draft
 
