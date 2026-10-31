@@ -120,7 +120,22 @@ dotnet test .\PlayniteCmdPal.Core.Tests\PlayniteCmdPal.Core.Tests.csproj --logge
 
 ### Coverage at a glance
 
-The suites hold 249 test cases (facts plus `[InlineData]` rows) split across the two projects: 66 for domain/search and 183 for the snapshot contract, publication, refresh, and adapter policy. The coverage added for [WERD-62](https://linear.app/werdscopez7347/issue/WERD-62/expand-automated-tests-and-finalize-the-developer-setup-guide) accounts for 148 of them. Counts drift as tests change; the per-file table above is the authoritative map, and the counts are cross-checked against the totals printed by `dotnet test` on Windows.
+The suites hold **249 test cases** (facts plus `[InlineData]` rows) split across the two
+projects: **66** for domain/search and **183** for the snapshot contract, publication, refresh,
+and adapter policy. Of those, 148 were added for
+[WERD-62](https://linear.app/werdscopez7347/issue/WERD-62/expand-automated-tests-and-finalize-the-developer-setup-guide).
+
+How that number is established, so it can be re-derived rather than trusted:
+
+| Source | Core | Adapter | Total |
+|---|---|---|---|
+| Count of `[Fact]` plus `[InlineData]` rows in each project in this commit | 66 | 183 | 249 |
+| `dotnet test` totals in Windows CI run [41184115994](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41184115994) | 66 | 183 | 249 |
+
+Both agree. Counts drift as tests change, so treat the per-file table above as the authoritative
+map and re-read the `Passed!` line rather than trusting a number written here. If the two
+disagree, the `dotnet test` output wins: it is the only measurement that actually executed the
+tests.
 
 ### Expected outcome
 
@@ -132,6 +147,7 @@ A passing run ends with `Passed! - Failed: 0, Passed: <n>, Skipped: 0, Total: <n
 - **No environment dependence.** Do not read `%LOCALAPPDATA%`, `%APPDATA%`, the registry, the clock, or the network. Pass an explicit path and use a fake `TimeProvider` when time matters.
 - **Own your temporary files.** Create `%TEMP%\PlayniteCmdPal.Tests\<guid>` in the constructor and delete it in `Dispose`, ignoring `IOException` during cleanup.
 - **Deterministic concurrency tests.** Prefer synchronization primitives (`TaskCompletionSource`, `SemaphoreSlim`) over fixed sleeps. When a test must prove *coalescing*, hold the in-flight export open until every extra request has been issued; a short sleep can let the export finish and split the burst into two exports. `TaskCompletionSource` is not `IDisposable`, so do not declare it with `using`.
+- **Assert after the loop exits, not after a sleep.** `RunAsync` only completes once the coordinator has stopped, and a stopped coordinator cannot start another export. For "and then nothing else happened" assertions, signal completion from the delegate or the error callback, then `Dispose()` and `await run` before reading the count. In `CatalogExportCoordinatorLifecycleTests` every such assertion now works this way; the only remaining `Task.Delay` is the infinite delay that *is* the cancellation behavior under test, plus the debounce window itself, which is time-based behavior and therefore needs a real interval.
 - **Assert one contract per test, with the reason.** When a test pins a rule that a future refactor might be tempted to "fix" (for example, only non-alphanumeric characters start a word match), say so in a comment.
 - **Do not assert behavior the code does not promise.** If a case depends on an unverified framework policy (for example, how a particular JSON reader treats a lone surrogate escape), do not encode it as a test. Move it to the "Known gaps" list instead.
 - **Keep the suites fast.** Everything runs in seconds; total CI time is dominated by restore and build, not by tests. Avoid tests that would need multi-second timeouts.
@@ -150,11 +166,38 @@ than "the adapter regressed":
 Everything else asserts project-defined behavior (validation, ranking, parsing, publication,
 caching) and should behave identically on any OS with .NET 10.
 
+The lifecycle tests contain two deliberate uses of time. `RequestsInsideTheDebounceWindowCollapseIntoOneExport`
+uses a 200 ms debounce because the window *is* the behavior: no export may start until it
+elapses, which is what guarantees the burst lands inside one window. `DisposalCancelsTheTokenHandedToTheExport`
+awaits `Task.Delay(Timeout.InfiniteTimeSpan, token)` because the only observable proof of
+cancellation is an awaiting operation being canceled. Neither is used to "wait and hope" that an
+assertion becomes true.
+
+## Operating-system scope
+
+The suites assert project-defined behavior, not operating-system support. Keeping these claims
+separate matters when reporting results:
+
+- **Tested environment.** The project is developed and tested on Windows 10 build 19041. That is
+  the maintainer's development and test environment, and it is where the local runs behind this
+  page come from.
+- **Upstream requirement.** Microsoft's Command Palette documentation lists Windows 11 as a
+  prerequisite. That is recorded here as an upstream documentation requirement. It is not
+  evidence that these tests fail on Windows 10, and it is not evidence that they pass on
+  Windows 11.
+- **What automation proves.** Windows CI runs on `windows-latest`, a GitHub-hosted server image.
+  It proves the code compiles and the assertions hold there. It says nothing about Windows 10,
+  Windows 11, or any specific PowerToys version on a desktop.
+
+Do not describe Windows 10 as officially supported by Microsoft for Command Palette extensions,
+and do not describe this project as unable to run on Windows 10 — neither claim has evidence
+here. Windows 11 compatibility has not been independently validated.
+
 ## Known gaps
 
 These are deliberately not automated yet; each needs a Windows host and, in most cases, installed applications.
 
-- Clean-machine setup: the [Developer Setup](DEVELOPER-SETUP.md) steps have not been replayed on a freshly imaged Windows machine by an independent contributor.
+- **Clean-machine setup (deferred, not passed):** the [Developer Setup](DEVELOPER-SETUP.md) steps have not been replayed on a freshly imaged Windows machine by an independent contributor. Deferred on 2026-10-31: the maintainer develops and tests on Windows 10 build 19041 and no separate clean Windows machine was available. This is an environmental limitation, not a failure, and the step must not be reported as complete until it actually happens.
 - The companion plugin's Playnite event wiring (`OnDatabaseOpened`, game/source/platform collection changes, relevance filtering of game updates) is compiled but not unit tested, because `PlayniteApi` is supplied by the Playnite host. Its observable behavior is covered manually through the [Catalog Bridge checklist](CATALOG-BRIDGE.md#manual-playnite-verification-still-required).
 - The CmdPal presentation layer (search page, ranking display, launch action) has no automated tests; it is exercised by manual deploy/reload and the launch-by-ID smoke test.
 - No test verifies the real Playnite library contents against the snapshot (by design: that would require personal data).

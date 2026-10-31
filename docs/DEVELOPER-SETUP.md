@@ -2,7 +2,7 @@
 
 This guide takes a clean Windows machine to a running build, an automated test run, a deployed Command Palette extension, and an optional real Playnite library check.
 
-**Status (2026-10-31):** Windows CI and CodeQL pass restore, Release build, both test projects (66 core and 183 adapter cases), and the .NET Framework snapshot smoke test on GitHub-hosted runners; see the evidence table below for the exact runs. The maintainer has additionally reported a successful Windows walkthrough: .NET SDK 10.0.403 on Windows 10 build 19044, x64 and ARM64 builds with and without `-p:DefaultLanguage=en-US`, Visual Studio package deployment, and a Command Palette placeholder-page load. The sections below separate **checked-in facts** from **verified on a real machine** so a reader can tell what has actually been exercised. The one thing not yet done is a full replay of this page on a freshly imaged machine by someone other than the maintainer; that remains an open gap, and this page is not evidence that it was done. Do not regenerate the CmdPal template.
+**Status (2026-10-31):** Windows CI and CodeQL pass restore, Release build, both test projects (66 core and 183 adapter cases), and the .NET Framework snapshot smoke test on GitHub-hosted runners; see the evidence table below for the exact runs. The maintainer has additionally reported a successful Windows walkthrough: .NET SDK 10.0.403 on Windows 10 build 19044, x64 and ARM64 builds with and without `-p:DefaultLanguage=en-US`, Visual Studio package deployment, and a Command Palette placeholder-page load. The sections below separate **checked-in facts** from **verified on a real machine** so a reader can tell what has actually been exercised. The maintainer develops and tests on **Windows 10 build 19041**, and a full replay of this page on a freshly imaged machine by someone other than the maintainer has **not** been done — that acceptance step is deferred, not passed (see [Operating-system requirements and what has actually been tested](#operating-system-requirements-and-what-has-actually-been-tested)). This page is not evidence that it was done. Do not regenerate the CmdPal template.
 
 Related pages: [Testing](TESTING.md) (what runs where, and how to run it), [Catalog Bridge](CATALOG-BRIDGE.md) (snapshot transport and real-library checklist), [Troubleshooting](#troubleshooting).
 
@@ -10,13 +10,28 @@ Related pages: [Testing](TESTING.md) (what runs where, and how to run it), [Cata
 
 | Requirement | Why | Source |
 |---|---|---|
-| Windows 10 version 2004 (build 19041) or later, or Windows 11 | Matches `TargetPlatformMinVersion`/`SupportedOSPlatformVersion` in `PlayniteCmdPal/PlayniteCmdPal.csproj` and PowerToys' own minimum, which is also Windows 10 build 19041. | Checked in; matches PowerToys requirements |
+| Windows with build 19041 or later | Matches `TargetPlatformMinVersion`/`SupportedOSPlatformVersion` in `PlayniteCmdPal/PlayniteCmdPal.csproj`, and PowerToys' own minimum, which is also Windows 10 build 19041. Windows 10 build 19041 is the environment this project is developed and tested on. | Checked in; see [operating-system requirements](#operating-system-requirements-and-what-has-actually-been-tested) |
 | x64 or ARM64 Windows | The project declares `win-x64;win-arm64` runtime identifiers and `x64;ARM64` MSBuild platforms. There is no 32-bit target. | Checked in |
 | A non-administrator or administrator account that can enable Developer Mode | Local MSIX deployment requires Developer Mode or a trusted signing certificate. | [Microsoft: Developer Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development) |
 | PowerToys installed, with Command Palette **enabled** | The extension is loaded by Command Palette, not by Windows. | [Command Palette overview](https://learn.microsoft.com/en-us/windows/powertoys/command-palette/overview) |
 | Playnite (only for real-library checks) | Playnite supplies the SDK assembly at runtime and owns the library. | [Playnite docs](https://api.playnite.link/docs/manual/) |
 
-Microsoft's Command Palette documentation lists "Windows 11 with PowerToys installed" as its prerequisites, while PowerToys itself supports Windows 10 build 19041 and later. Practical rule for this repository: use a Windows build of at least 19041 with a current PowerToys, and prefer Windows 11 for the smoothest experience. Command Palette shipped in PowerToys 0.90; treat that as the floor and update PowerToys if an extension fails to appear.
+Microsoft's Command Palette documentation lists "Windows 11 with PowerToys installed" as its prerequisites, while PowerToys itself supports Windows 10 build 19041 and later. Command Palette shipped in PowerToys 0.90; treat that as the floor and update PowerToys if an extension fails to appear.
+
+### Operating-system requirements and what has actually been tested
+
+Six different claims get conflated in reviews. Keep them apart when reporting a result.
+
+| Claim | Status |
+|---|---|
+| Windows 10 build 19041 or later is the **maintainer's development and test environment** | Current practice. The project is developed and tested on Windows 10 build 19041; see the contributor environment table below. |
+| Microsoft's Command Palette documentation **states Windows 11** as a prerequisite | An upstream documentation requirement, recorded as such. It is not evidence that this project fails on Windows 10, and this project has no evidence that it does. |
+| This project **officially supports** Windows 10 for Command Palette extensions | Not claimed. Microsoft documents Windows 11; this repository does not overrule that. |
+| This project **cannot** run on Windows 10 | Not claimed either. There is no recorded technical incompatibility, and development continues on Windows 10. |
+| Windows 11 compatibility of this project has been **independently validated** | Not validated independently. The maintainer's environment is Windows 10, so Windows 11 behaviour is unverified beyond what CI shows. |
+| This page has been **replayed on a clean machine** by an independent contributor | **Deferred.** Not done, not passed. See the note below. |
+
+> **Deferred validation: clean-machine setup walkthrough.** Following this page from a freshly imaged Windows machine, by someone other than the maintainer, has not been performed. The reason is environmental rather than technical: the maintainer's development and test machine is the Windows 10 build 19041 environment described here, and no separate clean Windows machine was available for the acceptance test. This step is **deferred**, not completed, and nothing in this repository should be read as a record of a passing clean-machine run. What it would cover: Developer Mode, Visual Studio workloads, .NET 10 SDK, `scripts/ci.ps1`, deploy/reload, and the placeholder-page runtime check, all on a machine that has never built this project. Until then, treat every step as "documented and partly exercised by the maintainer", not "independently verified".
 
 ## 2. Enable Developer Mode
 
@@ -256,7 +271,7 @@ Recorded run identifiers, with what each run actually proves:
 
 Earlier runs that matter for context: [40351115311](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40351115311) (Windows CI, default-branch push), [40351115315](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40351115315) (CodeQL, default-branch push), [40833436815](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40833436815) (Windows CI, pull request, first core test), [40833436859](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40833436859) (CodeQL, pull request), [40835007856](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40835007856) (shared-script implementation), [40835007751](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40835007751) (CodeQL on the shared script), and [40490182715](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40490182715) (scheduled CodeQL).
 
-What these runs do **not** prove: that a clean machine follows this page successfully, that the extension renders a working search page, that the companion plugin behaves correctly against a specific real library, or that any minimum version of Windows, Visual Studio, PowerToys, or Playnite is supported. Those are covered by manual steps in [Catalog Bridge](CATALOG-BRIDGE.md) and tracked under known gaps in [Testing](TESTING.md).
+What these runs do **not** prove: that a clean machine follows this page successfully (deferred, see [operating-system requirements](#operating-system-requirements-and-what-has-actually-been-tested)), that the extension renders a working search page, that the companion plugin behaves correctly against a specific real library, or that any minimum version of Windows, Visual Studio, PowerToys, or Playnite is supported. Those are covered by manual steps in [Catalog Bridge](CATALOG-BRIDGE.md) and tracked under known gaps in [Testing](TESTING.md).
 
 ## Dependabot
 
@@ -278,7 +293,7 @@ The versions below are the environment in which the template was last validated,
 
 | Component | Validated environment / current evidence |
 |---|---|
-| Windows | Windows 10.0.19044 (maintainer machine); CI uses `windows-latest` |
+| Windows | Windows 10 build 19041 (maintainer machine) — the project's development and test environment. Windows 11 has not been independently validated. CI uses `windows-latest`, which is not evidence about either desktop OS. |
 | .NET SDK | 10.0.403 (SDK 10.0.302 was also installed; the validation commands used 10.0.403) |
 | Visual Studio | Installed and used for package deployment; exact version and workloads not captured |
 | PowerToys / Command Palette | Package deployed and extension loaded; exact PowerToys version not captured |
@@ -341,4 +356,4 @@ For Playnite-side diagnostics, Playnite writes host loading errors to `playnite.
 - [x] Windows version recorded as 10.0.19044 and .NET SDK as 10.0.403.
 - [x] Shared script, both test projects, and the .NET Framework smoke test pass in Windows CI and the CodeQL workflow.
 - [ ] Exact installed Visual Studio version/workloads and PowerToys version recorded.
-- [ ] This page replayed from a fresh Windows image by someone other than the maintainer.
+- [ ] **Deferred, not passed:** this page replayed from a fresh Windows image by someone other than the maintainer. Deferred on 2026-10-31 because the maintainer's development and test machine is the Windows 10 build 19041 environment above and no separate clean Windows machine was available. This is environmental, not a recorded technical failure — do not mark it complete without a real clean-machine run.
