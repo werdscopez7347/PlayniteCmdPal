@@ -31,11 +31,11 @@ Rounded Windows-style plate in Launch Cobalt. Inside: a command-prompt chevron (
 - All SVGs: explicit `viewBox`, no raster images, no external references, no filters, transparent background. Wordmarks are outlined paths. The monochrome symbol is a single even-odd compound path (no masks); edit its `fill` to recolour.
 
 ## Windows / MSIX usage
-- This package was produced **without access to the application repository or its `Package.appxmanifest`**. File names in `icons/png/msix/` follow Microsoft's standard asset naming conventions; they have **not** been checked against your manifest or project file. Map them to the manifest `Logo`, `Square44x44Logo`, `Square150x150Logo`, `Wide310x150Logo` and `StoreLogo` entries yourself.
+- The package has been integrated with the repository's `PlayniteCmdPal/Package.appxmanifest` and `PlayniteCmdPal/PlayniteCmdPal.csproj`. The manifest's `Logo`, `Square44x44Logo`, `Square150x150Logo`, and `Wide310x150Logo` entries resolve to the matching assets in `PlayniteCmdPal/Assets/`; the project uses `icons/ico/PlayniteCmdPal.ico` as its executable icon.
 - Square tiles carry the rounded plate with transparent corners. Set the manifest tile `BackgroundColor` to `transparent` to avoid a plate inside a plate.
 - `Wide310x150Logo*` is full-bleed Graphite (`#14181F`) with the lockup. Use it only if the manifest declares a wide tile.
 - `*_altform-unplated` files are white glyphs, `*_altform-lightunplated` are Cobalt glyphs, both without plate.
-- No application source or manifest file was modified.
+- The original splash screen slot is populated from the matching 310:150 wide lockup at scale 200. The package identity and Command Palette registration remain unchanged.
 
 ## Regenerate
 ```
