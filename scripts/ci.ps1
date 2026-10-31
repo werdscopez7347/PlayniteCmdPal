@@ -26,12 +26,14 @@ function Write-GitHubAnnotation {
 
     # GitHub check annotations are public, so only file/line and test names are reported.
     # Test output can contain local paths, so it is never copied into an annotation.
+    # Workflow commands must reach the standard output stream verbatim; some runners do not
+    # parse them from Write-Host, so use the console directly.
     if (-not $env:GITHUB_ACTIONS) {
         return
     }
 
     $escaped = $Message.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A').Replace('\'', '%27')
-    Write-Host "::error title=$Title::$escaped"
+    [Console]::Out.WriteLine("::error title=$Title::$escaped")
 }
 
 function Get-FailedTests {
@@ -81,15 +83,18 @@ function Invoke-DotNetStep {
     & dotnet @effective
     $exitCode = $LASTEXITCODE
 
-    if ($exitCode -eq 0 -and $ResultsDirectory) {
+    if ($ResultsDirectory) {
         $trx = Get-ChildItem -LiteralPath $ResultsDirectory -Filter '*.trx' -File -ErrorAction SilentlyContinue |
             Sort-Object LastWriteTime -Descending |
             Select-Object -First 1
         if ($trx) {
             try {
-                [xml] $passedTrx = Get-Content -LiteralPath $trx.FullName -Raw
-                $counters = $passedTrx.TestRun.ResultSummary.Counters
+                [xml] $trxDocument = Get-Content -LiteralPath $trx.FullName -Raw
+                $counters = $trxDocument.TestRun.ResultSummary.Counters
                 Write-Host ("Result: total={0} passed={1} failed={2} skipped={3}" -f $counters.total, $counters.passed, $counters.failed, $counters.notExecuted)
+                if ($env:GITHUB_STEP_SUMMARY) {
+                    Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value ("- {0}: total={1} passed={2} failed={3} skipped={4}" -f $Name, $counters.total, $counters.passed, $counters.failed, $counters.notExecuted)
+                }
             }
             catch {
                 Write-Host 'Result: test summary could not be read from the TRX file.'
@@ -99,6 +104,10 @@ function Invoke-DotNetStep {
 
     if ($exitCode -ne 0) {
         [Console]::Error.WriteLine("ERROR: $Name failed with exit code $exitCode.")
+
+        if ($env:GITHUB_STEP_SUMMARY) {
+            Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value ("- FAILED: {0} (exit code {1})" -f $Name, $exitCode)
+        }
 
         if ($ResultsDirectory) {
             $trx = Get-ChildItem -LiteralPath $ResultsDirectory -Filter '*.trx' -File -ErrorAction SilentlyContinue |
