@@ -113,7 +113,7 @@ No item above is resolved by this document alone; each needs a maintainer decisi
 
 ### Audit limitations
 
-- The audit reads declared package metadata and project/build configuration. It did not run a Windows build, publish, MSIX package or `.pext` packaging step in the environment where it was written, so the exact published file list, the trimmed asset set, and the resolved versions of range-only transitive dependencies still need confirmation from a release build.
+- The audit reads declared package metadata and project/build configuration. A Windows CI restore/build/test run passed after the notice packaging items were added, but no publish, MSIX packaging or `.pext` packaging step was run, and the inventory generator was only syntax-checked. The exact published file list, the trimmed asset set, and the resolved versions of range-only transitive dependencies therefore still need confirmation from a release build before this document is treated as release evidence.
 - Package metadata can change between versions; every dependency upgrade requires re-running the generator and revisiting this section.
 - This document is not legal advice. Escalate open items to the maintainer and, where warranted, to qualified counsel before the first public binary release.
 
