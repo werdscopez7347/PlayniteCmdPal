@@ -118,6 +118,15 @@ A passing run ends with `Passed! - Failed: 0, Passed: <n>, Skipped: 0, Total: <n
 - **Do not assert behavior the code does not promise.** If a case depends on an unverified framework policy (for example, how a particular JSON reader treats a lone surrogate escape), do not encode it as a test. Move it to the "Known gaps" list instead.
 - **Keep the suites fast.** Everything runs in seconds; total CI time is dominated by restore and build, not by tests. Avoid tests that would need multi-second timeouts.
 
+## Platform-sensitive assertions
+
+Two assertions depend on operating-system behavior rather than on project code, so treat a failure there as "check Windows semantics first" rather than "the adapter regressed":
+
+- `PlayniteCatalogAdapterPolicyTests.DirectoryPathInsteadOfFileIsReportedAsUnavailableRatherThanMissing` opens a **directory** as if it were the snapshot file. Windows reports that as `UnauthorizedAccessException` and Linux as an I/O error; the adapter maps both to `Unavailable`. Neither code path could be executed while this suite was written, so if the mapping differs on Windows this test is the one to inspect first.
+- `SnapshotFilePublisherContractTests.TemporaryFilesNeverRemainAfterAFailedPublication` occupies the destination with a directory so `File.Replace`/`File.Move` fail deterministically. Directory placement is not covered by any recorded Windows run either.
+
+Everything else asserts project-defined behavior (validation, ranking, parsing, publication, caching) and should behave identically on any OS with .NET 10.
+
 ## Known gaps
 
 These are deliberately not automated yet; each needs a Windows host and, in most cases, installed applications.
