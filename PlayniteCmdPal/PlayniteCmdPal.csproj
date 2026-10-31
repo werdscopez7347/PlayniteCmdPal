@@ -108,7 +108,7 @@
           Condition="'$(SelfContained)' == 'true' and '$(RuntimeIdentifier)' != ''">
     <ItemGroup>
       <!-- Use the SDK-resolved runtime pack, not RuntimeFrameworkVersion, which may be empty. -->
-      <_DotNetRuntimeNoticeFiles Include="@(ResolvedRuntimePack->'%(PackageDirectory)\\THIRD-PARTY-NOTICES.TXT')" />
+      <_DotNetRuntimeNoticeFiles Include="@(ResolvedRuntimePack->'%(PackageDirectory)\THIRD-PARTY-NOTICES.TXT')" />
     </ItemGroup>
 
     <Error Condition="'@(_DotNetRuntimeNoticeFiles)' == ''"
