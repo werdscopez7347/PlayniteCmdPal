@@ -73,12 +73,8 @@ public sealed class GameSearchRankingTests
         Assert.Single(results);
     }
 
-    [Theory]
-    [InlineData("Halo", "exact")]
-    [InlineData("Halo Infinite", "prefix")]
-    [InlineData("The Halo Effect", "word")]
-    [InlineData("Superhalo", "substring")]
-    public void QueryEqualToAnyCatalogTitleRanksThatTitleFirst(string exactTitle, string expectedGameId)
+    [Fact]
+    public void QueryEqualToAnyCatalogTitleRanksThatTitleFirst()
     {
         var catalog = new[]
         {
@@ -88,12 +84,15 @@ public sealed class GameSearchRankingTests
             new GameEntry("exact", "Halo"),
         };
 
-        var results = GameSearch.Search(catalog, exactTitle);
-
         // Any entry whose title equals the query is an exact match, whatever its other fields.
-        Assert.Equal(expectedGameId, results[0].GameId);
-        Assert.Equal(exactTitle, results[0].Title);
-        Assert.Equal(4, results.Count);
+        Assert.Equal("exact", GameSearch.Search(catalog, "Halo")[0].GameId);
+        Assert.Equal("prefix", GameSearch.Search(catalog, "Halo Infinite")[0].GameId);
+        Assert.Equal("word", GameSearch.Search(catalog, "The Halo Effect")[0].GameId);
+        Assert.Equal("substring", GameSearch.Search(catalog, "Superhalo")[0].GameId);
+
+        // Only titles that actually contain the query are returned, so corpus-wide counts vary.
+        Assert.Equal(4, GameSearch.Search(catalog, "Halo").Count);
+        Assert.Single(GameSearch.Search(catalog, "Superhalo"));
     }
 
     [Fact]

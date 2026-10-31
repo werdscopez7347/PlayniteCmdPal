@@ -102,7 +102,7 @@ dotnet test .\PlayniteCmdPal.Core.Tests\PlayniteCmdPal.Core.Tests.csproj --logge
 
 ### Coverage at a glance
 
-The suites hold 251 test cases (facts plus `[InlineData]` rows) split across the two projects: 69 for domain/search and 182 for the snapshot contract, publication, refresh, and adapter policy. The coverage added for [WERD-62](https://linear.app/werdscopez7347/issue/WERD-62/expand-automated-tests-and-finalize-the-developer-setup-guide) accounts for 148 of them. Counts drift as tests change; the per-file table above is the authoritative map.
+The suites hold 249 test cases (facts plus `[InlineData]` rows) split across the two projects: 66 for domain/search and 183 for the snapshot contract, publication, refresh, and adapter policy. The coverage added for [WERD-62](https://linear.app/werdscopez7347/issue/WERD-62/expand-automated-tests-and-finalize-the-developer-setup-guide) accounts for 148 of them. Counts drift as tests change; the per-file table above is the authoritative map.
 
 ### Expected outcome
 
