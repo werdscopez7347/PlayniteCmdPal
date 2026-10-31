@@ -70,7 +70,7 @@ public sealed class CatalogSnapshotParserProtocolTests
     {
         var games = $$"""{"id":"{{GameA}}","name":"caf\u00e9 · 🎮","isInstalled":false}""";
 
-        var result = CatalogSnapshotParser.Parse(Json(EnvelopePrefix + "[" + games + "]"));
+        var result = CatalogSnapshotParser.Parse(Json(EnvelopePrefix + "[" + games + "]}"));
 
         Assert.Null(result.Issue);
         Assert.Equal("café · 🎮", Assert.Single(result.Snapshot!.Games).Name);

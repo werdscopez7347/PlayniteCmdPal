@@ -116,11 +116,14 @@ public sealed class CatalogSnapshotContractTests
     }
 
     [Fact]
-    public void SnapshotGameTrimsRequiredAndOptionalText()
+    public void SnapshotGameTrimsTextFieldsButNeverTheIdentity()
     {
-        var game = new SnapshotGame(" " + GameA + " ", "  Halo  ", true, "  Steam ", "  PC  ");
+        var game = new SnapshotGame(GameA, "  Halo  ", true, "  Steam ", "  PC  ");
 
+        // Identity is preserved exactly; padding around a GUID is rejected rather than trimmed.
         Assert.Equal(GameA, game.Id);
+        Assert.Throws<ArgumentException>(() => new SnapshotGame(" " + GameA + " ", "Halo", true));
+
         Assert.Equal("Halo", game.Name);
         Assert.Equal("Steam", game.Source);
         Assert.Equal("PC", game.Platform);
