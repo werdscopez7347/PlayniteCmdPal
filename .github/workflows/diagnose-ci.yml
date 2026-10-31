@@ -40,8 +40,8 @@ jobs:
 
           # Surface step markers, errors, and test failures as annotations. Only names and
           # messages are reported; nothing is copied from a private data source.
-          grep -aE '^(==>|ERROR|FAILED)|error (CS|MSB|NETSDK|NU)[0-9]+|Failed!|Passed!' ci-diagnostic.log \
-            | head -n 60 \
+          grep -aE '^(==>|ERROR|FAILED)|error (CS|MSB|NETSDK|NU)[0-9]+|Failed!|Passed!|^[[:space:]]*Failed [A-Za-z]|Assert\.|Expected:|Actual:' ci-diagnostic.log \
+            | head -n 120 \
             | while IFS= read -r line; do
                 echo "::error::$line"
               done
