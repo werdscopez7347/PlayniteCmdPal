@@ -32,6 +32,7 @@ This is a direction for investigation, not permission to distribute. Store ident
 - Before a Store package is built, reserve the product in Partner Center and copy the exact package identity name, publisher, and product display name into the manifest/project configuration. Never guess these values.
 - The manifest `Identity Publisher` must match the signing certificate subject exactly. The current `CN=PlayniteCmdPal` value is provisional; no matching distribution certificate has been validated.
 - Keep the manifest version, project package version (when configured), Store submission version, and release tag aligned.
+- Follow [MSIX publisher identity and signing](MSIX-SIGNING.md) for the authoritative identity source, exact publisher/certificate match, secure key handling, timestamp/signature verification, and evidence record. The current manifest values remain provisional until the maintainer confirms the channel and supplies the provider identity.
 
 ## 4. Assets and Gallery metadata
 
