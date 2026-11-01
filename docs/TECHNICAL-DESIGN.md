@@ -1,7 +1,7 @@
 # Technical Design
 
 **Status:** Implementation plan; generated template committed, build/deploy and Playnite integration still to be verified.  
-**Last reviewed:** 2026-10-26.
+**Last reviewed:** 2026-11-01.
 
 ## Current generated-template baseline
 
@@ -10,7 +10,7 @@ The current repository contains `testExtension.sln` and `testExtension/testExten
 Observed from checked-in project files:
 - Target framework: `net10.0-windows10.0.26100.0`.
 - Minimum/supported Windows platform: `10.0.19041.0`.
-- Windows SDK package property: `10.0.26100.68-preview`.
+- Stable Windows SDK targeting pack: `Microsoft.Windows.SDK.NET.Ref 10.0.26100.87`, selected via `WindowsSdkPackageVersion` in [Directory.Build.props](../Directory.Build.props).
 - Runtime identifiers: `win-x64;win-arm64`.
 - Build platforms: `x64;ARM64`.
 - Central package management is enabled.
@@ -20,7 +20,11 @@ Observed from checked-in project files:
 - `Microsoft.Windows.SDK.BuildTools.MSIX` 1.7.20250829.1.
 - Additional versions are pinned in `Directory.Packages.props`.
 
-Sources: [project](../testExtension/testExtension.csproj), [package versions](../Directory.Packages.props), [shared build properties](../Directory.Build.props). These values describe the checked-in template; they do not prove that a clean build or local deployment succeeds.
+The targeting-pack choice is a stable replacement for the previous `10.0.26100.68-preview` override. The .87 servicing package is published by Microsoft and NuGet metadata lists compatibility with .NET 9 and later, including computed .NET 10 compatibility. The 26100 SDK family matches the Windows 11 24H2 compile-time API family encoded in the TFM; the separate minimum OS remains Windows 10 build 19041. The CmdPal extension package is an independent NuGet dependency and is not version-coupled to the Windows SDK. x64 and ARM64 are runtime/build targets, not separate Windows SDK targeting-pack variants.
+
+This establishes a documented stable candidate, not a successful project validation. Windows restore/build/test, Visual Studio deployment, and x64/ARM64 publish checks remain required before this migration can be considered verified.
+
+Sources: [project](../testExtension/testExtension.csproj), [shared build properties](../Directory.Build.props), [package versions](../Directory.Packages.props), [Microsoft Windows SDK downloads](https://learn.microsoft.com/en-us/windows/apps/windows-sdk/downloads), [Windows SDK targeting-pack package](https://www.nuget.org/packages/Microsoft.Windows.SDK.NET.Ref/10.0.26100.87), [Windows SDK versioning guidance](https://learn.microsoft.com/en-us/windows/apps/get-started/versioning-overview).
 
 ## Stack and framework
 
@@ -33,7 +37,6 @@ Sources: [project](../testExtension/testExtension.csproj), [package versions](..
 References:
 - https://learn.microsoft.com/en-us/windows/powertoys/command-palette/creating-an-extension
 - https://learn.microsoft.com/en-us/windows/powertoys/command-palette/extensibility-overview
-- https://learn.microsoft.com/en-us/windows/powertoys/command-palette/extension-gallery
 - https://github.com/microsoft/PowerToys/tree/main/src/modules/cmdpal
 
 ## Architecture and boundaries
