@@ -6,7 +6,7 @@
 
 - `testExtension.sln` — generated solution.
 - `testExtension/testExtension.csproj` — generated C# extension project.
-- `Directory.Build.props` — shared build settings.
+- `Directory.Build.props` — shared build settings, including the stable Windows SDK targeting-pack version.
 - `Directory.Packages.props` — centrally managed package versions.
 - `.github/copilot-instructions.md` and `.github/instructions/cmdpal-extension.instructions.md` — repo-specific implementation guidance.
 - `.github/skills/` — focused extension workflows and publishing references.
@@ -18,7 +18,7 @@ These values are read from the checked-in files; they do not imply a successful 
 
 - Target framework: `net10.0-windows10.0.26100.0`.
 - Minimum/supported Windows platform: `10.0.19041.0`.
-- Windows SDK package version property: `10.0.26100.68-preview`.
+- Windows SDK targeting pack: `Microsoft.Windows.SDK.NET.Ref 10.0.26100.87`, selected centrally by `WindowsSdkPackageVersion` in `Directory.Build.props`.
 - Runtime identifiers: `win-x64;win-arm64`.
 - Build platforms: `x64;ARM64`.
 - `Microsoft.CommandPalette.Extensions`: `0.9.260303001`.
@@ -27,7 +27,7 @@ These values are read from the checked-in files; they do not imply a successful 
 - `Microsoft.Windows.SDK.BuildTools.MSIX`: `1.7.20250829.1`.
 - Additional central versions are in [Directory.Packages.props](../Directory.Packages.props).
 
-Use a .NET SDK capable of targeting .NET 10 and a current Visual Studio installation with the Windows/WinUI and MSIX components required by the generated template. Record the exact installed SDK, Visual Studio version, workloads, and components after the build/deploy check; do not guess or replace generated package versions.
+Use a .NET 10 SDK and a current stable Visual Studio installation with the Windows/WinUI and MSIX components required by the generated template. The Windows SDK .NET targeting pack is restored from NuGet; it is distinct from the Windows SDK installer/build-tools packages. Record the exact installed SDK, Visual Studio version, workloads, and components after the build/deploy check.
 
 ## First-time setup and validation
 
@@ -38,11 +38,25 @@ Use a .NET SDK capable of targeting .NET 10 and a current Visual Studio installa
    ```powershell
    dotnet restore .\testExtension.sln
    dotnet build .\testExtension.sln -c Debug
+   dotnet build .\testExtension.sln -c Release
+   dotnet test .\testExtension.sln -c Release
    ```
 5. In Visual Studio, follow the generated project's deployment path. The repository's instructions say to use **Build > Deploy**, not Build alone, because deployment registers the MSIX package.
 6. In Command Palette, run **Reload** and choose the command to reload Command Palette extensions.
 7. Debug in Visual Studio using the generated launch settings; inspect the Output window and relevant Windows event/debug output if startup fails.
 8. Record exact successful commands, SDK/Visual Studio versions, deployment path, and any machine prerequisites in this guide.
+
+## Windows SDK targeting-pack decision
+
+The project uses the stable `Microsoft.Windows.SDK.NET.Ref 10.0.26100.87` targeting pack through the shared `WindowsSdkPackageVersion` property. NuGet metadata identifies it as the Windows SDK targeting pack for .NET 9 and later, including .NET 10 compatibility. The 26100 SDK family matches the TFM's Windows 11 24H2 API family. The separate minimum OS target remains build 19041; the targeting-pack servicing revision does not raise the minimum OS.
+
+This candidate replaces the former preview `10.0.26100.68-preview` override. Its metadata and family establish compatibility for evaluation; only Windows restore/build/test, Visual Studio deployment, and architecture-specific publish checks can confirm this repository's full toolchain compatibility. Track those results in [release packaging validation](RELEASE-PACKAGING.md).
+
+Official references:
+- https://www.nuget.org/packages/Microsoft.Windows.SDK.NET.Ref/10.0.26100.87
+- https://learn.microsoft.com/en-us/windows/apps/windows-sdk/downloads
+- https://learn.microsoft.com/en-us/windows/apps/get-started/versioning-overview
+- https://learn.microsoft.com/en-us/dotnet/core/compatibility/sdk/5.0/override-windows-sdk-package-version
 
 ## Playnite integration testing
 
