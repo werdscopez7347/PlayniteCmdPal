@@ -4,7 +4,6 @@
     <RootNamespace>testExtension</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
 
-    <WindowsSdkPackageVersion>10.0.26100.68-preview</WindowsSdkPackageVersion>
     <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
@@ -73,18 +72,18 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
-    <!-- In Debug builds, trimming is disabled by default, but all the trim & 
+    <!-- In Debug builds, trimming is disabled by default, but all the trim &
          AOT warnings are enabled. This gives debug builds a tighter inner loop,
          while at least warning about future trim violations -->
     <PublishTrimmed>false</PublishTrimmed>
-    
+
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
     <EnableAotAnalyzer>true</EnableAotAnalyzer>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'!='Debug'">
-    <!-- In Release builds, trimming is enabled by default. 
+    <!-- In Release builds, trimming is enabled by default.
          feel free to disable this if needed -->
     <PublishTrimmed>true</PublishTrimmed>
 
