@@ -14,7 +14,7 @@ The maintainer supplied the following Partner Center product identity values:
 | Package/Identity/Publisher | `CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70` |
 | Package/Properties/PublisherDisplayName | `werdscopez7347` |
 
-These exact values are applied to `PlayniteCmdPal/Package.appxmanifest`. The app's `DisplayName` remains `PlayniteCmdPal`; it is distinct from `PublisherDisplayName`.
+These exact values are applied to `PlayniteCmdPal/Package.appxmanifest` and to the project properties `AppxPackageIdentityName` and `AppxPackagePublisher` in `PlayniteCmdPal/PlayniteCmdPal.csproj`. The project also sets `AppxPackageVersion` to `0.0.3.0`, matching the manifest. The app's `DisplayName` remains `PlayniteCmdPal`; it is distinct from `PublisherDisplayName`.
 
 Do not replace these identity values with the repository name, a display name, or a development certificate subject. Preserve the package identity across updates. If Partner Center later shows different identity values, stop and reconcile the discrepancy before building or submitting a package.
 
@@ -70,6 +70,8 @@ Do not commit generated packages or private signing material.
 | Manifest Publisher | `CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70` |
 | Publisher display name | `werdscopez7347` |
 | Manifest updated | Yes, on the WERD-79 branch |
+| Project MSIX identity properties | Set to the same Partner Center name and publisher |
+| Project MSIX package version | `0.0.3.0`, matching the manifest |
 | Partner Center product ID / Store URL | Not supplied |
 | x64 MSIX candidate | Not yet built and validated for Store submission |
 | ARM64 MSIX candidate | Not yet built and validated for Store submission |
