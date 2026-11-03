@@ -1,91 +1,91 @@
-# MSIX publisher identity and signing
+# Microsoft Store package identity and MSIX signing
 
-**Status (2026-11-01): blocked pending maintainer-supplied distribution identity and publisher-controlled signing certificate.** This document records the safe procedure and the evidence that must be captured. It does not assert that the provisional identity is valid.
+**Status (2026-11-03): Partner Center identity values supplied and applied to the manifest.** Store submission, package validation, and certification have not yet been completed.
 
-## 1. Distribution channel and identity source
+## 1. Distribution decision and authoritative identity
 
-The release plan currently prefers Microsoft Store and treats WinGet as an unselected alternative. This is an investigation direction, not a confirmed distribution decision. The maintainer must confirm the channel before identity or signing values are finalized.
+The selected primary distribution channel is **Microsoft Store using an MSIX bundle**. The intended architecture coverage is x64 and ARM64. GitHub Releases and WinGet are additional distribution paths; they do not inherit Microsoft Store signing or SmartScreen treatment. Command Palette Gallery metadata should offer Microsoft Store and WinGet as the installation choices once both sources are live.
 
-For a Microsoft Store release:
+The maintainer supplied the following Partner Center product identity values:
 
-1. The maintainer reserves/opens the product in Partner Center under the intended publisher account.
-2. Copy the exact package identity **Name** and **Publisher** values from the product's package identity details. Do not derive either value from the repository name, display name, a self-signed certificate, or an existing development package.
-3. Record the Partner Center product identifier and the date/account context needed to reproduce the lookup. Do not record account credentials or private account data.
-4. Update `PlayniteCmdPal/Package.appxmanifest` (and any project packaging properties that override it) with the exact identity values. Preserve the intended package identity across upgrades.
-5. If a different distribution channel is approved, document its authoritative package-ID and publisher source before changing the manifest.
+| Partner Center field | Value |
+| --- | --- |
+| Package/Identity/Name | `werdscopez7347.PlayniteforCommandPalette` |
+| Package/Identity/Publisher | `CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70` |
+| Package/Properties/PublisherDisplayName | `werdscopez7347` |
 
-Until those steps are complete, `Name="PlayniteCmdPal"` and `Publisher="CN=PlayniteCmdPal"` remain provisional. Do not submit a package or Gallery listing based on them.
+These exact values are applied to `PlayniteCmdPal/Package.appxmanifest`. The app's `DisplayName` remains `PlayniteCmdPal`; it is distinct from `PublisherDisplayName`.
 
-## 2. Publisher certificate requirements
+Do not replace these identity values with the repository name, a display name, or a development certificate subject. Preserve the package identity across updates. If Partner Center later shows different identity values, stop and reconcile the discrepancy before building or submitting a package.
 
-The signing certificate must be controlled by the selected publisher and its Subject distinguished name must match the manifest `Identity Publisher` value **exactly**, including the complete subject string and relevant distinguished-name formatting.
+The Partner Center product ID / Store URL has not been supplied and must not be guessed.
 
-Before using a certificate, record and independently verify:
+## 2. Store-managed signing
 
-- Exact certificate Subject (must equal the manifest Publisher byte-for-byte as represented by the manifest value).
-- SHA-1 certificate thumbprint (identifier only; not a secret).
-- Issuer, validity period, code-signing EKU, and certificate-chain trust status.
-- Whether the private key is present and usable by the authorized signing identity.
-- Certificate provenance/ownership and the publisher account or organization that controls it.
-- Whether the chosen channel requires a particular certificate profile, timestamping policy, or signing service.
+For packages distributed through Microsoft Store, the publisher does not need to purchase, provision, or manage a production code-signing certificate. Submit the unsigned MSIX package/bundle through Partner Center; Microsoft performs certification and signs the Store-distributed package.
 
-A certificate subject match alone does not prove publisher control or trust. A self-signed development certificate is not evidence of a production publisher identity.
+Consequences:
 
-### Secret handling
+- Do not create a publisher-controlled certificate requirement for the Store submission path.
+- Do not add a PFX, private key, certificate password, or signing token to this repository, Linear, or release artifacts.
+- Do not run a local self-signed certificate workflow as a substitute for Store signing.
+- Store signing applies to the Store-distributed package. A copy downloaded directly from GitHub or installed through a WinGet manifest that points to GitHub is a separate distribution path and does not automatically receive Store signing or Store installation reputation.
+- If direct-download MSIX distribution is retained, its signing/trust model must be evaluated and documented separately. Do not claim that Store certification covers those files.
 
-- Never commit a PFX/P12, PEM private key, password, signing token, or certificate-store export containing private key material.
-- Never attach private keys or passwords to Linear, GitHub issues, pull requests, or repository artifacts.
-- Prefer a managed signing service or an access-controlled Windows certificate store/HSM. Restrict signing permissions to the release workflow and authorized maintainers.
-- If CI signing is approved, store credentials only in the CI secret store or use a managed identity/OIDC-backed signing service where supported. Do not print secrets or command lines containing passwords in logs.
-- It is acceptable to publish the public certificate, subject, thumbprint, issuer, validity dates, and verification output when appropriate; never publish the private key.
+Microsoft references:
+- [Code-signing options for MSIX](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/code-signing-options)
+- [Publish Command Palette extensions in Microsoft Store](https://learn.microsoft.com/en-us/windows/powertoys/command-palette/publish-extension-store)
 
-## 3. Signing and verification procedure
+## 3. Package build and Store submission
 
-Use the signing method required by the confirmed distribution channel. Do not assume that the local sideload-signing process is identical to the Store submission/signing process. Confirm whether packages are to be signed locally, signed by a managed publisher service, or submitted for Store signing before running a release signing job.
+Follow Microsoft's current Command Palette Store publishing guide for the exact Partner Center workflow and packaging commands. The release candidate must:
 
-For a locally signed candidate, use the approved publisher-controlled certificate from the authorized certificate store or signing service. Configure SHA-256 file and timestamp digests. Use an RFC 3161 timestamp authority approved for the release, and retain its URL and successful timestamp verification output as evidence. Do not hard-code an unapproved timestamp provider.
+1. Use the Partner Center identity values above.
+2. Include both supported architectures, x64 and ARM64, in the Store submission bundle.
+3. Use the same package identity and release version across both architecture builds.
+4. Pass the Store packaging and validation checks before upload.
+5. Be uploaded to the reserved Partner Center product and pass certification before being described as available in the Store.
 
-After signing each architecture candidate:
+Keep the package manifest version, evaluated package version, SemVer release tag, and release metadata synchronized. The current manifest version is `0.0.3.0`; SemVer `0.0.3` maps to MSIX `0.0.3.0`. Do not increment the version merely for applying the identity.
 
-1. Run SignTool package signature verification (for example, `signtool verify /pa /v <package.msix>`) on the signed MSIX.
-2. Confirm the signer Subject exactly matches the manifest Publisher.
-3. Confirm the signer thumbprint matches the recorded certificate.
-4. Confirm the certificate chain builds to a trusted root on a clean supported Windows machine.
-5. Confirm the signature and timestamp are valid and the timestamp is present when required by the selected channel/certificate policy.
-6. Record the command, SignTool/Windows SDK version, exit code, verification output, package SHA-256, signer subject/thumbprint, and timestamp authority. Redact local paths or account details if they reveal sensitive information.
+Record the following evidence when the actual build/submission is performed:
 
-A successful signature check on one architecture does not establish that the other package was signed or verified.
+- Git commit and SemVer tag.
+- .NET SDK, Windows SDK / MSIX tooling, and build environment versions.
+- x64 and ARM64 package filenames, evaluated package versions, and SHA-256 hashes.
+- Store bundle filename and SHA-256 hash.
+- Package validation command, exit code, and output.
+- Partner Center submission identifier, certification result, and Store product URL when available.
 
-## 4. Version mapping
+Do not commit generated packages or private signing material.
 
-The current manifest version is `0.0.3.0`. For a stable SemVer release `MAJOR.MINOR.PATCH`, use the corresponding four-part MSIX version `MAJOR.MINOR.PATCH.0` (for example, `0.0.3` → `0.0.3.0`). Keep the manifest, evaluated package version, release tag, and release metadata synchronized.
+## 4. Validation record
 
-Before a release candidate is built, record the exact SemVer tag and evaluated MSIX version for both architecture builds. Do not invent a fourth component for a prerelease or submit a SemVer prerelease to a channel that does not support that mapping; define and document a separate monotonic prerelease policy before producing such packages.
+| Evidence | Current value / status |
+| --- | --- |
+| Primary distribution | Microsoft Store via MSIX bundle |
+| Additional distribution | GitHub Releases and WinGet; direct-download trust remains separate |
+| Gallery install choices | Microsoft Store and WinGet, after each source is live |
+| Package identity Name | `werdscopez7347.PlayniteforCommandPalette` |
+| Manifest Publisher | `CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70` |
+| Publisher display name | `werdscopez7347` |
+| Manifest updated | Yes, on the WERD-79 branch |
+| Partner Center product ID / Store URL | Not supplied |
+| x64 MSIX candidate | Not yet built and validated for Store submission |
+| ARM64 MSIX candidate | Not yet built and validated for Store submission |
+| MSIX bundle | Not yet built and validated |
+| Partner Center certification | Not submitted |
+| Store listing availability | Not published |
+| Current manifest version | `0.0.3.0` |
 
-## 5. Validation record
+## 5. Release gates and dependencies
 
-The following values are intentionally unresolved until obtained from the authoritative provider and publisher-controlled certificate. Do not fill them with development-certificate values.
+This issue establishes the Store identity and documents the Store-managed signing model. It does not complete package production or Store certification.
 
-| Evidence | Required value | Current status |
-| --- | --- | --- |
-| Distribution channel | Maintainer-confirmed channel | Microsoft Store preferred in release plan; not confirmed |
-| Provider identity source | Partner Center product identity (or equivalent authoritative source) | Not supplied |
-| Package identity Name | Exact provider value | Provisional: `PlayniteCmdPal` |
-| Manifest Publisher | Exact provider publisher value | Provisional: `CN=PlayniteCmdPal` |
-| Certificate Subject | Exact publisher-controlled certificate subject | Not supplied |
-| Certificate thumbprint | Public certificate thumbprint | Not supplied |
-| Certificate trust | Chain and code-signing suitability verified on clean Windows | Not verified |
-| Timestamp policy/provider | Channel-approved policy and RFC 3161 authority, if required | Not confirmed |
-| x64 candidate | Signed package hash and successful signature verification | Not built/verified for this issue |
-| ARM64 candidate | Signed package hash and successful signature verification | Not built/verified for this issue |
-| Version | SemVer tag and evaluated four-part MSIX version | Current manifest only: `0.0.3.0` |
-
-Do not mark this issue complete until the provider identity and certificate are supplied, the manifest/certificate subject equality is demonstrated, and both architecture candidates pass the selected channel's signing and verification process. WERD-81 owns the reproducible package build and inspection evidence and depends on this identity gate.
-
-## 6. Related release gates
-
-- [Release packaging](RELEASE-PACKAGING.md) defines the selected packaging model and overall release checklist.
 - [WERD-76](https://linear.app/werdscopez7347/issue/WERD-76/obtain-authoritative-redistribution-clearance-for-windows-sdk) tracks Windows SDK projection redistribution clearance.
 - [WERD-77](https://linear.app/werdscopez7347/issue/WERD-77/evaluate-and-migrate-from-the-preview-windows-sdk-targeting-pack) tracks migration from the preview targeting pack and Windows validation.
-- [WERD-78](https://linear.app/werdscopez7347/issue/WERD-78/run-the-windows-release-dependency-inventory-and-verify-runtime) tracks the dependency inventory and per-RID runtime notices.
-- [WERD-81](https://linear.app/werdscopez7347/issue/WERD-81/build-and-inspect-x64-and-arm64-release-msix-packages) builds and inspects the x64 and ARM64 release packages.
+- [WERD-78](https://linear.app/werdscopez7347/issue/WERD-78/run-the-windows-release-dependency-inventory-and-verify-runtime) tracks dependency inventory and per-RID runtime notices.
+- [WERD-81](https://linear.app/werdscopez7347/issue/WERD-81/build-and-inspect-x64-and-arm64-release-msix-packages) owns the x64/ARM64 package build and inspection evidence.
+- WERD-83 remains the final release go/no-go gate.
+
+Do not mark WERD-79 complete until the Partner Center identity is confirmed in the product dashboard, the manifest changes are reviewed, and the Store package identity/build prerequisites are validated. Package build and certification remain separate release gates.
