@@ -1,6 +1,6 @@
 # Release packaging and Command Palette Gallery readiness
 
-**Status (2026-10-31): preparation only. No public release or Gallery submission is approved.**
+**Status (2026-11-03): preparation only. No public release or Gallery submission is approved.**
 
 This document is the release checklist for PlayniteCmdPal. It supersedes the generic examples in the publish-extension skill where those examples conflict with this repository's actual package, manifest, or licensing review.
 
@@ -80,8 +80,8 @@ Do not copy a generic `dotnet publish` or Inno Setup command into release instru
 
 The current audit in [Licensing and release readiness](LICENSING-AND-RELEASE.md) identifies these unresolved gates:
 
-1. **Windows SDK projection redistribution:** `Microsoft.Windows.SDK.NET.Ref` is a preview package with a Microsoft license that requires acceptance. Public redistribution permission for the projection assemblies has not been established. This is a release blocker.
-2. **Stable Windows SDK targeting pack:** the project currently targets `10.0.26100.68-preview`. Evaluate a compatible stable targeting pack and run Windows build/deploy tests before switching. This is a release blocker until resolved.
+1. **Windows SDK projection redistribution:** the selected package is stable `Microsoft.Windows.SDK.NET.Ref 10.0.26100.87`, whose NuGet metadata identifies a `net9.0` targeting pack compatible with .NET 10 and links to the standard Microsoft Windows SDK license (`https://aka.ms/WinSDKLicenseURL`). Microsoft's [Windows SDK REDIST.TXT](https://learn.microsoft.com/en-us/legal/windows-sdk/redist) names this package and permits listed package files to be redistributed unmodified, but its enumerated framework-specific assets are `net8.0` and `net6.0`, not the stable package's `net9.0` asset group. The exact scope therefore remains unconfirmed. The complete stable license, distributor/end-user terms for Microsoft Store, GitHub Releases and WinGet, required notices, and exact x64/ARM64 shipped-file inventories must be reviewed. This remains a release blocker; see `LICENSING-AND-RELEASE.md`. The additional evidence now recorded in that audit includes the Microsoft-maintained SDK licence text, the Microsoft Windows App SDK maintainer's direction to the NuGet licence, and conflicting anonymous Microsoft Q&A guidance. The 28000.87 package line is associated with Windows 11 26H1 and is not an automatic replacement for this project's 26100/24H2 target. The exact NuGet-linked RTF and package archive still need to be obtained and compared; no package hash or file inventory is claimed.
+2. **Stable Windows SDK targeting-pack selection:** `10.0.26100.87` has been selected and implemented on the WERD-77 branch. Its build/test validation is tracked there. This engineering decision does not establish redistribution permission and does not close blocker 1.
 3. **Runtime notices:** the MSBuild copy target exists, but the exact runtime notice file still needs verification in both `win-x64` and `win-arm64` publish outputs.
 4. **Dependency inventory:** run `scripts/licensing/New-DependencyInventory.ps1` after a clean restore on the supported Windows build machine and review every item flagged for manual review.
 5. **Store identity and signing:** Partner Center identity values have been supplied and applied to the manifest. Confirm them against the Partner Center product dashboard, then complete the Store packaging, validation, and certification workflow. No publisher-managed signing certificate is required for Store distribution. Direct GitHub/WinGet downloads need a separately evaluated trust model.
@@ -100,7 +100,7 @@ For contributor testing, follow [Developer Setup](DEVELOPER-SETUP.md): enable De
 The public instructions depend on the selected live install source:
 
 - **Microsoft Store:** install from the Store product page or the Gallery's Store action after the Store listing is live. Do not publish a Store URL or product ID before Partner Center provides it.
-- **WinGet (not selected):** only document `winget install` after a tested WinGet manifest and installer have been accepted. The manifest must include the official Command Palette discovery tag.
+- **WinGet:** the selected additional Gallery install source. Document `winget install` only after the manifest and installer are accepted and install/upgrade/uninstall are validated. The manifest must include the official Command Palette discovery tag.
 
 ### Update
 
@@ -133,7 +133,7 @@ The repository maintainer owns the release decision and must explicitly approve 
 
 Before the first public release, the maintainer must confirm:
 
-- [ ] Windows SDK projection redistribution has authoritative clearance, and the targeting-pack decision is recorded.
+- [ ] Windows SDK projection redistribution is cleared for the exact package/version and distribution model; Microsoft's REDIST scope for the stable `net9.0` package assets, full license conditions, distributor/end-user terms, required notices, and actual x64/ARM64 output inventories are recorded; the targeting-pack decision is recorded.
 - [ ] The dependency inventory has been regenerated and all review items resolved.
 - [ ] Runtime notices are present in both architecture outputs.
 - [ ] Partner Center identity is confirmed against the product dashboard; x64 and ARM64 MSIX packages pass validation and Store certification. Direct GitHub/WinGet distribution has a separately documented trust model.
