@@ -17,9 +17,10 @@ PlayniteCmdPal-authored material is licensed under the MIT License; see the root
 
 `PlayniteCmdPal/PlayniteCmdPal.csproj` copies this file and
 `Microsoft-PowerToys-LICENSE.txt` to the extension's build and filesystem-publish output.
-The current Windows validation found that these files do not appear in the generated
-`AppX` staging directory, and no MSIX archive was produced; their presence in a final
-MSIX payload is therefore **not verified**. `PlayniteCmdPal.PlaynitePlugin/PlayniteCmdPal.PlaynitePlugin.csproj`
+Inspection of an unsigned x64 MSIX confirmed that both files, along with the root
+`LICENSE`, are present in the archive. The separate .NET runtime notice file is missing
+from that MSIX even though the self-contained runtime is included; this is a
+release-blocking packaging defect. `PlayniteCmdPal.PlaynitePlugin/PlayniteCmdPal.PlaynitePlugin.csproj`
 copies this file to the plugin's build and publish output, and
 `scripts/package-playnite-plugin.ps1` fails if it is missing. The audit behind this list
 is recorded in `docs/LICENSING-AND-RELEASE.md`.
@@ -95,12 +96,15 @@ Obligations for each release:
 
 - The `CopyDotNetRuntimeThirdPartyNotices` MSBuild target copies the runtime's
   `THIRD-PARTY-NOTICES.TXT` to `dotnet-runtime-THIRD-PARTY-NOTICES.txt` after a
-  self-contained publish. It resolves the file from the restored
+  self-contained filesystem publish. It resolves the file from the restored
   `Microsoft.NETCore.App.Runtime.<RID>` package under `$(NuGetPackageRoot)`, so it does
   not depend on `RuntimeFrameworkVersion` (which can be empty at publish time) and does
   not pick up the Windows Desktop, ASP.NET Core or Windows SDK packs. The target fails
-  the publish when no notice file or more than one notice file is found. Verify both
-  `win-x64` and `win-arm64` publish outputs on Windows before release.
+  the publish when no notice file or more than one notice file is found. This does not
+  currently ensure that the file is included in the MSIX: inspection of the generated
+  unsigned x64 MSIX found the runtime notice missing while the self-contained runtime
+  was present. Do not distribute until the MSIX packaging path includes and verifies
+  this file for both `win-x64` and `win-arm64`.
 - Reproduce the .NET Library License reference and this notice in the release notes, or
   ship the license text alongside the package.
 - Re-check the runtime version and notices for every release; a repository copy would go
