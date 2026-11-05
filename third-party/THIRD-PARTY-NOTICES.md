@@ -100,11 +100,12 @@ Obligations for each release:
   `Microsoft.NETCore.App.Runtime.<RID>` package under `$(NuGetPackageRoot)`, so it does
   not depend on `RuntimeFrameworkVersion` (which can be empty at publish time) and does
   not pick up the Windows Desktop, ASP.NET Core or Windows SDK packs. The target fails
-  the publish when no notice file or more than one notice file is found. This does not
-  currently ensure that the file is included in the MSIX: inspection of the generated
-  unsigned x64 MSIX found the runtime notice missing while the self-contained runtime
-  was present. Do not distribute until the MSIX packaging path includes and verifies
-  this file for both `win-x64` and `win-arm64`.
+  the publish when no notice file or more than one notice file is found. The project now
+  also adds that exact runtime-pack file directly to `AppxPackagePayload` immediately
+  before `_GenerateAppxPackageFile`, because the previous post-publish copy was absent
+  from the generated unsigned x64 MSIX despite the self-contained runtime being present.
+  This payload-injection change still requires verification in generated x64 and ARM64
+  MSIX archives. Do not distribute until both archives contain the runtime notice.
 - Reproduce the .NET Library License reference and this notice in the release notes, or
   ship the license text alongside the package.
 - Re-check the runtime version and notices for every release; a repository copy would go
