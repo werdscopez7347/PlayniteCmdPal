@@ -89,13 +89,13 @@ Six previously declared but unreferenced central package versions were removed f
 
 ### Notices, attribution and redistribution obligations
 
-The obligations identified above are handled as follows; publish-time output still requires Windows verification.
+The obligations identified above are handled as follows. The Windows publish and MSIX outputs were inspected on 2026-11-05; see open items 3 and 4 for the recorded evidence.
 
 | Obligation | Where satisfied |
 | --- | --- |
 | MIT notice and copyright for the Command Palette SDK, C#/WinRT, `Shmuelie.WinRTServer` and PowerToys template material | `third-party/THIRD-PARTY-NOTICES.md` (MIT text plus one copyright line per component) and `third-party/Microsoft-PowerToys-LICENSE.txt`, both copied into the extension build/publish output and `.pext` publish output by the project files |
 | Project MIT notice | Root `LICENSE`; add the license text to the MSIX payload or release download |
-| .NET runtime third-party notices | `CopyDotNetRuntimeThirdPartyNotices` copies the exact restored runtime pack's `THIRD-PARTY-NOTICES.TXT` to `dotnet-runtime-THIRD-PARTY-NOTICES.txt` in self-contained publish output; verify both RIDs on Windows |
+| .NET runtime third-party notices | `CopyDotNetRuntimeThirdPartyNotices` copies the exact restored runtime pack's `THIRD-PARTY-NOTICES.TXT` to `dotnet-runtime-THIRD-PARTY-NOTICES.txt` in self-contained publish output; both RIDs and their MSIX archives were verified on Windows |
 | Windows SDK projections | Not yet satisfied — pending redistributability confirmation (open items 1 and 2) |
 | Source-availability offers / reciprocal licenses | None identified. No dependency uses GPL, LGPL, AGPL, SSPL, EUPL, MPL or similar terms; the only non-OSI component is the Microsoft Windows SDK preview license |
 | Trademark and artwork permissions | `third-party/THIRD-PARTY-NOTICES.md` records that no trademark rights are granted and that `PlayniteCmdPal/Assets/` holds original artwork only |
