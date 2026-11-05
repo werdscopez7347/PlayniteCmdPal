@@ -76,11 +76,7 @@ not an asset of `Microsoft.Windows.SDK.NET.Ref`. The CsWinRT package declares th
 license reproduced above. The publish outputs contain this runtime assembly, so its
 MIT notice must remain in the package.
 
-Status: public redistribution of this component is blocked until authoritative confirmation that the projection
-assemblies may be redistributed as part of the extension, and a decision on shipping a
-stable (non-preview) Windows SDK targeting pack before the first public release. See
-the open items in `docs/LICENSING-AND-RELEASE.md`. Until that review is complete, a
-public binary release containing these assemblies is not approved by this audit.
+Status: Microsoft's official [Windows SDK REDIST.TXT](https://learn.microsoft.com/en-us/legal/windows-sdk/redist) includes a conditional redistribution grant for listed `Microsoft.Windows.SDK.NET.Ref` files, allowing unmodified distribution as a NuGet package or as part of a program enabling WinRT API calls. Its explicit file list includes `net8.0` and `net6.0` paths, but not the `net9.0` asset path relevant to newer package assets. The exact preview-license RTF linked by `10.0.26100.68-preview` has not been retrieved and compared with Microsoft's maintained SDK license text. Additional conditions include significant primary functionality, unmodified files, downstream terms at least as protective, copyright notice, and distributor indemnity/defence/hold-harmless obligations. WERD-76 tracks resolving the preview-specific terms, asset-scope question and downstream conditions. WERD-77 separately tracks migration to stable `10.0.26100.87`; that migration alone does not establish redistribution permission for the projection assembly. See the open items in `docs/LICENSING-AND-RELEASE.md`. Until WERD-76 is resolved, a public binary release containing this assembly is not approved by this audit.
 
 ## .NET runtime and library components
 
