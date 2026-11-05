@@ -98,7 +98,10 @@ public sealed class ArtworkCacheGenerationTests : IDisposable
         File.WriteAllBytes(external, new byte[] { 0xFF, 0xD8, 0xFF, 0xD9 });
         var link = Path.Combine(_filesRoot, GameId, FileIdA + ".jpg");
         try { File.CreateSymbolicLink(link, external); }
-        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException or PlatformNotSupportedException) { return; }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException or PlatformNotSupportedException)
+        {
+            throw new InvalidOperationException("This Windows security regression test requires symbolic-link creation to be enabled on the test runner.", exception);
+        }
 
         using var cache = new ArtworkCacheGeneration(_cacheRoot);
         Assert.Null(cache.TryImport(GameId, Reference(FileIdA), link, _filesRoot));
@@ -116,7 +119,10 @@ public sealed class ArtworkCacheGenerationTests : IDisposable
         var gameDirectory = Path.Combine(_filesRoot, GameId);
         Directory.Delete(gameDirectory);
         try { Directory.CreateSymbolicLink(gameDirectory, externalGameDirectory); }
-        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException or PlatformNotSupportedException) { return; }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException or PlatformNotSupportedException)
+        {
+            throw new InvalidOperationException("This Windows security regression test requires symbolic-link creation to be enabled on the test runner.", exception);
+        }
 
         using var cache = new ArtworkCacheGeneration(_cacheRoot);
         Assert.Null(cache.TryImport(GameId, Reference(FileIdA), Path.Combine(gameDirectory, FileIdA + ".jpg"), _filesRoot));
@@ -131,7 +137,10 @@ public sealed class ArtworkCacheGenerationTests : IDisposable
         var externalCache = Path.Combine(_directory, "external-cache");
         Directory.CreateDirectory(externalCache);
         try { Directory.CreateSymbolicLink(_cacheRoot, externalCache); }
-        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException or PlatformNotSupportedException) { return; }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException or PlatformNotSupportedException)
+        {
+            throw new InvalidOperationException("This Windows security regression test requires symbolic-link creation to be enabled on the test runner.", exception);
+        }
 
         using var cache = new ArtworkCacheGeneration(_cacheRoot);
         Assert.Throws<InvalidDataException>(() => cache.Activate());
