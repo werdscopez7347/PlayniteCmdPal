@@ -19,6 +19,7 @@
   <ItemGroup>
     <!-- Third-party notices and the retained PowerToys template license travel with the
          published package. See docs/LICENSING-AND-RELEASE.md. -->
+    <Content Include="..\LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\third-party\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\third-party\Microsoft-PowerToys-LICENSE.txt" Link="Microsoft-PowerToys-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
