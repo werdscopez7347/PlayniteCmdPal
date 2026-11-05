@@ -17,10 +17,11 @@ PlayniteCmdPal-authored material is licensed under the MIT License; see the root
 
 `PlayniteCmdPal/PlayniteCmdPal.csproj` copies this file and
 `Microsoft-PowerToys-LICENSE.txt` to the extension's build and filesystem-publish output.
-Inspection of an unsigned x64 MSIX confirmed that both files, along with the root
-`LICENSE`, are present in the archive. The separate .NET runtime notice file is missing
-from that MSIX even though the self-contained runtime is included; this is a
-release-blocking packaging defect. `PlayniteCmdPal.PlaynitePlugin/PlayniteCmdPal.PlaynitePlugin.csproj`
+Inspection of the x64 and ARM64 MSIX archives confirmed that both files, the root
+`LICENSE`, and `dotnet-runtime-THIRD-PARTY-NOTICES.txt` are present. The runtime notice
+is sourced from each RID's restored runtime pack and added directly to the MSIX payload.
+The maintainer also signed, installed and activated the x64 test package successfully;
+ARM64 installation/activation remains unverified. `PlayniteCmdPal.PlaynitePlugin/PlayniteCmdPal.PlaynitePlugin.csproj`
 copies this file to the plugin's build and publish output, and
 `scripts/package-playnite-plugin.ps1` fails if it is missing. The audit behind this list
 is recorded in `docs/LICENSING-AND-RELEASE.md`.
@@ -102,10 +103,9 @@ Obligations for each release:
   not pick up the Windows Desktop, ASP.NET Core or Windows SDK packs. The target fails
   the publish when no notice file or more than one notice file is found. The project now
   also adds that exact runtime-pack file directly to `AppxPackagePayload` immediately
-  before `_GenerateAppxPackageFile`, because the previous post-publish copy was absent
-  from the generated unsigned x64 MSIX despite the self-contained runtime being present.
-  This payload-injection change still requires verification in generated x64 and ARM64
-  MSIX archives. Do not distribute until both archives contain the runtime notice.
+  before `_GenerateAppxPackageFile`. The maintainer inspected the rebuilt x64 and ARM64
+  MSIX archives and confirmed the runtime notice is present in both. Re-verify this
+  requirement for every release build and RID.
 - Reproduce the .NET Library License reference and this notice in the release notes, or
   ship the license text alongside the package.
 - Re-check the runtime version and notices for every release; a repository copy would go
