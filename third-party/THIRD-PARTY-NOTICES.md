@@ -16,8 +16,10 @@ PlayniteCmdPal-authored material is licensed under the MIT License; see the root
 | Playnite catalog bridge plugin (`.pext`, `net462`) | PlayniteCmdPal plugin and snapshot assemblies; Playnite SDK is provided by Playnite and is not redistributed | `THIRD-PARTY-NOTICES.md` in the package root |
 
 `PlayniteCmdPal/PlayniteCmdPal.csproj` copies this file and
-`Microsoft-PowerToys-LICENSE.txt` to the extension's build and publish output, so both
-are part of the MSIX payload. `PlayniteCmdPal.PlaynitePlugin/PlayniteCmdPal.PlaynitePlugin.csproj`
+`Microsoft-PowerToys-LICENSE.txt` to the extension's build and filesystem-publish output.
+The current Windows validation found that these files do not appear in the generated
+`AppX` staging directory, and no MSIX archive was produced; their presence in a final
+MSIX payload is therefore **not verified**. `PlayniteCmdPal.PlaynitePlugin/PlayniteCmdPal.PlaynitePlugin.csproj`
 copies this file to the plugin's build and publish output, and
 `scripts/package-playnite-plugin.ps1` fails if it is missing. The audit behind this list
 is recorded in `docs/LICENSING-AND-RELEASE.md`.
