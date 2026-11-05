@@ -62,10 +62,15 @@ headers and the PowerToys copyright notice. Do not remove those headers.
 ## Microsoft Windows SDK projections
 
 `Microsoft.Windows.SDK.NET.Ref` 10.0.26100.68-preview supplies the Windows SDK
-projection assemblies (`Microsoft.Windows.SDK.NET.dll`, `WinRT.Runtime.dll`) that a
-self-contained build of the extension may copy into the package. The package declares
-a **Microsoft Windows SDK (preview) license** (`https://aka.ms/WinSDKPreviewLicenseURL`)
-and sets `requireLicenseAcceptance`; it is not MIT-licensed.
+projection assembly `Microsoft.Windows.SDK.NET.dll`, which a self-contained build of
+the extension may copy into the package. The package declares a **Microsoft Windows SDK
+(preview) license** (`https://aka.ms/WinSDKPreviewLicenseURL`) and sets
+`requireLicenseAcceptance`; it is not MIT-licensed.
+
+`WinRT.Runtime.dll` is a separate runtime asset of `Microsoft.Windows.CsWinRT` 2.2.0,
+not an asset of `Microsoft.Windows.SDK.NET.Ref`. The CsWinRT package declares the MIT
+license reproduced above. The publish outputs contain this runtime assembly, so its
+MIT notice must remain in the package.
 
 Status: public redistribution of this component is blocked until authoritative confirmation that the projection
 assemblies may be redistributed as part of the extension, and a decision on shipping a
