@@ -17,6 +17,7 @@ namespace PlayniteCmdPal;
 internal sealed partial class PlayniteCmdPalPage : DynamicListPage
 {
     private readonly IReadOnlyPlayniteCatalog _catalog = new PlayniteCatalogAdapter();
+    private readonly CatalogFilterState _filterState = new();
     private readonly FavoritesStore _favorites = FavoritesPreferences.Store;
     private IListItem[] _items = [CreateStatusItem("Loading your Playnite library…")];
     private CancellationTokenSource? _searchCancellation;
@@ -91,6 +92,7 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage
                     return;
                 }
 
+                _filterState.UpdateCatalog(catalog.Games);
                 _items = BuildItems(catalog, query);
                 RaiseItemsChanged();
             }
@@ -108,7 +110,11 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage
                     return;
                 }
 
-                _items = [CreateStatusItem("Couldn't read the Playnite catalog. Check the companion plugin and snapshot permissions, then refresh.")];
+                _items =
+                [
+                    CreateAdvancedFiltersItem(),
+                    CreateStatusItem("Couldn't read the Playnite catalog. Check the companion plugin and snapshot permissions, then refresh."),
+                ];
                 RaiseItemsChanged();
             }
         }
@@ -116,14 +122,15 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage
 
     private IListItem[] BuildItems(CatalogReadResult catalog, string query)
     {
+        var items = new List<IListItem> { CreateAdvancedFiltersItem() };
+
         if (!catalog.IsAvailable)
         {
-            var message = catalog.Issue?.Message
-                ?? "The Playnite catalog is unavailable. Install and start the companion plugin, then refresh.";
-            return [CreateRefreshItem(message)];
+            items.Add(CreateRefreshItem(catalog.Issue?.Message
+                ?? "The Playnite catalog is unavailable. Install and start the companion plugin, then refresh."));
+            return items.ToArray();
         }
 
-        var items = new List<IListItem>();
         if (catalog.IsStale)
         {
             items.Add(CreateStatusItem("The Playnite catalog is over 24 hours old. Open Playnite to refresh it."));
@@ -145,10 +152,21 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage
             return items.ToArray();
         }
 
-        var matches = GameSearch.Search(catalog.Games, query);
+        var activeFilters = _filterState.ToSearchFilters();
+        var matches = GameSearch.Search(catalog.Games, query, activeFilters);
         if (matches.Count == 0)
         {
-            items.Add(CreateStatusItem($"No games match “{query.Trim()}”."));
+            var hasActiveFilters = activeFilters.IsInstalled.HasValue
+                || activeFilters.Sources?.Count > 0
+                || activeFilters.Platforms?.Count > 0;
+            var message = hasActiveFilters
+                ? string.IsNullOrWhiteSpace(query)
+                    ? "No games match the selected filters. Clear one or more filters to see more games."
+                    : $"No games match “{query.Trim()}” with the selected filters. Clear a filter or change your search."
+                : string.IsNullOrWhiteSpace(query)
+                    ? "No games are available in the current catalog."
+                    : $"No games match “{query.Trim()}”.";
+            items.Add(CreateStatusItem(message));
             return items.ToArray();
         }
 
@@ -194,6 +212,17 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage
         }
 
         return items.ToArray();
+    }
+
+    private IListItem CreateAdvancedFiltersItem()
+    {
+        var count = _filterState.ActiveFilterCount;
+        return new ListItem(new AdvancedFiltersPage(_filterState, () => BeginSearch()))
+        {
+            Title = count == 0 ? "Advanced filters" : $"Advanced filters ({count})",
+            Subtitle = count == 0 ? "Installed status, source, and platform" : "Filters are active · Select to edit",
+            Icon = new IconInfo("\uE71C"),
+        };
     }
 
     private static IListItem CreateStatusItem(string message) =>
