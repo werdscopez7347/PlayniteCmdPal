@@ -53,6 +53,7 @@ public sealed class PlayniteCatalogAdapter : IReadOnlyPlayniteCatalog
     private readonly string _snapshotPath;
     private readonly string? _legacySnapshotPath;
     private readonly TimeProvider _timeProvider;
+    private readonly Func<string, Task<CatalogSnapshotParseResult>> _readPathAsync;
     private readonly SemaphoreSlim _readGate = new(1, 1);
     private readonly object _stateGate = new();
     private CatalogReadResult? _lastGood;
@@ -64,10 +65,26 @@ public sealed class PlayniteCatalogAdapter : IReadOnlyPlayniteCatalog
         string? snapshotPath = null,
         TimeProvider? timeProvider = null,
         string? legacySnapshotPath = null)
+        : this(
+            snapshotPath ?? GetDefaultSnapshotPath(),
+            snapshotPath is null ? GetLegacySnapshotPath() : legacySnapshotPath,
+            timeProvider,
+            null)
     {
-        _snapshotPath = snapshotPath ?? GetDefaultSnapshotPath();
-        _legacySnapshotPath = snapshotPath is null ? GetLegacySnapshotPath() : legacySnapshotPath;
+    }
+
+    internal PlayniteCatalogAdapter(
+        string enrichedSnapshotPath,
+        string? legacySnapshotPath,
+        TimeProvider? timeProvider,
+        Func<string, Task<CatalogSnapshotParseResult>>? readPathAsync)
+    {
+        if (string.IsNullOrWhiteSpace(enrichedSnapshotPath))
+            throw new ArgumentException("An enriched snapshot path is required.", nameof(enrichedSnapshotPath));
+        _snapshotPath = enrichedSnapshotPath;
+        _legacySnapshotPath = legacySnapshotPath;
         _timeProvider = timeProvider ?? TimeProvider.System;
+        _readPathAsync = readPathAsync ?? ReadPathAsync;
     }
 
     public static string GetDefaultSnapshotPath() =>
@@ -251,7 +268,8 @@ public sealed class PlayniteCatalogAdapter : IReadOnlyPlayniteCatalog
                             game.IsInstalled,
                             game.IconArtworkId,
                             game.Platform,
-                            game.CoverArtworkId))
+                            game.CoverArtworkId,
+                            game.LastActivity))
                         .ToArray();
                     _lastGood = new CatalogReadResult(
                         games,
@@ -283,13 +301,14 @@ public sealed class PlayniteCatalogAdapter : IReadOnlyPlayniteCatalog
 
     private async Task<CatalogSnapshotParseResult> ReadAndParseAsync()
     {
-        var result = await ReadPathAsync(_snapshotPath).ConfigureAwait(false);
-        if (result.Issue?.Code == CatalogErrorCode.Missing && _legacySnapshotPath is not null)
-        {
-            return await ReadPathAsync(_legacySnapshotPath).ConfigureAwait(false);
-        }
+        var preferred = await _readPathAsync(_snapshotPath).ConfigureAwait(false);
+        if (_legacySnapshotPath is null || preferred.Issue?.Code != CatalogErrorCode.Missing)
+            return preferred;
 
-        return result;
+        // The legacy contract is a compatibility fallback only when v2 is absent.
+        // A malformed, unsupported, oversized, or unreadable v2 snapshot must remain
+        // unavailable rather than silently presenting potentially stale v1 data.
+        return await _readPathAsync(_legacySnapshotPath).ConfigureAwait(false);
     }
 
     private static async Task<CatalogSnapshotParseResult> ReadPathAsync(string path)

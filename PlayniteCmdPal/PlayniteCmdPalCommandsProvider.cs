@@ -18,6 +18,7 @@ public partial class PlayniteCmdPalCommandsProvider : CommandProvider
         _commands = [
             new CommandItem(new PlayniteCmdPalPage()) { Title = "Search games" },
             new CommandItem(new FavoritesPage()) { Title = "Favorites" },
+            new CommandItem(new PlayniteCmdPalRecentlyPlayedPage()) { Title = "Recently played games" },
         ];
     }
 

@@ -164,6 +164,7 @@ public sealed class PlayniteCmdPalPlugin : GenericPlugin
                oldGame.IsInstalled != newGame.IsInstalled ||
                oldGame.SourceId != newGame.SourceId ||
                !SameIds(oldGame.PlatformIds, newGame.PlatformIds) ||
+               oldGame.LastActivity != newGame.LastActivity ||
                !string.Equals(oldGame.CoverImage, newGame.CoverImage, StringComparison.Ordinal) ||
                !string.Equals(oldGame.Icon, newGame.Icon, StringComparison.Ordinal);
     }
@@ -235,7 +236,7 @@ public sealed class PlayniteCmdPalPlugin : GenericPlugin
             {
                 var id = game.Id.ToString("D", CultureInfo.InvariantCulture);
                 games.Add(new GameProjection(id, game.Name, game.IsInstalled, GetSourceName(game.SourceId),
-                    GetPlatformNames(game.PlatformIds), game.CoverImage, ResolveArtworkPath(id, game.CoverImage),
+                    GetPlatformNames(game.PlatformIds), game.LastActivity, game.CoverImage, ResolveArtworkPath(id, game.CoverImage),
                     game.Icon, ResolveArtworkPath(id, game.Icon)));
             }
             catch (ArgumentException) { }
@@ -253,7 +254,7 @@ public sealed class PlayniteCmdPalPlugin : GenericPlugin
             var icon = artwork.TryImport(game.Id, game.IconReference, game.IconPath, projection.FilesRoot);
             try
             {
-                games.Add(new SnapshotGame(game.Id, game.Name, game.IsInstalled, game.Source, game.Platform, cover, icon));
+                games.Add(new SnapshotGame(game.Id, game.Name, game.IsInstalled, game.Source, game.Platform, cover, icon, game.LastActivity));
             }
             catch (ArgumentException) { }
         }
@@ -278,10 +279,10 @@ public sealed class PlayniteCmdPalPlugin : GenericPlugin
 
     private sealed class GameProjection
     {
-        public GameProjection(string id, string name, bool installed, string? source, string? platform,
+        public GameProjection(string id, string name, bool installed, string? source, string? platform, DateTime? lastActivity,
             string? coverReference, string? coverPath, string? iconReference, string? iconPath)
         {
-            Id = id; Name = name; IsInstalled = installed; Source = source; Platform = platform;
+            Id = id; Name = name; IsInstalled = installed; Source = source; Platform = platform; LastActivity = lastActivity;
             CoverReference = coverReference; CoverPath = coverPath; IconReference = iconReference; IconPath = iconPath;
         }
         public string Id { get; }
@@ -289,6 +290,7 @@ public sealed class PlayniteCmdPalPlugin : GenericPlugin
         public bool IsInstalled { get; }
         public string? Source { get; }
         public string? Platform { get; }
+        public DateTime? LastActivity { get; }
         public string? CoverReference { get; }
         public string? CoverPath { get; }
         public string? IconReference { get; }
