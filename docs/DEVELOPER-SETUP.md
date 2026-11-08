@@ -47,7 +47,7 @@ The solution targets .NET 10 with Windows App SDK and MSIX packaging. The curren
 1. Install [Visual Studio](https://visualstudio.microsoft.com/downloads/) (2026 release or a version that ships the .NET 10 tooling).
 2. In the **Visual Studio Installer**, choose **Modify** and select:
    - **WinUI application development** (this is the documented workload for WinUI / Windows App SDK projects).
-   - On the **Individual components** tab, confirm the **Windows 10/11 SDK** matching the project's target (the project requests SDK package `10.0.26100.68-preview`, so a 26100 SDK or newer).
+   - On the **Individual components** tab, confirm the **Windows 10/11 SDK** matching the project's target (the project restores stable targeting pack `Microsoft.Windows.SDK.NET.Ref 10.0.26100.87`; install the matching stable 26100 SDK or newer).
 3. Finish the install and confirm `dotnet --version` reports 10.x in a new terminal.
 
 Alternatives and shortcuts:
@@ -374,3 +374,12 @@ For Playnite-side diagnostics, Playnite writes host loading errors to `playnite.
 - [x] Shared script, both test projects, and the .NET Framework smoke test pass in Windows CI and the CodeQL workflow.
 - [ ] Exact installed Visual Studio version/workloads and PowerToys version recorded.
 - [ ] **Deferred, not passed:** this page replayed from a fresh Windows image by someone other than the maintainer. Deferred on 2026-10-31 because the maintainer's development and test machine is the Windows 10 build 19041 environment above and no separate clean Windows machine was available. This is environmental, not a recorded technical failure — do not mark it complete without a real clean-machine run.
+
+
+## Windows SDK targeting-pack selection (WERD-77, 2026-11-01)
+
+The project now uses stable `Microsoft.Windows.SDK.NET.Ref 10.0.26100.87`, selected by `WindowsSdkPackageVersion` in `Directory.Build.props`. The previous `10.0.26100.68-preview` project-level override has been removed. The 26100 SDK family matches the project's `net10.0-windows10.0.26100.0` target; the minimum OS remains build 19041. The package metadata includes .NET 10 compatibility. The targeting pack is restored from NuGet and is distinct from the Visual Studio-installed Windows SDK/build tools.
+
+Install a current .NET 10 SDK and the Visual Studio WinUI/MSIX components required by the project. Do not install or select a preview targeting pack. Official references: [stable targeting-pack package](https://www.nuget.org/packages/Microsoft.Windows.SDK.NET.Ref/10.0.26100.87), [Microsoft Windows SDK downloads](https://learn.microsoft.com/en-us/windows/apps/windows-sdk/downloads), and [Windows SDK versioning](https://learn.microsoft.com/en-us/windows/apps/get-started/versioning-overview).
+
+The stable package selection has not yet been validated through this repository's Windows restore/build/test/deployment and architecture-specific publish paths. Those checks remain a release gate; see [Release Packaging](RELEASE-PACKAGING.md).

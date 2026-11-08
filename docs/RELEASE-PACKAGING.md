@@ -81,10 +81,16 @@ Do not copy a generic `dotnet publish` or Inno Setup command into release instru
 The current audit in [Licensing and release readiness](LICENSING-AND-RELEASE.md) records the selected Windows SDK package and the remaining public-release obligations.
 
 1. **Windows SDK projection package — WERD-76 implementation.** This branch selects stable `Microsoft.Windows.SDK.NET.Ref 10.0.26100.84`. Its `lib/net8.0` assets match the framework paths explicitly enumerated in Microsoft's [Windows SDK REDIST.TXT](https://learn.microsoft.com/en-us/legal/windows-sdk/redist). The application remains on .NET 10. Release trimming and ReadyToRun are disabled for both RIDs, and the two SDK-derived DLLs in the tested x64/ARM64 MSIX packages match their package-source hashes byte-for-byte. Package, DLL and MSIX hashes, NuGet signature verification, and test evidence are recorded in [Licensing and release readiness](LICENSING-AND-RELEASE.md). Individual written Microsoft confirmation is not an engineering prerequisite for this selected path.
+
 2. **Windows SDK licence conditions — public-release review.** The SDK licence still contains downstream distributor/end-user terms, copyright and indemnification conditions. The Store, GitHub Releases and WinGet terms have been reviewed as context, not legally approved. Do not infer that the package choice alone satisfies every channel-specific obligation. Resolve those conditions as part of public-release approval; no public binary is approved by WERD-76's engineering change alone.
+
 3. **Runtime notices — x64 and ARM64 MSIX payloads verified.** The filesystem-publish notice files for both RIDs match their restored runtime-pack notice files (SHA-256 `6D15E10A101C6BFFF2AB4429ED061BF76C456FC4B23AD6B03E0D0F8377148A21`). Both architecture MSIX packages contain `dotnet-runtime-THIRD-PARTY-NOTICES.txt`, the project `LICENSE`, `THIRD-PARTY-NOTICES.md`, and `Microsoft-PowerToys-LICENSE.txt`. Release notes must still reference the .NET Library License.
+
 4. **Dependency inventory and publish-payload verification — Windows evidence recorded.** The corrected Windows PowerShell 5.1 inventory run reported 4 shipped-runtime, 4 shipped-build, 13 test-only, 0 developer-tool and 0 unclassified packages; its JSON SHA-256 is `A32B318636DC6AC98974524DBD014F5C915C80E967281FC50C5A5C86F51F174C`. Five review flags remain (four in shipped classifications); these flags are not a count of redistributed binaries. The inspected publish outputs did not contain the searched BuildTools, ReferenceAssemblies, xUnit or test-platform files. Both architecture MSIX archives contain the required notices and `Microsoft.CommandPalette.Extensions.winmd`. Disabling WinMD registration harvesting removed APPX1707 while retaining the WinMD payload. The `.pext` archive contains `LICENSE` and `THIRD-PARTY-NOTICES.md`; `System.Text.Json.dll` and `PlayniteSDK.dll` are absent.
-5. **Store identity and signing:** Partner Center identity values have been supplied and applied to the manifest. Confirm them against the Partner Center product dashboard, then complete the Store packaging, validation, and certification workflow. No publisher-managed signing certificate is required for Store distribution. Direct GitHub/WinGet downloads need a separately evaluated trust model.
+
+5. **Store identity and signing.** Partner Center identity values have been supplied and applied to the manifest. Confirm them against the Partner Center product dashboard, then complete the Store packaging, validation, and certification workflow. No publisher-managed signing certificate is required for Store distribution. Direct GitHub/WinGet downloads need a separately evaluated trust model.
+
+6. **Stable Windows SDK targeting pack — WERD-77.** Stable `Microsoft.Windows.SDK.NET.Ref 10.0.26100.87` has been selected in the WERD-77 branch, replacing the previous preview targeting-pack override. This is a separate targeting-pack migration from WERD-76's redistribution implementation, which was validated against `10.0.26100.84`. Do not treat WERD-76's validation evidence as validation of `10.0.26100.87`. WERD-77 remains pending clean Windows restore, Release build, automated tests, Visual Studio deployment, and x64/ARM64 publish and package verification. Record the results in PR #24 before merging.
 6. **Clean-machine acceptance:** replay install, first launch, update, uninstall, and rollback on a clean supported Windows environment. The Developer Setup page explicitly says the independent clean-machine walkthrough has not yet been completed.
 
 A successful CI build does not clear the separate public-release obligations above. Do not publish a binary or submit a Gallery listing until the release checklist is satisfied.
@@ -157,3 +163,29 @@ Until every required item is checked, the project remains **prepared for review,
 - [Gallery contribution guide](https://github.com/microsoft/CmdPal-Extensions/blob/main/docs/CONTRIBUTING.md)
 - [Gallery extension schema](https://github.com/microsoft/CmdPal-Extensions/blob/main/.github/schemas/extension.schema.json)
 - [Gallery sample extension](https://github.com/microsoft/CmdPal-Extensions/tree/main/extensions/microsoft/sample-extension)
+
+
+## Windows SDK targeting-pack migration (WERD-77, 2026-11-01)
+
+The project previously pinned preview `Microsoft.Windows.SDK.NET.Ref 10.0.26100.68-preview`. That project-level override has been removed. The stable Microsoft-published candidate `10.0.26100.87` is now selected centrally by `WindowsSdkPackageVersion` in [Directory.Build.props](../Directory.Build.props).
+
+Compatibility rationale:
+
+- NuGet identifies this as the Windows SDK .NET targeting pack and reports compatibility with .NET 9 and later, including .NET 10: https://www.nuget.org/packages/Microsoft.Windows.SDK.NET.Ref/10.0.26100.87
+- Version 10.0.26100.87 is a stable servicing release in the 26100 SDK family matching `net10.0-windows10.0.26100.0`; the minimum OS target remains Windows 10 build 19041: https://learn.microsoft.com/en-us/windows/apps/windows-sdk/downloads and https://learn.microsoft.com/en-us/windows/apps/get-started/versioning-overview
+- The targeting pack is independent of `Microsoft.CommandPalette.Extensions` and is shared by the project's x64 and ARM64 runtime targets.
+
+The targeting pack is a development-time compile reference. Its use is governed by Microsoft's Windows SDK license terms; the SDK package itself is not to be redistributed as application payload. Review the [Microsoft SDK license](https://github.com/microsoft/win32metadata/blob/main/licenses/sdk_license.txt). This package-selection evidence does not establish redistribution rights for Windows SDK projection assemblies that may be shipped at runtime; that remains a separate licensing gate tracked by WERD-76.
+
+### Migration validation checklist
+
+- [ ] Clean Windows restore resolves `Microsoft.Windows.SDK.NET.Ref 10.0.26100.87` and no preview version.
+- [ ] Release solution build succeeds.
+- [ ] All automated tests and the .NET Framework smoke test pass.
+- [ ] Visual Studio **Build > Deploy** registers the MSIX and Command Palette reload/activation succeeds.
+- [ ] x64 Release package/publish succeeds.
+- [ ] ARM64 Release package/publish succeeds.
+- [ ] Inspect evaluated MSBuild properties and restore assets to confirm no preview targeting pack remains.
+- [ ] Compare x64/ARM64 runtime notices and package contents; record API/behavior differences.
+
+Run `.\scripts\ci.ps1` for the repository's automated baseline, then perform the Visual Studio and package checks above on Windows. Do not mark WERD-77 complete until evidence is attached. The existing maintainer-reported Windows 10 validation and CI results predate this targeting-pack migration and do not validate the new package version. Windows 11 clean-machine validation remains separately deferred as documented in [Developer Setup](DEVELOPER-SETUP.md).
