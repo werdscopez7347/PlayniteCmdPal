@@ -54,7 +54,7 @@ public sealed class CatalogFilterStateTests
 
         Assert.Equal(new[] { "Epic", "Steam" }, state.SelectedSources);
         Assert.Equal(new[] { "Linux", "PC" }, state.SelectedPlatforms);
-        Assert.Equal(4, state.ActiveFilterCount);
+        Assert.Equal(5, state.ActiveFilterCount);
     }
 
     [Fact]
