@@ -377,7 +377,7 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
         return new ListItem(_filtersPage)
         {
             Title = count == 0 ? "Filters" : $"Filters ({count})",
-            Subtitle = count == 0 ? "Choose filters · OR within groups, AND across" : "Active filters · OR within groups, AND across",
+            Subtitle = count == 0 ? "Installed status · source · platform" : "Active · Select to edit",
             Icon = new IconInfo("\uE71C"),
         };
     }

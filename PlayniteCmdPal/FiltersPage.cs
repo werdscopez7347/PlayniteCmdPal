@@ -252,7 +252,6 @@ internal sealed partial class FiltersPage : ListPage
             Dimension = dimension;
             Value = value;
             Title = $"{dimension}: {value}";
-            Subtitle = "Enter toggles · Escape returns · OR within groups, AND across groups";
             Synchronize(isChecked);
         }
 
