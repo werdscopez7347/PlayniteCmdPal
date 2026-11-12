@@ -83,12 +83,6 @@ internal sealed partial class FiltersPage : ListPage
 
         var items = new List<IListItem>
         {
-            new ListItem(new NoOpCommand())
-            {
-                Title = "Filters apply immediately",
-                Subtitle = "Multiple choices in one group are combined with OR; groups are combined with AND.",
-                Icon = new IconInfo("\uE946"),
-            },
             GetFilterItem("status:installed", "Installed status", "Installed", () => _state.InstalledStatuses.Contains(true),
                 () => ToggleStatus(true)),
             GetFilterItem("status:not-installed", "Installed status", "Not installed", () => _state.InstalledStatuses.Contains(false),
@@ -115,13 +109,6 @@ internal sealed partial class FiltersPage : ListPage
         items.Add(CreateActionItem("Clear sources", "Clear all source selections", ClearSources));
         items.Add(CreateActionItem("Clear platforms", "Clear all platform selections", ClearPlatforms));
         items.Add(CreateActionItem("Clear all", "Remove every filter restriction", ClearAll));
-        items.Add(new ListItem(new AnonymousCommand(() => { }) { Result = CommandResult.GoBack() })
-        {
-            Title = "Done",
-            Subtitle = "Return to results without changing selections",
-            Icon = new IconInfo("\uE73E"),
-        });
-
         var notifyHost = _items.Length > 0;
         _items = items.ToArray();
         if (notifyHost)
@@ -265,7 +252,7 @@ internal sealed partial class FiltersPage : ListPage
             Dimension = dimension;
             Value = value;
             Title = $"{dimension}: {value}";
-            Subtitle = "Press Enter to toggle";
+            Subtitle = "Enter toggles · Escape returns · OR within groups, AND across groups";
             Synchronize(isChecked);
         }
 
