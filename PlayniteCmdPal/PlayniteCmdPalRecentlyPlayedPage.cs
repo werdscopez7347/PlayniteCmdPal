@@ -11,6 +11,7 @@ using Microsoft.CommandPalette.Extensions;
 using Microsoft.CommandPalette.Extensions.Toolkit;
 using PlayniteCmdPal.Core;
 using PlayniteCmdPal.Playnite;
+using static PlayniteCmdPal.GameListItems;
 
 namespace PlayniteCmdPal;
 
@@ -64,7 +65,7 @@ internal sealed partial class PlayniteCmdPalRecentlyPlayedPage : DynamicListPage
     }
 
     internal IContextItem CreateRefreshContextItem() =>
-        new CommandContextItem(new RefreshCatalogCommand(this));
+        new CommandContextItem(new RefreshCatalogCommand(RefreshCatalog));
 
     public void Dispose()
     {
@@ -93,24 +94,12 @@ internal sealed partial class PlayniteCmdPalRecentlyPlayedPage : DynamicListPage
         RaiseItemsChangedOnUIContext();
     }
 
-    private void RaiseItemsChangedOnUIContext()
-    {
-        void Raise()
+    private void RaiseItemsChangedOnUIContext() =>
+        PageSupport.RaiseOnUiThread(_uiContext, () =>
         {
             if (Volatile.Read(ref _disposed) == 0)
                 RaiseItemsChanged();
-        }
-
-        if (_uiContext is { } context &&
-            !ReferenceEquals(context, SynchronizationContext.Current))
-        {
-            context.Post(_ => Raise(), null);
-        }
-        else
-        {
-            Raise();
-        }
-    }
+        });
 
     private bool IsCurrentLoad(int version) =>
         Volatile.Read(ref _disposed) == 0 &&
@@ -187,21 +176,16 @@ internal sealed partial class PlayniteCmdPalRecentlyPlayedPage : DynamicListPage
 
             foreach (var game in games)
             {
-                var lastActivity = game.LastActivity!.Value;
-                var relativeTime = PlayniteCmdPal.Core.RecentlyPlayedGames.FormatRelativeLastPlayed(lastActivity, DateTimeOffset.UtcNow);
-                var metadata = new List<string>();
-                if (!string.IsNullOrWhiteSpace(game.Source)) metadata.Add(game.Source);
-                if (!string.IsNullOrWhiteSpace(game.Platform)) metadata.Add(game.Platform);
-                if (duplicateTitles.Contains(game.Title))
-                {
-                    var discriminator = game.GameId.Length > 8 ? game.GameId[..8] : game.GameId;
-                    metadata.Add($"ID {discriminator}");
-                }
+                var relativeTime = RecentlyPlayedGames.FormatRelativeLastPlayed(game.LastActivity!.Value, DateTimeOffset.UtcNow);
+                var subtitle = BuildMetadata(
+                    game,
+                    includeInstalledState: false,
+                    includeIdTag: duplicateTitles.Contains(game.Title));
 
                 var item = new ListItem(new LaunchGameCommand(game.GameId))
                 {
                     Title = game.Title,
-                    Subtitle = string.Join(" · ", metadata),
+                    Subtitle = subtitle,
                     Icon = ArtworkIconLoader.FallbackIcon,
                     Tags = [new Tag(relativeTime)],
                 };
@@ -270,27 +254,6 @@ internal sealed partial class PlayniteCmdPalRecentlyPlayedPage : DynamicListPage
         catch (OperationCanceledException) when (_lifetimeToken.IsCancellationRequested)
         {
             // The page was disposed while artwork was loading.
-        }
-    }
-
-    private static ListItem CreateStatusItem(string message) =>
-        new ListItem(new NoOpCommand())
-        {
-            Title = message,
-        };
-
-    private sealed partial class RefreshCatalogCommand : InvokableCommand
-    {
-        private readonly PlayniteCmdPalRecentlyPlayedPage _page;
-
-        public RefreshCatalogCommand(PlayniteCmdPalRecentlyPlayedPage page) => _page = page;
-
-        public override string Name => "Refresh Playnite catalog";
-
-        public override CommandResult Invoke()
-        {
-            _page.RefreshCatalog();
-            return CommandResult.KeepOpen();
         }
     }
 }

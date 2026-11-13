@@ -1,10 +1,10 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Text;
+
 namespace PlayniteCmdPal.Snapshot;
 
 /// <summary>
@@ -142,7 +142,7 @@ public sealed class ArtworkCacheGeneration : IDisposable
                 bytes = output.ToArray();
             }
 
-            if (!TryDetectFormat(bytes, out var extension))
+            if (!ArtworkFileSignature.TryGetExtension(bytes, out var extension))
                 return Reject("format-validation", $"File signature is not a supported image format. path='{actual}', bytes={bytes.Length}.");
 
             if (string.Equals(extension, ".ico", StringComparison.Ordinal))
@@ -162,16 +162,14 @@ public sealed class ArtworkCacheGeneration : IDisposable
                 if (bytes.Length <= 0 || bytes.Length > _maxArtworkBytes)
                     return Reject("converted-png-validation", $"Converted PNG size {bytes.Length} is outside the allowed range 1..{_maxArtworkBytes} bytes. path='{actual}'.");
 
-                if (!TryDetectFormat(bytes, out extension))
+                if (!ArtworkFileSignature.TryGetExtension(bytes, out extension))
                     return Reject("converted-png-validation", $"Converted ICO output has an unrecognized image signature. path='{actual}'.");
 
                 if (!string.Equals(extension, ".png", StringComparison.Ordinal))
                     return Reject("converted-png-validation", $"ICO converter returned '{extension}' instead of PNG. path='{actual}'.");
             }
 
-            string digest;
-            using (var sha = SHA256.Create())
-                digest = string.Concat(sha.ComputeHash(bytes).Select(b => b.ToString("x2")));
+            var digest = SnapshotValidation.ComputeSha256Digest(bytes);
             var destination = Path.Combine(_staging, digest + extension);
             if (!Extensions.Any(ext => File.Exists(Path.Combine(_staging, digest + ext))))
             {
@@ -506,9 +504,6 @@ public sealed class ArtworkCacheGeneration : IDisposable
         [DataMember(Name = "generatedAtUtc", IsRequired = true)]
         public string GeneratedAtUtc { get; set; } = string.Empty;
     }
-
-    private static bool TryDetectFormat(byte[] data, out string extension) =>
-        ArtworkFileSignature.TryGetExtension(data, out extension);
 
     private static void DeleteDirectoryOrThrow(string? path)
     {

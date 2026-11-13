@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+
 namespace PlayniteCmdPal.Snapshot;
 
 /// <summary>Versioned read-only catalog exchanged with the Playnite companion plugin.</summary>
@@ -85,4 +87,13 @@ public static class SnapshotValidation
     public static bool IsArtworkIdOrNull(string? value) =>
         value is null || (value.Length == 64 && value.All(c =>
             (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')));
+
+    /// <summary>Computes the lowercase hex SHA-256 digest used for content-addressed artwork IDs.</summary>
+    public static string ComputeSha256Digest(byte[] content)
+    {
+        using (var sha = SHA256.Create())
+        {
+            return string.Concat(sha.ComputeHash(content).Select(value => value.ToString("x2")));
+        }
+    }
 }

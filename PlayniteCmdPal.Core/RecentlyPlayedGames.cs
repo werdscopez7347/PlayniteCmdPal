@@ -18,7 +18,7 @@ public static class RecentlyPlayedGames
     /// </summary>
     public static IReadOnlyList<GameEntry> Sort(IEnumerable<GameEntry> games)
     {
-        if (games is null) throw new ArgumentNullException(nameof(games));
+        ArgumentNullException.ThrowIfNull(games);
 
         return games
             .Where(game => game.LastActivity.HasValue)
@@ -73,9 +73,9 @@ public static class RecentlyPlayedGames
         string? searchText,
         Func<T, string> getTitle)
     {
-        if (statusItems is null) throw new ArgumentNullException(nameof(statusItems));
-        if (gameItems is null) throw new ArgumentNullException(nameof(gameItems));
-        if (getTitle is null) throw new ArgumentNullException(nameof(getTitle));
+        ArgumentNullException.ThrowIfNull(statusItems);
+        ArgumentNullException.ThrowIfNull(gameItems);
+        ArgumentNullException.ThrowIfNull(getTitle);
 
         var visible = new List<T>();
         visible.AddRange(statusItems);

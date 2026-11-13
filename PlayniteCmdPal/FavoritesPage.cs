@@ -7,6 +7,7 @@ using Microsoft.CommandPalette.Extensions;
 using Microsoft.CommandPalette.Extensions.Toolkit;
 using PlayniteCmdPal.Core;
 using PlayniteCmdPal.Playnite;
+using static PlayniteCmdPal.GameListItems;
 
 namespace PlayniteCmdPal;
 
@@ -25,32 +26,15 @@ internal sealed partial class FavoritesPage : DynamicListPage
 
     public FavoritesPage()
     {
-        // Capture the UI synchronization context so cross-thread notifications
-        // (artwork loading, deferred favorites refresh) can be marshaled back
-        // to the UI thread where the Command Palette host processes them.
         _uiContext = SynchronizationContext.Current;
 
         Icon = IconHelpers.FromRelativePath("Assets\\StoreLogo.png");
         Title = "Favorites";
         Name = "Pinned games";
 
-        // The shared store must not keep retired page instances alive. Its event
-        // delegate captures only a WeakReference, so the page can be collected
-        // with the host page.
-        var weakSelf = new WeakReference<FavoritesPage>(this);
-        EventHandler weakHandler = null!;
-        weakHandler = (sender, args) =>
-        {
-            if (weakSelf.TryGetTarget(out var page))
-            {
-                page.OnFavoritesChanged(sender, args);
-            }
-            else if (sender is FavoritesStore store)
-            {
-                store.FavoritesChanged -= weakHandler;
-            }
-        };
-        _favoritesChangedHandler = weakHandler;
+        // The shared store must not keep retired page instances alive; the subscription
+        // keeps only a weak reference to this page.
+        _favoritesChangedHandler = PageSupport.SubscribeToFavoritesChanges(this, static page => page.LoadItems());
         _favorites.FavoritesChanged += _favoritesChangedHandler;
         LoadItems();
     }
@@ -64,41 +48,11 @@ internal sealed partial class FavoritesPage : DynamicListPage
     public override IListItem[] GetItems() => _requestGate.Synchronize(() => _items);
 
     /// <summary>
-    /// Raises the items-changed notification on the UI synchronization context when one was
-    /// captured and we are not already on it. Falls back to a direct call when already on the
-    /// UI context or when no context was captured. This ensures the Command Palette host
-    /// processes notifications regardless of which thread calls them.
+    /// Raises the items-changed notification on the UI synchronization context so the
+    /// Command Palette host processes it on the thread it expects.
     /// </summary>
-    private void RaiseItemsChangedOnUIContext(int count)
-    {
-        void raise() => RaiseItemsChanged(count);
-        if (_uiContext is { } context &&
-            !ReferenceEquals(context, SynchronizationContext.Current))
-        {
-            context.Post(_ => raise(), null);
-        }
-        else
-        {
-            raise();
-        }
-    }
-
-    private void OnFavoritesChanged(object? sender, EventArgs e)
-    {
-        // Defer the refresh until after ToggleFavoriteCommand.Invoke() returns and the
-        // toast is shown. await Task.Delay(50) without ConfigureAwait(false) resumes the
-        // continuation on the captured UI synchronization context so RaiseItemsChanged is
-        // processed by the Command Palette host. Never call LoadItems() synchronously from
-        // within the event handler, as it runs inside ToggleFavoriteCommand.Invoke() and
-        // would nest host notifications inside command dispatch, suppressing the toast.
-        _ = RefreshAfterFavoriteChangeAsync();
-    }
-
-    private async Task RefreshAfterFavoriteChangeAsync()
-    {
-        await Task.Delay(50);
-        LoadItems();
-    }
+    private void RaiseItemsChangedOnUIContext(int count) =>
+        PageSupport.RaiseOnUiThread(_uiContext, () => RaiseItemsChanged(count));
 
     private void LoadItems()
     {
@@ -158,17 +112,8 @@ internal sealed partial class FavoritesPage : DynamicListPage
             foreach (var game in matches)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var item = new ListItem(new LaunchGameCommand(game.GameId))
-                {
-                    Title = game.Title,
-                    Subtitle = BuildMetadata(game),
-                    Icon = ArtworkIconLoader.FallbackIcon,
-                    MoreCommands =
-                    [
-                        new CommandContextItem(new ShowGameDetailsCommand(game.GameId)),
-                        new CommandContextItem(new ToggleFavoriteCommand(_favorites, game.GameId)),
-                    ],
-                };
+                var subtitle = BuildMetadata(game, includeInstalledState: true, includeIdTag: false);
+                var item = CreateGameRow(game, _favorites, subtitle);
                 items.Add(item);
                 artworkItems.Add((item, game));
             }
@@ -245,16 +190,4 @@ internal sealed partial class FavoritesPage : DynamicListPage
         if (published) RaiseItemsChangedOnUIContext(count);
         return published;
     }
-
-    private static string BuildMetadata(GameEntry game)
-    {
-        var metadata = new List<string>();
-        if (!string.IsNullOrWhiteSpace(game.Source)) metadata.Add(game.Source);
-        if (!string.IsNullOrWhiteSpace(game.Platform)) metadata.Add(game.Platform);
-        if (game.IsInstalled.HasValue) metadata.Add(game.IsInstalled.Value ? "Installed" : "Not installed");
-        return string.Join(" · ", metadata);
-    }
-
-    private static ListItem CreateStatusItem(string message) =>
-        new ListItem(new NoOpCommand()) { Title = message };
 }

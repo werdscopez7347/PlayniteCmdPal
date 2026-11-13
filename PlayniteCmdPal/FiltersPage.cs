@@ -24,8 +24,10 @@ internal sealed partial class FiltersPage : ListPage
 
     public FiltersPage(CatalogFilterState state, Action filtersChanged)
     {
-        _state = state ?? throw new ArgumentNullException(nameof(state));
-        _filtersChanged = filtersChanged ?? throw new ArgumentNullException(nameof(filtersChanged));
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(filtersChanged);
+        _state = state;
+        _filtersChanged = filtersChanged;
         _uiContext = SynchronizationContext.Current;
 
         Name = "Filters";
@@ -143,63 +145,61 @@ internal sealed partial class FiltersPage : ListPage
     private void ToggleStatus(bool status)
     {
         var selected = _state.InstalledStatuses.ToHashSet();
-        if (!selected.Add(status))
-        {
-            selected.Remove(status);
-        }
+        ToggleMembership(selected, status);
         _state.SetInstalledStatuses(selected);
-        SynchronizeFilterItems();
-        ScheduleResultsRefresh();
+        ApplyFilterChange();
     }
 
     private void ToggleSource(string source)
     {
         var selected = _state.SelectedSources.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        if (!selected.Add(source))
-        {
-            selected.Remove(source);
-        }
+        ToggleMembership(selected, source);
         _state.SetSources(selected);
-        SynchronizeFilterItems();
-        ScheduleResultsRefresh();
+        ApplyFilterChange();
     }
 
     private void TogglePlatform(string platform)
     {
         var selected = _state.SelectedPlatforms.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        if (!selected.Add(platform))
-        {
-            selected.Remove(platform);
-        }
+        ToggleMembership(selected, platform);
         _state.SetPlatforms(selected);
-        SynchronizeFilterItems();
-        ScheduleResultsRefresh();
+        ApplyFilterChange();
     }
 
     private void ClearStatuses()
     {
         _state.ClearInstalledStatuses();
-        SynchronizeFilterItems();
-        ScheduleResultsRefresh();
+        ApplyFilterChange();
     }
 
     private void ClearSources()
     {
         _state.ClearSources();
-        SynchronizeFilterItems();
-        ScheduleResultsRefresh();
+        ApplyFilterChange();
     }
 
     private void ClearPlatforms()
     {
         _state.ClearPlatforms();
-        SynchronizeFilterItems();
-        ScheduleResultsRefresh();
+        ApplyFilterChange();
     }
 
     private void ClearAll()
     {
         _state.ClearAll();
+        ApplyFilterChange();
+    }
+
+    private static void ToggleMembership<T>(HashSet<T> selected, T value)
+    {
+        if (!selected.Add(value))
+        {
+            selected.Remove(value);
+        }
+    }
+
+    private void ApplyFilterChange()
+    {
         SynchronizeFilterItems();
         ScheduleResultsRefresh();
     }
