@@ -37,7 +37,8 @@ internal sealed class ArtworkIconLoader
         int cacheCapacity = DefaultCacheCapacity,
         Func<string, bool>? fileExists = null)
     {
-        _resolvePath = resolvePath ?? throw new ArgumentNullException(nameof(resolvePath));
+        ArgumentNullException.ThrowIfNull(resolvePath);
+        _resolvePath = resolvePath;
         _isDecodable = isDecodable ?? IsDecodableImageAsync;
         _fileExists = fileExists ?? File.Exists;
         if (cacheCapacity < 1) throw new ArgumentOutOfRangeException(nameof(cacheCapacity));
@@ -84,7 +85,7 @@ internal sealed class ArtworkIconLoader
             {
                 load = new InFlightLoad();
                 _inFlight[key] = load;
-                load.Task = LoadAndCacheAsync(key, _generation, load);
+                load.Work = LoadAndCacheAsync(key, _generation, load);
             }
 
             load.Waiters++;
@@ -92,14 +93,14 @@ internal sealed class ArtworkIconLoader
 
         try
         {
-            return await load.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            return await load.Work.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
         {
             lock (_gate)
             {
                 load.Waiters--;
-                if (load.Waiters == 0 && !load.Task.IsCompleted)
+                if (load.Waiters == 0 && !load.Work.IsCompleted)
                 {
                     // Shared work is cancelled only after its final interested caller leaves.
                     try { load.Cancellation.Cancel(); }
@@ -257,7 +258,7 @@ internal sealed class ArtworkIconLoader
     private sealed class InFlightLoad
     {
         internal CancellationTokenSource Cancellation { get; } = new();
-        internal Task<IconInfo?> Task { get; set; } = System.Threading.Tasks.Task.FromResult<IconInfo?>(null);
+        internal Task<IconInfo?> Work { get; set; } = Task.FromResult<IconInfo?>(null);
         internal int Waiters { get; set; }
     }
 }

@@ -82,8 +82,8 @@ public sealed class CatalogFilterState
 
     public GameSearchFilters ToSearchFilters()
     {
-        // Neither status is unrestricted. Both are also unrestricted, which intentionally
-        // preserves games whose installation metadata is unknown.
+        // A single selected status restricts the filter; both statuses selected (or neither)
+        // is unrestricted, which intentionally keeps games whose installation metadata is unknown.
         bool? installed = _installedStatuses.Count == 1 ? _installedStatuses.Single() : null;
         return new GameSearchFilters(
             IsInstalled: installed,
