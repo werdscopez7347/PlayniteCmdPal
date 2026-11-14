@@ -24,10 +24,17 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
     private readonly SynchronizationContext? _uiContext;
     private readonly FiltersPage _filtersPage;
     private IListItem[] _items = [CreateStatusItem("Loading your Playnite library…")];
-    private CancellationTokenSource? _searchCancellation;
-    private string _searchText = string.Empty;
-    private int _requestVersion;
+    // Keep command/item identities stable across catalog refreshes. Command Palette can
+    // then retain the selected row when RaiseItemsChanged rebinds the list.
+    private readonly Dictionary<PlayniteLibraryViewMode, ListItem> _viewModeItems = [];
+    private readonly KeyedItemCache<ListItem> _gameItemsById = new();
+    private ListItem? _filtersItem;
+    private readonly PlayniteLibraryNavigationState _navigation = new();
+    private readonly PlayniteLibraryRequestCoordinator _requests = new();
+    private readonly System.Timers.Timer _recentRefreshTimer;
     private readonly object _requestGate = new();
+    private static readonly object PreferencesSaveGate = new();
+    private static long _preferencesWriteVersion;
     private bool _disposed;
 
     public PlayniteCmdPalPage()
@@ -36,11 +43,13 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
         // (artwork loading, deferred favorites refresh) can be marshaled back
         // to the UI thread where the Command Palette host processes them.
         _uiContext = SynchronizationContext.Current;
+        _filterState.RestoreSelections(CatalogFilterPreferences.Load());
+        _filterState.FilterSelectionsChanged += OnFilterSelectionsChanged;
         _filtersPage = new FiltersPage(_filterState, () => BeginSearch());
 
         Icon = IconHelpers.FromRelativePath("Assets\\StoreLogo.png");
         Title = "Playnite";
-        Name = "Search games";
+        Name = "Playnite";
 
         // Keep Search Games in sync when a game is pinned or unpinned from any page.
         // Capture this page weakly so the shared store cannot retain retired pages.
@@ -60,6 +69,12 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
         _favoritesChangedHandler = weakHandler;
         _favorites.FavoritesChanged += _favoritesChangedHandler;
 
+        _recentRefreshTimer = new System.Timers.Timer(TimeSpan.FromSeconds(10).TotalMilliseconds)
+        {
+            AutoReset = true,
+        };
+        _recentRefreshTimer.Elapsed += (_, _) => RefreshRecentlyPlayedView();
+        _recentRefreshTimer.Start();
         BeginSearch();
     }
 
@@ -95,15 +110,51 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
 
     internal void RefreshCatalog()
     {
-        BeginSearch(forceRefresh: true);
+        BeginSearch(forceRefresh: true, preserveItems: true);
     }
 
-    private void BeginSearch(bool forceRefresh = false, string? searchText = null)
+    internal IContextItem CreateRefreshContextItem() =>
+        new CommandContextItem(new RefreshCatalogCommand(this));
+
+    private void SetViewMode(PlayniteLibraryViewMode mode)
+    {
+        lock (_requestGate)
+        {
+            if (_disposed || !_navigation.SwitchView(mode))
+                return;
+        }
+
+        // Keep the currently focused selector row in the list while the new view loads.
+        // The final result set reuses the same selector/game item instances as well.
+        BeginSearch(preserveItems: true);
+    }
+
+    private void RefreshRecentlyPlayedView()
+    {
+        if (Volatile.Read(ref _disposed))
+            return;
+
+        lock (_requestGate)
+        {
+            if (_navigation.Capture().ViewMode != PlayniteLibraryViewMode.RecentlyPlayed)
+                return;
+        }
+
+        // Keep the populated list visible while polling; the previous Recently Played
+        // page refreshed in the background without replacing results with a loading row.
+        BeginSearch(preserveItems: true);
+    }
+
+    private void BeginSearch(
+        bool forceRefresh = false,
+        string? searchText = null,
+        bool preserveItems = false)
     {
         int version;
         string query;
+        PlayniteLibraryViewMode mode;
         CancellationToken cancellationToken;
-        int count;
+        int count = 0;
 
         lock (_requestGate)
         {
@@ -112,29 +163,39 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
 
             if (searchText is not null)
             {
-                _searchText = searchText;
+                _navigation.SetSearchText(searchText);
             }
 
-            _searchCancellation?.Cancel();
-            _searchCancellation?.Dispose();
-            _searchCancellation = new CancellationTokenSource();
+            var request = _requests.BeginRequest();
+            version = request.Version;
+            var navigation = _navigation.Capture();
+            query = navigation.SearchText;
+            mode = navigation.ViewMode;
+            cancellationToken = request.CancellationToken;
 
-            version = ++_requestVersion;
-            query = _searchText;
-            cancellationToken = _searchCancellation.Token;
-
-            _items = [CreateFiltersItem(), CreateStatusItem("Searching your Playnite library…")];
-            count = _items.Length;
+            if (!preserveItems)
+            {
+                var loadingItems = CreateViewItems(mode);
+                loadingItems.Add(CreateStatusItem("Searching your Playnite library…"));
+                _items = loadingItems.ToArray();
+                count = _items.Length;
+            }
         }
 
         // Notify outside the request lock: the host may synchronously re-enter GetItems.
-        RaiseItemsChangedOnUIContext(count);
-        _ = LoadItemsAsync(version, query, forceRefresh, cancellationToken);
+        // A timer-driven refresh deliberately leaves the current list untouched until
+        // the refreshed snapshot is ready, avoiding a periodic loading-state flicker.
+        if (!preserveItems)
+        {
+            RaiseItemsChangedOnUIContext(count);
+        }
+        _ = LoadItemsAsync(version, query, mode, forceRefresh, cancellationToken);
     }
 
     private async Task LoadItemsAsync(
         int version,
         string query,
+        PlayniteLibraryViewMode mode,
         bool forceRefresh,
         CancellationToken cancellationToken)
     {
@@ -154,10 +215,17 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
                 _artwork.Invalidate();
             }
 
+            // Reading favorites takes a cross-process file lock. Keep that I/O outside
+            // the page request lock so GetItems() and view changes are never blocked by it.
+            var favoriteIds = mode == PlayniteLibraryViewMode.Favorites
+                ? _favorites.GetFavoriteIds()
+                : Array.Empty<string>();
+            cancellationToken.ThrowIfCancellationRequested();
+
             (IListItem[] Items, IReadOnlyList<(ListItem Item, GameEntry Game)> ArtworkItems) built;
             lock (_requestGate)
             {
-                if (version != _requestVersion || cancellationToken.IsCancellationRequested)
+                if (!_requests.IsCurrent(version) || cancellationToken.IsCancellationRequested)
                 {
                     return;
                 }
@@ -169,7 +237,7 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
                     _filterState.UpdateCatalog(catalog.Games);
                 }
 
-                built = BuildItems(catalog, query);
+                built = BuildItems(catalog, query, mode, favoriteIds);
                 _items = built.Items;
                 count = _items.Length;
             }
@@ -185,16 +253,16 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
         {
             lock (_requestGate)
             {
-                if (version != _requestVersion || cancellationToken.IsCancellationRequested)
+                if (!_requests.IsCurrent(version) || cancellationToken.IsCancellationRequested)
                 {
                     return;
                 }
 
-                _items =
-                [
-                    CreateFiltersItem(),
-                    CreateStatusItem("Couldn't read the Playnite catalog. Check the companion plugin and snapshot permissions, then refresh."),
-                ];
+                var failureItems = CreateViewItems(mode);
+                failureItems.Add(CreateStatusItem(mode == PlayniteLibraryViewMode.Favorites
+                    ? "Couldn't load Favorites. Check the local preferences file and Playnite catalog, then use Refresh Playnite catalog."
+                    : "Couldn't read the Playnite catalog. Check the companion plugin and snapshot permissions, then use Refresh Playnite catalog."));
+                _items = failureItems.ToArray();
             }
 
             count = _items.Length;
@@ -202,9 +270,13 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
         }
     }
 
-    private (IListItem[] Items, IReadOnlyList<(ListItem Item, GameEntry Game)> ArtworkItems) BuildItems(CatalogReadResult catalog, string query)
+    private (IListItem[] Items, IReadOnlyList<(ListItem Item, GameEntry Game)> ArtworkItems) BuildItems(
+        CatalogReadResult catalog,
+        string query,
+        PlayniteLibraryViewMode mode,
+        IReadOnlyCollection<string> favoriteIds)
     {
-        var items = new List<IListItem> { CreateFiltersItem() };
+        var items = CreateViewItems(mode);
         if (!catalog.IsAvailable)
         {
             var message = catalog.Issue?.Message
@@ -227,31 +299,82 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
             items.Add(CreateStatusItem($"{catalog.SkippedRecordCount} invalid catalog entr{(catalog.SkippedRecordCount == 1 ? "y was" : "ies were")} skipped."));
         }
 
+        // The catalog snapshot is authoritative when available. Prune rows for games
+        // removed from Playnite, but keep cached rows across searches and view switches.
+        _gameItemsById.RetainKeys(catalog.Games.Select(game => game.GameId));
+
         if (catalog.Games.Count == 0)
         {
-            items.Add(CreateRefreshItem("Your Playnite library is empty. Add games in Playnite, then refresh."));
+            var emptyMessage = mode switch
+            {
+                PlayniteLibraryViewMode.Favorites => favoriteIds.Count == 0
+                    ? "No favorites yet. Pin a game from its search result actions."
+                    : "No saved favorites match this search in the current Playnite library.",
+                PlayniteLibraryViewMode.RecentlyPlayed => RecentlyPlayedGames.GetEmptyState(
+                    catalog.Games.Count,
+                    catalog.SkippedRecordCount) == RecentlyPlayedEmptyState.NoUsableRecords
+                    ? "No usable game records were found. Check the companion plugin and refresh the catalog."
+                    : "Your Playnite library is empty. Add games in Playnite.",
+                _ => "Your Playnite library is empty. Add games in Playnite, then use Refresh Playnite catalog.",
+            };
+            items.Add(CreateStatusItem(emptyMessage));
             return (items.ToArray(), Array.Empty<(ListItem Item, GameEntry Game)>());
         }
+        var matches = PlayniteLibraryViews.Search(
+            catalog.Games,
+            mode,
+            query,
+            favoriteIds,
+            _filterState.ToSearchFilters());
 
-        var activeFilters = _filterState.ToSearchFilters();
-        var matches = GameSearch.Search(catalog.Games, query, activeFilters);
         if (matches.Count == 0)
         {
-            var hasActiveFilters = activeFilters.IsInstalled.HasValue
-                || activeFilters.Sources?.Count > 0
-                || activeFilters.Platforms?.Count > 0;
-            var message = hasActiveFilters
-                ? string.IsNullOrWhiteSpace(query)
-                    ? "No games match the selected filters. Clear one or more filters to see more games."
-                    : $"No games match “{query.Trim()}” with the selected filters. Clear a filter or change your search."
-                : string.IsNullOrWhiteSpace(query)
-                    ? "No games are available in the current catalog."
-                    : $"No games match “{query.Trim()}”.";
+            string message;
+            var hasActiveFilters = _filterState.ActiveFilterCount > 0;
+            if (mode == PlayniteLibraryViewMode.Favorites)
+            {
+                message = favoriteIds.Count == 0
+                    ? "No favorites yet. Pin a game from its search result actions."
+                    : hasActiveFilters
+                        ? string.IsNullOrWhiteSpace(query)
+                            ? "No favorites match the selected filters. Clear one or more filters to see more games."
+                            : $"No favorites match “{query.Trim()}” with the selected filters."
+                        : "No saved favorites match this search in the current Playnite library.";
+            }
+            else if (mode == PlayniteLibraryViewMode.RecentlyPlayed)
+            {
+                var recentEmptyState = RecentlyPlayedGames.GetEmptyState(catalog.Games.Count, catalog.SkippedRecordCount);
+                var hasRecentGames = RecentlyPlayedGames.Sort(catalog.Games).Count > 0;
+                message = recentEmptyState switch
+                {
+                    RecentlyPlayedEmptyState.EmptyLibrary => "Your Playnite library is empty. Add games in Playnite.",
+                    RecentlyPlayedEmptyState.NoUsableRecords => "No usable game records were found. Check the companion plugin and refresh the catalog.",
+                    _ when !hasRecentGames => "No games have a recorded last-played date yet.",
+                    _ when hasActiveFilters && string.IsNullOrWhiteSpace(query) => "No recently played games match the selected filters. Clear one or more filters to see more games.",
+                    _ when hasActiveFilters => $"No recently played games match “{query.Trim()}” with the selected filters.",
+                    _ when string.IsNullOrWhiteSpace(query) => "No recently played games match the current view.",
+                    _ => $"No recently played games match “{query.Trim()}”.",
+                };
+            }
+            else
+            {
+                message = hasActiveFilters
+                    ? string.IsNullOrWhiteSpace(query)
+                        ? "No games match the selected filters. Clear one or more filters to see more games."
+                        : $"No games match “{query.Trim()}” with the selected filters. Clear a filter or change your search."
+                    : string.IsNullOrWhiteSpace(query)
+                        ? "No games are available in the current catalog."
+                        : $"No games match “{query.Trim()}”.";
+            }
+
             items.Add(CreateStatusItem(message));
             return (items.ToArray(), Array.Empty<(ListItem Item, GameEntry Game)>());
         }
 
-        var duplicateIds = matches
+        var duplicateTitleGames = mode == PlayniteLibraryViewMode.RecentlyPlayed
+            ? RecentlyPlayedGames.Sort(catalog.Games)
+            : matches;
+        var duplicateIds = duplicateTitleGames
             .GroupBy(game => game.Title, StringComparer.OrdinalIgnoreCase)
             .Where(group => group.Count() > 1)
             .SelectMany(group => group.Select(game => game.GameId))
@@ -271,7 +394,9 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
                 metadata.Add(game.Platform);
             }
 
-            if (game.IsInstalled.HasValue)
+            // Recently Played historically shows source/platform and duplicate-title
+            // identity only; keep installation status exclusive to Search and Favorites.
+            if (mode != PlayniteLibraryViewMode.RecentlyPlayed && game.IsInstalled.HasValue)
             {
                 metadata.Add(game.IsInstalled.Value ? "Installed" : "Not installed");
             }
@@ -281,17 +406,26 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
                 metadata.Add($"ID {game.GameId[..8]}");
             }
 
-            var item = new ListItem(new LaunchGameCommand(game.GameId))
-            {
-                Title = game.Title,
-                Subtitle = string.Join(" · ", metadata),
-                Icon = ArtworkIconLoader.FallbackIcon,
-                MoreCommands =
-                [
-                    new CommandContextItem(new ShowGameDetailsCommand(game.GameId)),
-                    new CommandContextItem(new ToggleFavoriteCommand(_favorites, game.GameId)),
-                ],
-            };
+            var item = _gameItemsById.GetOrAdd(
+                game.GameId,
+                () => new ListItem(new LaunchGameCommand(game.GameId))
+                {
+                    Icon = ArtworkIconLoader.FallbackIcon,
+                });
+
+            // Update the existing row instead of replacing it. Its command identity remains
+            // stable, allowing the host to preserve selection across list refreshes.
+            item.Title = game.Title;
+            item.Subtitle = string.Join(" · ", metadata);
+            item.Tags = mode == PlayniteLibraryViewMode.RecentlyPlayed && game.LastActivity.HasValue
+                ? [new Tag(RecentlyPlayedGames.FormatRelativeLastPlayed(game.LastActivity.Value, DateTimeOffset.UtcNow))]
+                : [];
+            item.MoreCommands =
+            [
+                new CommandContextItem(new ShowGameDetailsCommand(game.GameId)),
+                new CommandContextItem(new ToggleFavoriteCommand(_favorites, game.GameId)),
+            ];
+
             items.Add(item);
             artworkItems.Add((item, game));
         }
@@ -340,7 +474,7 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
                         lock (_requestGate)
                         {
                             // Do not mutate objects belonging to an obsolete search request.
-                            if (version != _requestVersion || token.IsCancellationRequested)
+                            if (!_requests.IsCurrent(version) || token.IsCancellationRequested)
                             {
                                 return;
                             }
@@ -371,22 +505,85 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
         }
     }
 
+    private List<IListItem> CreateViewItems(PlayniteLibraryViewMode mode)
+    {
+        // Keep the view selector order stable. The extension SDK does not expose
+        // the host ListView's SelectedItem/SelectedIndex, so the semantic active view
+        // cannot drive the native keyboard-selection accent from this page.
+        return
+        [
+            CreatePlayniteLibraryViewModeItem(PlayniteLibraryViewMode.Search),
+            CreatePlayniteLibraryViewModeItem(PlayniteLibraryViewMode.RecentlyPlayed),
+            CreatePlayniteLibraryViewModeItem(PlayniteLibraryViewMode.Favorites),
+            CreateFiltersItem(),
+        ];
+    }
+
+    private ListItem CreatePlayniteLibraryViewModeItem(PlayniteLibraryViewMode mode)
+    {
+        var title = mode switch
+        {
+            PlayniteLibraryViewMode.Search => "Search games",
+            PlayniteLibraryViewMode.RecentlyPlayed => "Recently played",
+            PlayniteLibraryViewMode.Favorites => "Favorites",
+            _ => throw new ArgumentOutOfRangeException(nameof(mode)),
+        };
+        var icon = mode switch
+        {
+            PlayniteLibraryViewMode.Search => new IconInfo("\uE721"),
+            PlayniteLibraryViewMode.RecentlyPlayed => new IconInfo("\uE823"),
+            PlayniteLibraryViewMode.Favorites => new IconInfo("\uE734"),
+            _ => ArtworkIconLoader.FallbackIcon,
+        };
+
+        if (!_viewModeItems.TryGetValue(mode, out var item))
+        {
+            item = new ListItem(new SwitchViewCommand(this, mode))
+            {
+                Title = title,
+                Icon = icon,
+            };
+            _viewModeItems.Add(mode, item);
+        }
+
+        item.Subtitle = _navigation.Capture().ViewMode == mode ? "Current view" : string.Empty;
+        return item;
+    }
+
+    private void OnFilterSelectionsChanged(object? sender, EventArgs e)
+    {
+        // Catalog metadata can prune stale selections while LoadItemsAsync holds the page
+        // request gate. Never perform filesystem I/O synchronously from this event: capture
+        // an immutable snapshot and serialize only the newest pending write on the thread pool.
+        var selection = _filterState.CaptureSelections();
+        var version = Interlocked.Increment(ref _preferencesWriteVersion);
+        _ = Task.Run(() =>
+        {
+            lock (PreferencesSaveGate)
+            {
+                if (version == Volatile.Read(ref _preferencesWriteVersion))
+                    CatalogFilterPreferences.Save(selection);
+            }
+        });
+    }
+
     private ListItem CreateFiltersItem()
     {
         var count = _filterState.ActiveFilterCount;
-        return new ListItem(_filtersPage)
+        _filtersItem ??= new ListItem(_filtersPage)
         {
-            Title = count == 0 ? "Filters" : $"Filters ({count})",
-            Subtitle = count == 0 ? "Installed status · source · platform" : "Active · Select to edit",
             Icon = new IconInfo("\uE71C"),
         };
+        _filtersItem.Title = count == 0 ? "Filters" : $"Filters ({count})";
+        _filtersItem.Subtitle = count == 0 ? "Installed status · source · platform" : "Active · Select to edit";
+        return _filtersItem;
     }
 
     private static ListItem CreateStatusItem(string message) =>
         new ListItem(new NoOpCommand()) { Title = message };
 
-    private ListItem CreateRefreshItem(string message) =>
-        new ListItem(new RefreshCatalogCommand(this)) { Title = message, Subtitle = "Press Enter to retry" };
+    private static ListItem CreateRefreshItem(string message) =>
+        CreateStatusItem(message + " Use the page-level Refresh Playnite catalog action to retry.");
 
     public void Dispose()
     {
@@ -396,13 +593,46 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
                 return;
 
             _disposed = true;
-            _requestVersion++;
-            _searchCancellation?.Cancel();
-            _searchCancellation?.Dispose();
-            _searchCancellation = null;
+            _requests.Dispose();
         }
 
+        _recentRefreshTimer.Dispose();
         _filtersPage.Dispose();
+        _filterState.FilterSelectionsChanged -= OnFilterSelectionsChanged;
+
+        // Flush the final snapshot synchronously during page disposal so an immediate
+        // Command Palette close cannot discard the last queued preference write.
+        Interlocked.Increment(ref _preferencesWriteVersion);
+        lock (PreferencesSaveGate)
+        {
+            CatalogFilterPreferences.Save(_filterState.CaptureSelections());
+        }
+    }
+
+    private sealed partial class SwitchViewCommand : InvokableCommand
+    {
+        private readonly PlayniteCmdPalPage _page;
+        private readonly PlayniteLibraryViewMode _mode;
+
+        public SwitchViewCommand(PlayniteCmdPalPage page, PlayniteLibraryViewMode mode)
+        {
+            _page = page;
+            _mode = mode;
+        }
+
+        public override string Name => _mode switch
+        {
+            PlayniteLibraryViewMode.Search => "Show search games",
+            PlayniteLibraryViewMode.RecentlyPlayed => "Show recently played games",
+            PlayniteLibraryViewMode.Favorites => "Show favorites",
+            _ => "Switch Playnite view",
+        };
+
+        public override CommandResult Invoke()
+        {
+            _page.SetViewMode(_mode);
+            return CommandResult.KeepOpen();
+        }
     }
 
     private sealed partial class RefreshCatalogCommand : InvokableCommand
