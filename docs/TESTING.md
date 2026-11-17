@@ -132,6 +132,7 @@ Capture screenshots of Search actions, populated Favorites, and empty/no-match s
 | CodeQL C# analysis | No | n/a | Yes | Yes (workflow runs on `windows-latest`) | No |
 | MSIX deploy + Command Palette extension reload | Manual | No | No | Yes | PowerToys |
 | Companion plugin packaging (`scripts/package-playnite-plugin.ps1`) | Manual | No | No | Yes | No (publishes and smoke-tests the `.pext`) |
+| Release tooling self-tests (`scripts/release/tests`) | Yes, via `scripts/ci.ps1` (inspection/preflight) and directly on any OS (full suite) | Yes (cross-platform job) | No | No (the build-orchestration cases use stub tools and skip on Windows) | No |
 | Real-library verification (`tools/CatalogVerifier` and the [Catalog Bridge checklist](CATALOG-BRIDGE.md#manual-playnite-verification-still-required)) | Manual | No | No | Yes | Playnite (PowerToys only for the launch UI) |
 | Launch-by-ID URI smoke test | Manual | No | No | Yes | Playnite + PowerToys, plus one real game |
 
@@ -157,7 +158,7 @@ set up. Do not mark a test as passing locally unless you actually ran it.
 
 The real-library and launch smoke tests are intentionally outside the automated suites: they depend on a particular installed Playnite, a particular PowerToys version, and one user's library. Normal CI must never require them.
 
-`scripts/ci.ps1` is the single source of truth for the automated checks. Windows CI and the CodeQL workflow invoke it instead of repeating commands, so a step cannot drift between a developer machine and CI. When you add a check, add it to that script rather than only to the workflow.
+`scripts/ci.ps1` is the single source of truth for the automated checks. Windows CI and the CodeQL workflow invoke it instead of repeating commands, so a step cannot drift between a developer machine and CI. When you add a check, add it to that script rather than only to the workflow. The only intentional exception is the cross-platform release-tooling job, which runs the same `python -m unittest discover -s scripts/release/tests` command on Ubuntu because the stub-tool build-orchestration cases cannot run on Windows.
 
 ## Running the tests
 
@@ -170,6 +171,21 @@ From the repository root in PowerShell on Windows:
 ```
 
 It prints the exact `dotnet` command it runs before each step, stops at the first failure, reports the step name and exit code, and returns that exit code.
+
+### Release tooling self-tests
+
+`scripts/release/release_tool.py` builds, signs, inspects and records evidence for the release MSIX packages. Its
+self-tests are standard-library Python and cover the inspection pass/fail paths, repository-declaration drift, and
+the build orchestration with stub `dotnet`/`signtool` executables:
+
+```powershell
+python -m unittest discover -s scripts/release/tests -v
+```
+
+They run in `scripts/ci.ps1` on Windows (preflight and inspection cases; the stub-tool orchestration cases skip) and
+in the separate `release-tools` GitHub Actions job on Ubuntu (full suite). They are not a Windows package build:
+they prove the gates reject the failure modes WERD-81 cares about, not that a release MSIX exists. See
+[WERD-81 release evidence](RELEASE-EVIDENCE-WERD-81.md) for the outstanding Windows run.
 
 ### One test project while iterating
 

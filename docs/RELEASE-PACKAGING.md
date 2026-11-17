@@ -1,6 +1,7 @@
 # Release packaging and Command Palette Gallery readiness
 
-**Status (2026-11-08): preparation only. No public release or Gallery submission is approved.**
+**Status (2026-11-17): release-candidate tooling implemented and self-tested; the Windows package build and
+inspection run is still outstanding. No public release or Gallery submission is approved.**
 
 This document is the release checklist for PlayniteCmdPal. It supersedes the generic examples in the publish-extension skill where those examples conflict with this repository's actual package, manifest, or licensing review.
 
@@ -15,7 +16,7 @@ This repository produces two different Windows artifacts:
 
 Do not upload `PlayniteCmdPalBridge.pext` to the Store or list it as the Command Palette extension's Gallery install source. The Gallery installs the CmdPal extension, not its companion Playnite bridge.
 
-The CmdPal project is an MSIX/packaged extension. Its project targets `net10.0-windows10.0.26100.0`, declares `win-x64` and `win-arm64`, and has self-contained publish profiles for both architectures. The package manifest declares version `0.0.3.0`, Partner Center identity `werdscopez7347.PlayniteforCommandPalette`, and publisher `CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70`. The publisher display name is `werdscopez7347`. The COM registration is an out-of-process executable server (`com:ExeServer`); it is not an InprocServer32 DLL registration.
+The CmdPal project is an MSIX/packaged extension. Its project targets `net10.0-windows10.0.26100.0`, declares `win-x64` and `win-arm64`, and has self-contained publish profiles for both architectures. The package manifest and project both declare version `0.0.8.0`, Partner Center identity `werdscopez7347.PlayniteforCommandPalette`, and publisher `CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70`. The publisher display name is `werdscopez7347`. The COM registration is an out-of-process executable server (`com:ExeServer`); it is not an InprocServer32 DLL registration. Release builds use the stable `Microsoft.Windows.SDK.NET.Ref 10.0.26100.84` targeting pack selected centrally in `Directory.Build.props`; `scripts/release/release_tool.py preflight` fails if any of these declarations drift.
 
 ## 2. Distribution decision
 
@@ -27,8 +28,9 @@ Microsoft Store handles production signing for Store-distributed MSIX packages a
 
 ## 3. Release version and package identity
 
-- Keep the public version in Semantic Versioning form and map it to the four-part MSIX version. For example, SemVer `0.0.3` maps to MSIX `0.0.3.0`.
-- The current WERD-74 development package version is `0.0.5.0` in both the manifest and project. Keep those declarations synchronized; public release versions must still follow the maintainer-approved release process.
+- Keep the public version in Semantic Versioning form and map it to the four-part MSIX version. For example, SemVer `0.0.8` maps to MSIX `0.0.8.0`.
+- The current development package version is `0.0.8.0` in both `PlayniteCmdPal/Package.appxmanifest` and `PlayniteCmdPal/PlayniteCmdPal.csproj`. Keep every declaration synchronized with `scripts/release/release_expectations.json`; public release versions must still follow the maintainer-approved release process.
+- The release Windows SDK pin is `Microsoft.Windows.SDK.NET.Ref 10.0.26100.84`. This is a stable package whose `lib/net8.0` projection assets are enumerated by Microsoft's [Windows SDK REDIST list](https://learn.microsoft.com/en-us/legal/windows-sdk/redist), which is the WERD-76 distribution decision. `10.0.26100.87` was evaluated under WERD-77 but is not the distribution pin; see the reconciliation note in section 10.
 - The Partner Center identity supplied by the maintainer is applied in `PlayniteCmdPal/Package.appxmanifest`: Name `werdscopez7347.PlayniteforCommandPalette`, Publisher `CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70`, and PublisherDisplayName `werdscopez7347`.
 - Keep the manifest version, evaluated package version, Store submission version, and release tag aligned.
 - Microsoft Store performs production signing for Store-distributed packages. Follow [Microsoft Store package identity and MSIX signing](MSIX-SIGNING.md) for the identity record, Store-managed signing model, package validation, and submission evidence.
@@ -62,7 +64,7 @@ The schema requires a real `installSources` entry. Do not insert a guessed WinGe
 
 ## 5. Build and package evidence
 
-The checked-in publish profiles select `win-x64` and `win-arm64`, use self-contained publishing, and enable ReadyToRun. The project also has a post-publish target that copies the runtime pack's `THIRD-PARTY-NOTICES.TXT` into the publish output and fails if the source notice is absent.
+The checked-in publish profiles select `win-x64` and `win-arm64`, use self-contained publishing, and disable trimming, ReadyToRun and single-file publishing so the reviewed SDK projection assemblies ship byte-for-byte. The project also has a post-publish target that copies the runtime pack's `THIRD-PARTY-NOTICES.TXT` into the publish output and into the MSIX payload, and fails if the source notice is absent.
 
 The repository's documented automated baseline is:
 
@@ -72,9 +74,15 @@ The repository's documented automated baseline is:
 
 That command restores, builds, runs the core and adapter test projects, and executes the .NET Framework snapshot smoke test. It is not an MSIX packaging test.
 
-A release candidate still needs a Windows packaging run for both architectures. Record the exact Visual Studio/.NET SDK versions, commands, exit codes, package filenames, package versions, and SHA-256 hashes. For Store distribution, retain Partner Center submission and certification evidence; do not invent publisher-certificate thumbprint requirements. Inspect each package to confirm the extension manifest, assets, application binaries, project license, PowerToys template notice, and runtime notices are present. Do not commit generated packages, certificates, or private keys.
+A release candidate still needs a Windows packaging run for both architectures. That run is automated by the
+release tool described in section 10: it builds, signs, inspects and records the evidence bundle. Do not copy a
+generic `dotnet publish`, MakeAppx or Inno Setup command into release instructions; use the checked-in tool so the
+commands, tool versions, package hashes, manifest contents and inspection results are recorded together. The local
+Visual Studio **Build > Deploy** path in [Developer Setup](DEVELOPER-SETUP.md) is a development deployment, not
+proof of a distributable release package.
 
-Do not copy a generic `dotnet publish` or Inno Setup command into release instructions until it has been run successfully against this exact project and the resulting MSIX has been inspected. The local Visual Studio **Build > Deploy** path in [Developer Setup](DEVELOPER-SETUP.md) is a development deployment, not proof of a distributable release package.
+Do not commit generated packages, certificates, or private keys. The tool writes to `artifacts/release/<version>/`,
+which is git-ignored.
 
 ## 6. Licensing and release blockers
 
@@ -90,7 +98,7 @@ The current audit in [Licensing and release readiness](LICENSING-AND-RELEASE.md)
 
 5. **Store identity and signing.** Partner Center identity values have been supplied and applied to the manifest. Confirm them against the Partner Center product dashboard, then complete the Store packaging, validation, and certification workflow. No publisher-managed signing certificate is required for Store distribution. Direct GitHub/WinGet downloads need a separately evaluated trust model.
 
-6. **Stable Windows SDK targeting pack — WERD-77 (.87).** Stable `Microsoft.Windows.SDK.NET.Ref 10.0.26100.87` replaces the previous preview targeting-pack override. On Windows 11 build 26200 with .NET SDK 10.0.403 and MSBuild 18.9.15, restore, Release solution build, both automated test projects, the .NET Framework smoke test, Visual Studio x64 deployment and Command Palette activation, and x64/ARM64 Release publishing succeeded. Evaluated MSBuild properties confirm the stable version, unchanged application target, and unchanged minimum OS. Both publish outputs contain the runtime notice; the installed x64 MSIX payload was verified to contain it. **Outstanding:** generate the actual ARM64 MSIX/MSIX bundle using the existing ARM64 packaging pipeline on the available x64 Windows machine, then extract/inspect it and record its exact filename, SHA-256, inspection method, manifest architecture, runtime notice, project license, and third-party notice results in this PR. MakeAppx or an archive tool can inspect an ARM64 package on x64; ARM64 hardware is not required for archive-content verification. Do not treat this as an ARM64 install, launch, or runtime-activation test. See the WERD-77 validation record below and PR #40.
+6. **Windows SDK targeting pack — WERD-77 evaluated .87; the release pin is .84.** WERD-77 selected stable `Microsoft.Windows.SDK.NET.Ref 10.0.26100.87` and validated restore, Release solution build, tests, Visual Studio x64 deployment/activation and x64/ARM64 publishing on Windows 11 build 26200 with .NET SDK 10.0.403 and MSBuild 18.9.15. WERD-76's distribution decision requires the `.84` package because its `lib/net8.0` projection assets are the group enumerated by the REDIST list; `.87` ships a `lib/net9.0` asset group that the WERD-76 review did not clear. WERD-81 therefore pins `10.0.26100.84` for release candidates and keeps the trimming/ReadyToRun restrictions that preserve the two shipped projection DLLs. The WERD-77 validation history remains recorded below; it validates the stable targeting-pack migration, not redistribution of `.87`. **Outstanding:** run `scripts/release/release_tool.py build` for both architectures and record the new package hashes; see section 10 and [WERD-81 release evidence](RELEASE-EVIDENCE-WERD-81.md).
 
 7. **Clean-machine acceptance:** replay install, first launch, update, uninstall, and rollback on a clean supported Windows environment. This independent walkthrough remains outstanding and must not be marked complete without evidence.
 
@@ -149,13 +157,91 @@ Before the first public release, the maintainer must confirm:
 - [ ] The dependency inventory has been regenerated and all review items resolved.
 - [ ] Runtime notices are present in both architecture outputs.
 - [ ] Partner Center identity is confirmed against the product dashboard; x64 and ARM64 MSIX packages pass validation and Store certification. Direct GitHub/WinGet distribution has a separately documented trust model.
-- [ ] x64 and ARM64 packages build and pass package inspection.
+- [ ] x64 and ARM64 packages build, sign and pass `scripts/release/release_tool.py` inspection, with the evidence bundle recorded in [WERD-81 release evidence](RELEASE-EVIDENCE-WERD-81.md).
 - [ ] A clean supported Windows machine passes install, first-run, update, uninstall, and rollback checks.
 - [ ] Release notes, support/troubleshooting instructions, version, hashes, and notices are complete.
 - [ ] The live Gallery metadata uses a real install source, validates against the current schema, and has a matching icon.
 - [ ] The maintainer approves the public release and the separate Gallery contribution; any required Microsoft CLA is completed.
 
 Until every required item is checked, the project remains **prepared for review, not ready to publish**.
+
+## 10. Release MSIX build and inspection (WERD-81)
+
+`scripts/release/release_tool.py` is the reproducible release-candidate pipeline for the Command Palette
+extension. It never uploads or publishes anything; it writes a self-contained evidence bundle to
+`artifacts/release/<version>/` (git-ignored).
+
+| Path | Purpose |
+|---|---|
+| `scripts/release/release_expectations.json` | Reviewed release gates: package identity, version, architecture, COM/app-extension registration, required payload files, notices, reviewed dependency assemblies, forbidden content, runtime-notice hashes. |
+| `scripts/release/release_tool.py` | `preflight`, `inspect` and `build` commands. Standard-library Python 3 only. |
+| `scripts/release/tests/` | Self-tests with synthetic MSIX archives and stub build tools. |
+| [WERD-81 release evidence](RELEASE-EVIDENCE-WERD-81.md) | Current evidence record and the exact Windows run instructions. |
+
+### Prerequisites for the Windows run
+
+- Windows 11 with the .NET 10 SDK, MSBuild, the Windows SDK build tools (`signtool.exe`, `makeappx.exe`) and the
+  Visual Studio MSIX/WinUI components required by the project.
+- Python 3.9 or later on `PATH` (`python --version`).
+- A NuGet restore of the solution (the tool compares shipped dependency assemblies byte-for-byte with the
+  restored packages in `%USERPROFILE%\.nuget\packages`).
+- A signing certificate whose subject matches the manifest Publisher, or the Partner Center Store submission
+  path. Signing material must stay outside the repository. The PFX password is read from the
+  `PLAYNITECMDPAL_MSIX_PFX_PASSWORD` environment variable.
+
+### Commands
+
+```powershell
+# 1. Restore, then regenerate the reviewed dependency inventory (WERD-78).
+dotnet restore .\PlayniteCmdPal.sln
+pwsh -File scripts/licensing/New-DependencyInventory.ps1 -Configuration Release
+
+# 2. Check that repository declarations match the reviewed expectations.
+python scripts/release/release_tool.py preflight
+
+# 3. Build, sign and inspect both architectures and write the evidence bundle.
+$env:PLAYNITECMDPAL_MSIX_PFX_PASSWORD = '<pfx password, never committed>'
+python scripts/release/release_tool.py build `
+    --inventory artifacts/dependency-inventory.json `
+    --certificate-pfx C:\secure\PlayniteCmdPal-test-signing.pfx
+```
+
+The `build` command runs `dotnet publish` with `-p:GenerateAppxPackageOnBuild=true`,
+`-p:UapAppxPackageBuildMode=SideloadOnly` and `-p:AppxBundle=Never` for `win-x64` and `win-arm64`, then signs each
+package with `signtool`, verifies it with `signtool verify /pa /all /v`, inspects the archive and records the
+evidence. A separate `inspect` command re-inspects an archived package without rebuilding:
+
+```powershell
+$package = Get-ChildItem artifacts/release/0.0.8.0/appx -Recurse -Filter *x64*.msix | Select-Object -First 1
+python scripts/release/release_tool.py inspect $package.FullName --rid win-x64 --strict
+```
+
+### What `inspect` verifies
+
+- OPC structure: `[Content_Types].xml`, `AppxBlockMap.xml` coverage of every payload file, and a signature block.
+- Manifest identity, version, `ProcessorArchitecture`, display properties, languages, capabilities and minimum OS.
+- Application executable and `AppListEntry`, the out-of-process `com:ExeServer` registration (executable,
+  activation arguments and CLSID), the absence of in-process/surrogate COM registration, and that the
+  `com.microsoft.commandpalette` app extension's `CreateInstance` class matches the COM class.
+- Every manifest asset reference (including scale/targetsize-qualified variants).
+- Presence of the application and reviewed dependency assemblies, byte-for-byte comparison of the shipped
+  dependency DLLs/WinMD with the restored NuGet package sources, and detection of build-only or test-only content.
+- `LICENSE`, `THIRD-PARTY-NOTICES.md` and `Microsoft-PowerToys-LICENSE.txt` against the repository copies, plus
+  the RID-specific `dotnet-runtime-THIRD-PARTY-NOTICES.txt` against the reviewed SHA-256.
+- Every payload file is attributable to the application, the reviewed dependency inventory or the .NET runtime.
+  `--strict` (used by `build`) makes an unreviewed file a failure.
+
+The command exits `0` only when every check passes. The evidence bundle records the source commit, tool versions,
+every command with its exit code, the package SHA-256, per-file payload hashes, the extracted `AppxManifest.xml`,
+and a pass/fail table for each WERD-81 acceptance criterion.
+
+### Current status
+
+The tool and its self-tests are implemented and pass on the current branch (see [Testing](TESTING.md)). The
+Windows package build for both architectures has **not** been executed yet: the packages, their SHA-256 hashes and
+the signed-inspection results are outstanding and are recorded in
+[WERD-81 release evidence](RELEASE-EVIDENCE-WERD-81.md). Until that run is recorded, the release checklist item
+"x64 and ARM64 packages build and pass package inspection" stays unchecked, and no package may be published.
 
 ## Official references
 
@@ -168,7 +254,7 @@ Until every required item is checked, the project remains **prepared for review,
 
 ## Windows SDK targeting-pack migration (WERD-77, 2026-11-01)
 
-The project previously pinned preview `Microsoft.Windows.SDK.NET.Ref 10.0.26100.68-preview`. That project-level override has been removed. The stable Microsoft-published candidate `10.0.26100.87` is now selected centrally by `WindowsSdkPackageVersion` in [Directory.Build.props](../Directory.Build.props).
+The project previously pinned preview `Microsoft.Windows.SDK.NET.Ref 10.0.26100.68-preview`. That project-level override has been removed. WERD-77 selected the stable candidate `10.0.26100.87` centrally through `WindowsSdkPackageVersion` in [Directory.Build.props](../Directory.Build.props); the **release pin is `10.0.26100.84`** because that package's projection assets are the ones the WERD-76 REDIST review cleared (see [Release-pin reconciliation](#release-pin-reconciliation-2026-11-17)). The `.87` validation record below is retained as the stable-migration evidence.
 
 Compatibility rationale:
 
@@ -180,7 +266,7 @@ The targeting pack is a development-time compile reference. Its use is governed 
 
 ### Migration validation checklist
 
-- [x] Clean Windows restore succeeds; evaluated properties select `10.0.26100.87` and no preview targeting pack remains.
+- [x] Clean Windows restore succeeds; evaluated properties selected the then-current `10.0.26100.87` and no preview targeting pack remains. (The release pin is now `10.0.26100.84`, enforced by the WERD-81 preflight.)
 - [x] Release solution build succeeds.
 - [x] Automated tests and the .NET Framework smoke test pass.
 - [x] Visual Studio Build > Deploy registers the x64 MSIX and Command Palette activation succeeds.
@@ -195,5 +281,17 @@ The targeting pack is a development-time compile reference. Its use is governed 
 
 The migration validation above was performed on Windows 11 build 26200 with .NET SDK 10.0.403 and MSBuild 18.9.15. The ARM64 publish and packaging-recipe checks do not establish the contents of the final ARM64 MSIX archive. **Archive inspection is still outstanding, but it can be performed on this x64 Windows machine; ARM64 hardware is not required.** A separate ARM64 install/launch/runtime-activation test does require ARM64 hardware and has not been performed. The clean-machine installation/update/uninstall/rollback walkthrough and public-release licensing obligations remain independent release gates.
 
-Run `.\scripts\ci.ps1` for the repository's automated baseline, then perform the Visual Studio and package checks above on Windows. Do not mark WERD-77 complete until evidence is attached. Windows 11 build 26200 validation for WERD-77 is recorded above; the independent clean-machine validation remains outstanding as documented in [Developer Setup](DEVELOPER-SETUP.md).
+### Release-pin reconciliation (2026-11-17)
+
+WERD-77's completion selected and validated stable `10.0.26100.87`. WERD-76's distribution decision requires
+`10.0.26100.84` because only that package's `lib/net8.0` projection asset group is enumerated by the Windows SDK
+REDIST list, and WERD-81 inherited that constraint when producing release candidates. `Directory.Build.props`
+therefore pins `10.0.26100.84`, and `scripts/release/release_tool.py preflight` fails if the pin, the trimming settings
+or the ReadyToRun settings drift. The WERD-77 validation evidence above remains accurate for the migration itself;
+it does not establish redistribution clearance for `.87`. Revisit the pin only after a new REDIST review.
+
+Run `.\scripts\ci.ps1` for the repository's automated baseline, then use `scripts/release/release_tool.py` for the
+package build and inspection described in section 10. Windows 11 build 26200 validation for WERD-77 is recorded
+above; the independent clean-machine validation remains outstanding as documented in
+[Developer Setup](DEVELOPER-SETUP.md).
 Run `.\scripts\ci.ps1` for the repository's automated baseline, then perform the Visual Studio and package checks above on Windows. Do not mark WERD-77 complete until evidence is attached. The existing maintainer-reported Windows 10 validation and CI results predate this targeting-pack migration and do not validate the new package version. Windows 11 clean-machine validation remains separately deferred as documented in [Developer Setup](DEVELOPER-SETUP.md).

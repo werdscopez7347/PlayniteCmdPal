@@ -18,6 +18,15 @@ Release publishing disables both trimming and ReadyToRun. The following package-
 | `Microsoft.Windows.SDK.NET.dll` | 27,196,448 bytes; file version 10.0.26100.82; SHA-256 `CFF6F50D9E25D5C8148EE47C0860B1E13D5826448C52C6FE677577D051C5A48F` |
 | `WinRT.Runtime.dll` | 528,944 bytes; file version 2.2.0.48161; SHA-256 `BCF3A14E8712A90837FC5C0D8C8A24696AF2BD7F74E9767597EC81EDEDFB23DB` |
 
+**Currentness note (2026-11-17):** the hashes in this section are the WERD-76 records for CsWinRT 2.2.0 and the
+WERD-77/78 runtime pack. Merge request #41 moved `Microsoft.Windows.CsWinRT` to 2.3.1 (which supplies
+`WinRT.Runtime.dll`), `Shmuelie.WinRTServer` to 2.2.1, `Microsoft.CommandPalette.Extensions` to 0.12.260812002 and
+`Microsoft.Windows.SDK.BuildTools.MSIX` to 1.7.261102100. Treat the recorded assembly hashes and the inventory
+counts below as historical until the release run regenerates the inventory and re-verifies each shipped assembly.
+`scripts/release/release_tool.py inspect` compares every shipped dependency assembly byte-for-byte with the
+restored package source and records the observed SHA-256, so the current values come from that evidence bundle
+rather than from this historical table.
+
 The hashes above match the package-source files exactly in both architectures. Candidate .84 MSIX hashes: x64 `66DBDD4B3BE147331E29809FE94D553625611B3C5B4C3F84B6F1B61DFA4A99B8` (43,857,942 bytes); ARM64 `DC53C85E3FE166703D3C445796C6098BBD03DE0683DB50CBB3F050005D97883C` (42,470,759 bytes). Both packages contain the project `LICENSE`, `THIRD-PARTY-NOTICES.md`, `dotnet-runtime-THIRD-PARTY-NOTICES.txt`, and `Microsoft-PowerToys-LICENSE.txt`.
 
 The package's other SDK files (including the XAML projection, WinMD files, analyzer and data files) are not included in the MSIX. The Command Palette SDK WinMD is from its separate dependency.
@@ -166,11 +175,11 @@ The Windows SDK package choice and byte-preserving publish configuration are imp
 
 ## Package identity and signing
 
-`PlayniteCmdPal/PlayniteCmdPal.csproj` and `PlayniteCmdPal/Package.appxmanifest` both configure the package Publisher as `CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70`, with package identity `werdscopez7347.PlayniteforCommandPalette`. The previously documented local test certificate used subject `CN=PlayniteCmdPal`; that test predates or does not validate the currently configured publisher identity. A signing and installation test using a certificate whose subject matches the configured Publisher remains necessary. WERD-79 tracks the production signing path. Public distribution must use a publisher identity the distributor controls. The package version remains `0.0.3.0` and must be synchronized with the selected release version.
+`PlayniteCmdPal/PlayniteCmdPal.csproj` and `PlayniteCmdPal/Package.appxmanifest` both configure the package Publisher as `CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70`, with package identity `werdscopez7347.PlayniteforCommandPalette`. The previously documented local test certificate used subject `CN=PlayniteCmdPal`; that test predates or does not validate the currently configured publisher identity. A signing and installation test using a certificate whose subject matches the configured Publisher remains necessary. WERD-79 tracks the production signing path. Public distribution must use a publisher identity the distributor controls. The package version is `0.0.8.0` and must stay synchronized with the selected release version and `scripts/release/release_expectations.json`.
 
 ## Before the first public release
 
-1. Resolve the open review items above, including the Windows SDK projection redistributability question and the runtime notices mechanism. Obtain permission where needed; do not ship unverified third-party artwork or code.
+1. Resolve the open review items above, including the Windows SDK projection redistributability question and the runtime notices mechanism. Obtain permission where needed; do not ship unverified third-party artwork or code. Run `python scripts/release/release_tool.py preflight` and `build` so the shipped payload is compared with the regenerated inventory; see [WERD-81 release evidence](RELEASE-EVIDENCE-WERD-81.md).
 2. Regenerate the dependency inventory from a clean restore (`scripts/licensing/New-DependencyInventory.ps1`) and compare it with this document; update the tables for any added, removed or upgraded package.
 3. Apply the versioning, release-channel, release-notes and changelog policy above.
 4. Set and validate package identity, signing/publisher information, display names and consistent version metadata. Confirm artifact contents and required third-party notices for each distribution channel, including `THIRD-PARTY-NOTICES.md`, `Microsoft-PowerToys-LICENSE.txt`, the project `LICENSE`, and the .NET runtime notices.

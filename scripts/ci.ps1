@@ -40,6 +40,35 @@ function Invoke-DotNetStep {
     }
 }
 
+function Invoke-PythonStep {
+    param (
+        [Parameter(Mandatory)]
+        [string] $Name,
+
+        [Parameter(Mandatory)]
+        [string[]] $Arguments
+    )
+
+    Write-Host ''
+    Write-Host "==> $Name"
+    Write-Host ('python ' + ($Arguments -join ' '))
+
+    & python @Arguments
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -ne 0) {
+        [Console]::Error.WriteLine("ERROR: $Name failed with exit code $exitCode.")
+        exit $exitCode
+    }
+}
+
+if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
+    [Console]::Error.WriteLine('ERROR: Python 3.9 or later is required for the release-tooling self-tests. Install Python and ensure python is on PATH.')
+    exit 127
+}
+
+Invoke-PythonStep -Name 'Release tooling self-tests (scripts/release/tests)' -Arguments @(
+    '-m', 'unittest', 'discover', '-s', (Join-Path $repoRoot 'scripts/release/tests'))
+
 Invoke-DotNetStep -Name '.NET SDK information' -Arguments @('--info')
 Invoke-DotNetStep -Name 'Restore' -Arguments @('restore', $solutionPath)
 Invoke-DotNetStep -Name 'Build (Release)' -Arguments @('build', $solutionPath, '--configuration', 'Release', '--no-restore')

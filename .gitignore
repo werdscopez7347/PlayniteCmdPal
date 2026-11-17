@@ -5,6 +5,12 @@
 [Rr]elease/
 artifacts/
 
+# Release tooling sources live under scripts/release even though [Rr]elease/ above
+# ignores build-output directories with the same name.
+!scripts/release/
+!scripts/release/**
+__pycache__/
+
 # Visual Studio
 .vs/
 *.user
