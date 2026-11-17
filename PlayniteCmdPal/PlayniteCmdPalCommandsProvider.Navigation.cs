@@ -18,14 +18,14 @@ public partial class PlayniteCmdPalCommandsProvider
 
     private static ICommandItem[] CreateNavigationCommands()
     {
-        var recentlyPlayed = new PlayniteCmdPalRecentlyPlayedPage();
-        return [
-            new CommandItem(new PlayniteCmdPalPage()) { Title = "Search games" },
-            new CommandItem(new FavoritesPage()) { Title = "Favorites" },
-            new CommandItem(recentlyPlayed)
+        var page = new PlayniteCmdPalPage();
+        return
+        [
+            new CommandItem(page)
             {
-                Title = "Recently played games",
-                MoreCommands = [recentlyPlayed.CreateRefreshContextItem()],
+                Title = "Playnite",
+                Subtitle = "Search through your Playnite library",
+                MoreCommands = [page.CreateRefreshContextItem()],
             },
         ];
     }

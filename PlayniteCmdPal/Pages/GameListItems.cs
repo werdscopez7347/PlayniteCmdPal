@@ -5,8 +5,8 @@ using PlayniteCmdPal.Core;
 namespace PlayniteCmdPal;
 
 /// <summary>
-/// Shared builders for the rows the extension's game-list pages present, so every page
-/// shapes titles, metadata, and row actions the same way.
+/// Shared builders for the rows the unified library page presents, so every view shapes
+/// titles, metadata, and status messages the same way.
 /// </summary>
 internal static class GameListItems
 {
@@ -15,22 +15,9 @@ internal static class GameListItems
     public static ListItem CreateStatusItem(string message) =>
         new(new NoOpCommand()) { Title = message };
 
-    public static ListItem CreateGameRow(GameEntry game, FavoritesStore favorites, string subtitle) =>
-        new(new LaunchGameCommand(game.GameId))
-        {
-            Title = game.Title,
-            Subtitle = subtitle,
-            Icon = ArtworkIconLoader.FallbackIcon,
-            MoreCommands =
-            [
-                new CommandContextItem(new ShowGameDetailsCommand(game.GameId)),
-                new CommandContextItem(new ToggleFavoriteCommand(favorites, game.GameId)),
-            ],
-        };
-
     /// <summary>
     /// Builds the metadata subtitle shared by every game row: source, platform, install
-    /// state (on pages that show it), and a short ID tag for disambiguating duplicates.
+    /// state (on views that show it), and a short ID tag for disambiguating duplicates.
     /// </summary>
     public static string BuildMetadata(GameEntry game, bool includeInstalledState, bool includeIdTag)
     {
@@ -58,5 +45,5 @@ internal static class GameListItems
         return string.Join(MetadataSeparator, parts);
     }
 
-    public static string ShortGameId(string gameId) => gameId.Length > 8 ? gameId[..8] : gameId;
+    private static string ShortGameId(string gameId) => gameId.Length > 8 ? gameId[..8] : gameId;
 }
