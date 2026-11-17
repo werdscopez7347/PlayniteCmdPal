@@ -24,9 +24,9 @@ public sealed class ArtworkExportLockTests
             "7",
             "pwsh.exe");
         var windowsPowerShell = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.System),
+            Environment.SystemDirectory,
             "WindowsPowerShell",
-            "1.0",
+            "v1.0",
             "powershell.exe");
         var startInfo = new ProcessStartInfo
         {
@@ -37,7 +37,7 @@ public sealed class ArtworkExportLockTests
             // legacy console host of either runner.
             FileName = File.Exists(powerShell7) ? powerShell7
                 : File.Exists(windowsPowerShell) ? windowsPowerShell
-                : "pwsh.exe",
+                : "powershell.exe",
             Arguments = "-NoLogo -NoProfile -NonInteractive -Command \"" + command.Replace("\"", "\\\"") + "\"",
             UseShellExecute = false,
             RedirectStandardOutput = true,
