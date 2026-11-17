@@ -25,8 +25,10 @@ internal sealed partial class FiltersPage : ListPage
 
     public FiltersPage(CatalogFilterState state, Action filtersChanged)
     {
-        _state = state ?? throw new ArgumentNullException(nameof(state));
-        _filtersChanged = filtersChanged ?? throw new ArgumentNullException(nameof(filtersChanged));
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(filtersChanged);
+        _state = state;
+        _filtersChanged = filtersChanged;
         _uiContext = SynchronizationContext.Current;
 
         Name = "Filters";
@@ -159,8 +161,7 @@ internal sealed partial class FiltersPage : ListPage
     {
         if (_state.ToggleInstalledStatus(status))
         {
-            SynchronizeFilterItems();
-            ScheduleResultsRefresh();
+            ApplyFilterChange();
         }
     }
 
@@ -168,8 +169,7 @@ internal sealed partial class FiltersPage : ListPage
     {
         if (_state.ToggleSource(source))
         {
-            SynchronizeFilterItems();
-            ScheduleResultsRefresh();
+            ApplyFilterChange();
         }
     }
 
@@ -177,35 +177,36 @@ internal sealed partial class FiltersPage : ListPage
     {
         if (_state.TogglePlatform(platform))
         {
-            SynchronizeFilterItems();
-            ScheduleResultsRefresh();
+            ApplyFilterChange();
         }
     }
 
     private void ClearStatuses()
     {
         _state.ClearInstalledStatuses();
-        SynchronizeFilterItems();
-        ScheduleResultsRefresh();
+        ApplyFilterChange();
     }
 
     private void ClearSources()
     {
         _state.ClearSources();
-        SynchronizeFilterItems();
-        ScheduleResultsRefresh();
+        ApplyFilterChange();
     }
 
     private void ClearPlatforms()
     {
         _state.ClearPlatforms();
-        SynchronizeFilterItems();
-        ScheduleResultsRefresh();
+        ApplyFilterChange();
     }
 
     private void ClearAll()
     {
         _state.ClearAll();
+        ApplyFilterChange();
+    }
+
+    private void ApplyFilterChange()
+    {
         SynchronizeFilterItems();
         ScheduleResultsRefresh();
     }

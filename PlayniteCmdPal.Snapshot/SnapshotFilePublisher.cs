@@ -24,7 +24,7 @@ public static class SnapshotFilePublisher
         {
             using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 64 * 1024, FileOptions.Asynchronous | FileOptions.WriteThrough))
             {
-                await CatalogSnapshotSerializer.SerializeAsync(stream, snapshot, cancellationToken, schemaVersion, includeLastActivity).ConfigureAwait(false);
+                await CatalogSnapshotSerializer.SerializeAsync(stream, snapshot, schemaVersion, includeLastActivity, cancellationToken).ConfigureAwait(false);
                 await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
                 stream.Flush(flushToDisk: true);
                 if (stream.Length > SnapshotLimits.MaxBytes) throw new InvalidDataException("The serialized snapshot exceeds the 32 MiB limit.");

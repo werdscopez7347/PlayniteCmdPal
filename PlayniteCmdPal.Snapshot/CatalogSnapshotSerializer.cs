@@ -62,23 +62,7 @@ public static class CatalogSnapshotSerializer
         CatalogSnapshot snapshot,
         int schemaVersion,
         bool includeLastActivity,
-        CancellationToken cancellationToken = default) =>
-        SerializeVersionedAsync(destination, snapshot, cancellationToken, schemaVersion, includeLastActivity);
-
-    public static Task SerializeAsync(
-        Stream destination,
-        CatalogSnapshot snapshot,
-        CancellationToken cancellationToken,
-        int schemaVersion,
-        bool includeLastActivity) =>
-        SerializeVersionedAsync(destination, snapshot, cancellationToken, schemaVersion, includeLastActivity);
-
-    private static Task SerializeVersionedAsync(
-        Stream destination,
-        CatalogSnapshot snapshot,
-        CancellationToken cancellationToken,
-        int schemaVersion,
-        bool includeLastActivity)
+        CancellationToken cancellationToken = default)
     {
         if (snapshot is null) throw new ArgumentNullException(nameof(snapshot));
         var games = snapshot.Games.Select(game => new SnapshotGame(

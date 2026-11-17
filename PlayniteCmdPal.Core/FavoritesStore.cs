@@ -103,11 +103,13 @@ public sealed partial class FavoritesStore
         return isFavorite;
     }
 
+    private static HashSet<string> EmptyFavoriteIds() => new(StringComparer.Ordinal);
+
     private HashSet<string> ReadFavoriteIds()
     {
         if (!File.Exists(_filePath))
         {
-            return new HashSet<string>(StringComparer.Ordinal);
+            return EmptyFavoriteIds();
         }
 
         try
@@ -120,7 +122,7 @@ public sealed partial class FavoritesStore
             // corrupt v1 data (which could otherwise be overwritten on the next mutation).
             if (envelope.RootElement.ValueKind != JsonValueKind.Object)
             {
-                return new HashSet<string>(StringComparer.Ordinal);
+                return EmptyFavoriteIds();
             }
 
             if (!envelope.RootElement.TryGetProperty("schemaVersion", out var schemaVersion)
@@ -128,7 +130,7 @@ public sealed partial class FavoritesStore
                 || !schemaVersion.TryGetInt32(out var version)
                 || version < CurrentSchemaVersion)
             {
-                return new HashSet<string>(StringComparer.Ordinal);
+                return EmptyFavoriteIds();
             }
 
             if (version > CurrentSchemaVersion)
@@ -140,7 +142,7 @@ public sealed partial class FavoritesStore
             var document = JsonSerializer.Deserialize(stream, PreferencesJsonContext.Default.PreferencesDocument);
             if (document?.FavoriteGameIds is null)
             {
-                return new HashSet<string>(StringComparer.Ordinal);
+                return EmptyFavoriteIds();
             }
 
             return document.FavoriteGameIds
@@ -151,15 +153,20 @@ public sealed partial class FavoritesStore
         {
             // Treat malformed data as an empty preference set. The next user mutation writes
             // a fresh valid document atomically; the corrupt source is never partially parsed.
-            return new HashSet<string>(StringComparer.Ordinal);
+            return EmptyFavoriteIds();
         }
     }
 
-    private FileStream AcquireFileLock()
+    private void EnsureParentDirectory()
     {
         var directory = Path.GetDirectoryName(_filePath)
             ?? throw new InvalidOperationException("The favorites file must have a parent directory.");
         Directory.CreateDirectory(directory);
+    }
+
+    private FileStream AcquireFileLock()
+    {
+        EnsureParentDirectory();
 
         // FileShare.None provides an OS-managed lock that is released automatically if
         // the Command Palette host exits unexpectedly. This also coordinates separate
@@ -181,14 +188,12 @@ public sealed partial class FavoritesStore
 
     private void Persist()
     {
-        var directory = Path.GetDirectoryName(_filePath)
-            ?? throw new InvalidOperationException("The favorites file must have a parent directory.");
-        Directory.CreateDirectory(directory);
+        EnsureParentDirectory();
 
         var document = new PreferencesDocument
         {
             SchemaVersion = CurrentSchemaVersion,
-            FavoriteGameIds = _favoriteIds!.OrderBy(id => id, StringComparer.Ordinal).ToArray(),
+            FavoriteGameIds = _favoriteIds.OrderBy(id => id, StringComparer.Ordinal).ToArray(),
         };
         var bytes = JsonSerializer.SerializeToUtf8Bytes(document, PreferencesJsonContext.Default.PreferencesDocument);
         var temporaryPath = _filePath + "." + Guid.NewGuid().ToString("N") + ".tmp";

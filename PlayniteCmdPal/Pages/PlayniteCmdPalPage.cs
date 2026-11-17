@@ -11,6 +11,7 @@ using Microsoft.CommandPalette.Extensions;
 using Microsoft.CommandPalette.Extensions.Toolkit;
 using PlayniteCmdPal.Core;
 using PlayniteCmdPal.Playnite;
+using static PlayniteCmdPal.GameListItems;
 
 namespace PlayniteCmdPal;
 
@@ -39,9 +40,6 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
 
     public PlayniteCmdPalPage()
     {
-        // Capture the UI synchronization context so cross-thread notifications
-        // (artwork loading, deferred favorites refresh) can be marshaled back
-        // to the UI thread where the Command Palette host processes them.
         _uiContext = SynchronizationContext.Current;
         _filterState.RestoreSelections(CatalogFilterPreferences.Load());
         _filterState.FilterSelectionsChanged += OnFilterSelectionsChanged;
@@ -51,22 +49,10 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
         Title = "Playnite";
         Name = "Playnite";
 
-        // Keep Search Games in sync when a game is pinned or unpinned from any page.
-        // Capture this page weakly so the shared store cannot retain retired pages.
-        var weakSelf = new WeakReference<PlayniteCmdPalPage>(this);
-        EventHandler weakHandler = null!;
-        weakHandler = (sender, args) =>
-        {
-            if (weakSelf.TryGetTarget(out var page))
-            {
-                page.OnFavoritesChanged(sender, args);
-            }
-            else if (sender is FavoritesStore store)
-            {
-                store.FavoritesChanged -= weakHandler;
-            }
-        };
-        _favoritesChangedHandler = weakHandler;
+        // Keep every view in sync when a game is pinned or unpinned. The subscription
+        // keeps only a weak reference to this page and defers its refresh until after
+        // the command dispatch that triggered it has returned.
+        _favoritesChangedHandler = PageSupport.SubscribeToFavoritesChanges(this, static page => page.BeginSearch());
         _favorites.FavoritesChanged += _favoritesChangedHandler;
 
         _recentRefreshTimer = new System.Timers.Timer(TimeSpan.FromSeconds(10).TotalMilliseconds)
@@ -89,24 +75,11 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
     }
 
     /// <summary>
-    /// Raises the items-changed notification on the UI synchronization context when one was
-    /// captured and we are not already on it. Falls back to a direct call when already on the
-    /// UI context or when no context was captured. This ensures the Command Palette host
-    /// processes notifications regardless of which thread calls them.
+    /// Raises the items-changed notification on the UI synchronization context so the
+    /// Command Palette host processes it on the thread it expects.
     /// </summary>
-    private void RaiseItemsChangedOnUIContext(int count)
-    {
-        void raise() => RaiseItemsChanged(count);
-        if (_uiContext is { } context &&
-            !ReferenceEquals(context, SynchronizationContext.Current))
-        {
-            context.Post(_ => raise(), null);
-        }
-        else
-        {
-            raise();
-        }
-    }
+    private void RaiseItemsChangedOnUIContext(int count) =>
+        PageSupport.RaiseOnUiThread(_uiContext, () => RaiseItemsChanged(count));
 
     internal void RefreshCatalog()
     {
@@ -114,7 +87,7 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
     }
 
     internal IContextItem CreateRefreshContextItem() =>
-        new CommandContextItem(new RefreshCatalogCommand(this));
+        new CommandContextItem(new RefreshCatalogCommand(RefreshCatalog));
 
     private void SetViewMode(PlayniteLibraryViewMode mode)
     {
@@ -383,28 +356,12 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
         var artworkItems = new List<(ListItem Item, GameEntry Game)>();
         foreach (var game in matches)
         {
-            var metadata = new List<string>();
-            if (!string.IsNullOrWhiteSpace(game.Source))
-            {
-                metadata.Add(game.Source);
-            }
-
-            if (!string.IsNullOrWhiteSpace(game.Platform))
-            {
-                metadata.Add(game.Platform);
-            }
-
             // Recently Played historically shows source/platform and duplicate-title
             // identity only; keep installation status exclusive to Search and Favorites.
-            if (mode != PlayniteLibraryViewMode.RecentlyPlayed && game.IsInstalled.HasValue)
-            {
-                metadata.Add(game.IsInstalled.Value ? "Installed" : "Not installed");
-            }
-
-            if (duplicateIds.Contains(game.GameId))
-            {
-                metadata.Add($"ID {game.GameId[..8]}");
-            }
+            var subtitle = BuildMetadata(
+                game,
+                includeInstalledState: mode != PlayniteLibraryViewMode.RecentlyPlayed,
+                includeIdTag: duplicateIds.Contains(game.GameId));
 
             var item = _gameItemsById.GetOrAdd(
                 game.GameId,
@@ -416,7 +373,7 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
             // Update the existing row instead of replacing it. Its command identity remains
             // stable, allowing the host to preserve selection across list refreshes.
             item.Title = game.Title;
-            item.Subtitle = string.Join(" · ", metadata);
+            item.Subtitle = subtitle;
             item.Tags = mode == PlayniteLibraryViewMode.RecentlyPlayed && game.LastActivity.HasValue
                 ? [new Tag(RecentlyPlayedGames.FormatRelativeLastPlayed(game.LastActivity.Value, DateTimeOffset.UtcNow))]
                 : [];
@@ -431,23 +388,6 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
         }
 
         return (items.ToArray(), artworkItems);
-    }
-
-    private void OnFavoritesChanged(object? sender, EventArgs e)
-    {
-        // Defer the refresh until after ToggleFavoriteCommand.Invoke() returns and the
-        // toast is shown. await Task.Delay(50) without ConfigureAwait(false) resumes the
-        // continuation on the captured UI synchronization context so RaiseItemsChanged is
-        // processed by the Command Palette host. Never call BeginSearch() synchronously
-        // from within the event handler, as it runs inside ToggleFavoriteCommand.Invoke()
-        // and would nest host notifications inside command dispatch, suppressing the toast.
-        _ = RefreshAfterFavoriteChangeAsync();
-    }
-
-    private async Task RefreshAfterFavoriteChangeAsync()
-    {
-        await Task.Delay(50);
-        BeginSearch();
     }
 
     private async Task LoadArtworkAsync(
@@ -579,9 +519,6 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
         return _filtersItem;
     }
 
-    private static ListItem CreateStatusItem(string message) =>
-        new ListItem(new NoOpCommand()) { Title = message };
-
     private static ListItem CreateRefreshItem(string message) =>
         CreateStatusItem(message + " Use the page-level Refresh Playnite catalog action to retry.");
 
@@ -631,24 +568,6 @@ internal sealed partial class PlayniteCmdPalPage : DynamicListPage, IDisposable
         public override CommandResult Invoke()
         {
             _page.SetViewMode(_mode);
-            return CommandResult.KeepOpen();
-        }
-    }
-
-    private sealed partial class RefreshCatalogCommand : InvokableCommand
-    {
-        private readonly PlayniteCmdPalPage _page;
-
-        public RefreshCatalogCommand(PlayniteCmdPalPage page)
-        {
-            _page = page;
-        }
-
-        public override string Name => "Refresh Playnite catalog";
-
-        public override CommandResult Invoke()
-        {
-            _page.RefreshCatalog();
             return CommandResult.KeepOpen();
         }
     }

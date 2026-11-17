@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using PlayniteCmdPal.Core;
 using PlayniteCmdPal.Snapshot;
 
@@ -87,14 +86,14 @@ public sealed class PlayniteCatalogAdapter : IReadOnlyPlayniteCatalog
         _readPathAsync = readPathAsync ?? ReadPathAsync;
     }
 
-    public static string GetDefaultSnapshotPath() =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PlayniteCmdPal", "catalog-v2.json");
+    public static string GetDefaultSnapshotPath() => DefaultBridgePath("catalog-v2.json");
 
-    public static string GetLegacySnapshotPath() =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PlayniteCmdPal", "catalog-v1.json");
+    public static string GetLegacySnapshotPath() => DefaultBridgePath("catalog-v1.json");
 
-    public static string GetDefaultArtworkCachePath() =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PlayniteCmdPal", "artwork-v2");
+    public static string GetDefaultArtworkCachePath() => DefaultBridgePath("artwork-v2");
+
+    private static string DefaultBridgePath(string name) =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PlayniteCmdPal", name);
 
     /// <summary>
     /// Resolves a validated opaque digest only inside the fixed cache root. The cached bytes
@@ -160,8 +159,7 @@ public sealed class PlayniteCatalogAdapter : IReadOnlyPlayniteCatalog
                     continue;
                 }
 
-                using var sha = SHA256.Create();
-                var digest = string.Concat(sha.ComputeHash(bytes).Select(value => value.ToString("x2")));
+                var digest = SnapshotValidation.ComputeSha256Digest(bytes);
                 if (string.Equals(digest, artworkId, StringComparison.Ordinal))
                 {
                     return path;
