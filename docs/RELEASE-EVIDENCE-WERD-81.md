@@ -1,8 +1,8 @@
 # WERD-81 release MSIX evidence record
 
-**Status (2026-11-17): release tooling implemented and self-tested. The Windows package build, signing and
-archive inspection have not been executed yet, so no release-candidate MSIX exists and none of the WERD-81
-acceptance criteria are complete.**
+**Status (2026-11-17): release tooling implemented and self-tested, continuous integration green on both
+platforms. The Windows package build, signing and archive inspection have not been executed yet, so no
+release-candidate MSIX exists and none of the WERD-81 acceptance criteria are complete.**
 
 This record accompanies the release pipeline in [`scripts/release/`](../scripts/release/) and the process in
 [Release packaging](RELEASE-PACKAGING.md#10-release-msix-build-and-inspection-werd-81). It exists so the package
@@ -25,7 +25,8 @@ about.
 | Step | Command | Result |
 | --- | --- | --- |
 | Repository preflight | `python -m unittest discover -s scripts/release/tests -v` (case `test_repository_matches_reviewed_expectations`) | 33 preflight checks pass: manifest, project, central properties, publish profiles, notices and the `10.0.26100.84` SDK pin agree with `scripts/release/release_expectations.json`. |
-| Release-tool self-tests | `python -m unittest discover -s scripts/release/tests` | 33 tests pass (inspection pass/fail paths, preflight drift detection, signing/subject gating, build orchestration with stub `dotnet`/`signtool`, evidence generation). |
+| Release-tool self-tests | `python -m unittest discover -s scripts/release/tests` | 35 tests pass (inspection pass/fail paths, preflight drift detection, signing/subject gating, dirty-tree gating, build orchestration with stub `dotnet`/`signtool`, evidence generation). |
+| CI (PR #42) | GitHub Actions on the pull request | `Restore, build, and test (Windows)` pass (2m04s) and `Release tooling self-tests (cross-platform)` pass (7s on Ubuntu); `Analyze C#` and `CodeQL` pass. The Windows job runs `scripts/ci.ps1`, whose `Invoke-PythonStep` exits non-zero on failure (127 when `python` is absent), so the pass is proof that the 35 self-tests also pass on `windows-latest`. It is **not** a package build. |
 | Build-command plan | `python scripts/release/release_tool.py build --dry-run` | Prints the two `dotnet publish` invocations and the `signtool sign`/`verify` steps without executing them. |
 | MSIX generation | — | **Not executed.** No Windows host or .NET SDK. |
 | Signing / `signtool verify` | — | **Not executed.** No certificate and no `signtool`. |
