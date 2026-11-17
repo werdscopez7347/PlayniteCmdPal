@@ -23,11 +23,21 @@ public sealed class ArtworkExportLockTests
             "PowerShell",
             "7",
             "pwsh.exe");
+        var windowsPowerShell = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell",
+            "1.0",
+            "powershell.exe");
         var startInfo = new ProcessStartInfo
         {
             // Prefer PowerShell 7: it runs the lock holder in one process without
-            // Windows PowerShell's legacy console-host process behavior.
-            FileName = File.Exists(powerShell7) ? powerShell7 : "pwsh.exe",
+            // Windows PowerShell's legacy console-host process behavior. Fall back to
+            // Windows PowerShell 5.1, which ships with Windows, so the test never
+            // depends on an optional tool; Kill(entireProcessTree: true) covers the
+            // legacy console host of either runner.
+            FileName = File.Exists(powerShell7) ? powerShell7
+                : File.Exists(windowsPowerShell) ? windowsPowerShell
+                : "pwsh.exe",
             Arguments = "-NoLogo -NoProfile -NonInteractive -Command \"" + command.Replace("\"", "\\\"") + "\"",
             UseShellExecute = false,
             RedirectStandardOutput = true,
