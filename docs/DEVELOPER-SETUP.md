@@ -47,7 +47,7 @@ The solution targets .NET 10 with Windows App SDK and MSIX packaging. The curren
 1. Install [Visual Studio](https://visualstudio.microsoft.com/downloads/) (2026 release or a version that ships the .NET 10 tooling).
 2. In the **Visual Studio Installer**, choose **Modify** and select:
    - **WinUI application development** (this is the documented workload for WinUI / Windows App SDK projects).
-   - On the **Individual components** tab, confirm the **Windows 10/11 SDK** matching the project's target (the project requests SDK package `10.0.26100.68-preview`, so a 26100 SDK or newer).
+   - On the **Individual components** tab, confirm the **Windows 10/11 SDK** matching the project's target (the project restores stable targeting pack `Microsoft.Windows.SDK.NET.Ref 10.0.26100.87`; install the matching stable 26100 SDK or newer).
 3. Finish the install and confirm `dotnet --version` reports 10.x in a new terminal.
 
 Alternatives and shortcuts:
@@ -169,7 +169,7 @@ When opening an issue, state your Windows build, .NET SDK, Visual Studio version
 Source of truth: `PlayniteCmdPal.sln`, `PlayniteCmdPal/PlayniteCmdPal.csproj`, `Directory.Build.props`, and `Directory.Packages.props`.
 
 - Target framework: `net10.0-windows10.0.26100.0`.
-- Target Windows SDK package property: `10.0.26100.68-preview`.
+- Target Windows SDK package property: `10.0.26100.87` (selected by `WindowsSdkPackageVersion` in `Directory.Build.props`).
 - Minimum and supported OS platform version: `10.0.19041.0` (Windows 10, build 19041).
 - Runtime identifiers: `win-x64;win-arm64`.
 - MSBuild platforms: `x64;ARM64`; the solution also declares `x86` configurations, but the shared props list only `x64;ARM64`.
@@ -374,3 +374,12 @@ For Playnite-side diagnostics, Playnite writes host loading errors to `playnite.
 - [x] Shared script, both test projects, and the .NET Framework smoke test pass in Windows CI and the CodeQL workflow.
 - [ ] Exact installed Visual Studio version/workloads and PowerToys version recorded.
 - [ ] **Deferred, not passed:** this page replayed from a fresh Windows image by someone other than the maintainer. Deferred on 2026-10-31 because the maintainer's development and test machine is the Windows 10 build 19041 environment above and no separate clean Windows machine was available. This is environmental, not a recorded technical failure — do not mark it complete without a real clean-machine run.
+
+
+## Windows SDK targeting-pack selection (WERD-77, 2026-11-01)
+
+The project now uses stable `Microsoft.Windows.SDK.NET.Ref 10.0.26100.87`, selected by `WindowsSdkPackageVersion` in `Directory.Build.props`. The previous `10.0.26100.68-preview` project-level override has been removed. The 26100 SDK family matches the project's `net10.0-windows10.0.26100.0` target; the minimum OS remains build 19041. The package metadata includes .NET 10 compatibility. The targeting pack is restored from NuGet and is distinct from the Visual Studio-installed Windows SDK/build tools.
+
+Install a current .NET 10 SDK and the Visual Studio WinUI/MSIX components required by the project. Do not install or select a preview targeting pack. Official references: [stable targeting-pack package](https://www.nuget.org/packages/Microsoft.Windows.SDK.NET.Ref/10.0.26100.87), [Microsoft Windows SDK downloads](https://learn.microsoft.com/en-us/windows/apps/windows-sdk/downloads), and [Windows SDK versioning](https://learn.microsoft.com/en-us/windows/apps/get-started/versioning-overview).
+
+**Validated on Windows 11 build 26200** with .NET SDK 10.0.403 and MSBuild 18.9.15: clean restore, Release solution build, both automated test projects, the .NET Framework snapshot smoke test, Visual Studio x64 MSIX deployment and Command Palette activation, and Release publishing for both x64 and ARM64 all succeeded. Evaluated MSBuild properties confirmed `Microsoft.Windows.SDK.NET.Ref 10.0.26100.87`, the unchanged `net10.0-windows10.0.26100.0` target, and minimum OS `10.0.19041.0`. The x64 installed-package notice check and both publish-output notice checks also succeeded. The final ARM64 MSIX archive inspection (including manifest architecture, runtime notice, project license, and third-party notices) and the separate clean-machine install/update/uninstall/rollback walkthrough remain outstanding; archive inspection can be performed on this x64 machine and does not require ARM64 hardware. See [Release Packaging](RELEASE-PACKAGING.md).

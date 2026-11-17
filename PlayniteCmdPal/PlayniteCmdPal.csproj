@@ -5,7 +5,6 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>..\PlayniteCmdPal-Brand-Assets\icons\ico\PlayniteCmdPal.ico</ApplicationIcon>
     <DefaultLanguage>en-US</DefaultLanguage>
-    <WindowsSdkPackageVersion>10.0.26100.84</WindowsSdkPackageVersion>
     <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
@@ -115,7 +114,10 @@
     <ItemGroup>
       <!-- Match only Microsoft.NETCore.App.Runtime, not the Windows Desktop, ASP.NET Core,
            or Windows SDK reference packs that may also appear in ResolvedRuntimePack. -->
-      <_DotNetRuntimeNoticeFiles Include="$(NuGetPackageRoot)microsoft.netcore.app.runtime.$(RuntimeIdentifier)\*\THIRD-PARTY-NOTICES.TXT" />
+      <!-- Use the runtime pack selected by framework resolution; local NuGet caches can contain multiple versions. -->
+      <_DotNetRuntimePack Include="@(ResolvedRuntimePack)"
+                          Condition="'%(ResolvedRuntimePack.NuGetPackageId)' == 'Microsoft.NETCore.App.Runtime.$(RuntimeIdentifier)' and '%(ResolvedRuntimePack.RuntimeIdentifier)' == '$(RuntimeIdentifier)'"/>
+      <_DotNetRuntimeNoticeFiles Include="@(_DotNetRuntimePack->'%(PackageDirectory)\THIRD-PARTY-NOTICES.TXT')"/>
     </ItemGroup>
 
     <Error Condition="'@(_DotNetRuntimeNoticeFiles)' == ''"
@@ -127,14 +129,21 @@
           DestinationFiles="$(PublishDir)dotnet-runtime-THIRD-PARTY-NOTICES.txt" />
   </Target>
 
-  <!-- The runtime notice is created during Publish, after the MSIX packaging pipeline
-       has already collected its normal payload. Add the exact restored runtime-pack
-       notice directly to AppxPackagePayload immediately before MakeAppx consumes it. -->
+  <!--
+    _ComputeAppxPackagePayload rebuilds AppxPackagePayload from packaging outputs and
+    the existing AppxPackagePayload items. Add the runtime notice immediately before
+    that collection step so it is included in the deduplicated payload consumed by
+    _GenerateAppxPackageFile. Adding it before generation is too late because the
+    collection step has already reset/rebuilt the item list.
+  -->
   <Target Name="AddDotNetRuntimeThirdPartyNoticesToMsixPayload"
-          BeforeTargets="_GenerateAppxPackageFile"
-          Condition="'$(AppxPackage)' == 'true' and '$(SelfContained)' == 'true' and '$(RuntimeIdentifier)' != ''">
+          BeforeTargets="_ComputeAppxPackagePayload"
+          Condition="'$(SelfContained)' == 'true' and '$(RuntimeIdentifier)' != ''">
     <ItemGroup>
-      <_DotNetRuntimeMsixNoticeFiles Include="$(NuGetPackageRoot)microsoft.netcore.app.runtime.$(RuntimeIdentifier)\*\THIRD-PARTY-NOTICES.TXT" />
+      <!-- Keep MSIX payload selection aligned with the runtime pack selected by framework resolution. -->
+      <_DotNetRuntimeMsixPack Include="@(ResolvedRuntimePack)"
+                              Condition="'%(ResolvedRuntimePack.NuGetPackageId)' == 'Microsoft.NETCore.App.Runtime.$(RuntimeIdentifier)' and '%(ResolvedRuntimePack.RuntimeIdentifier)' == '$(RuntimeIdentifier)'"/>
+      <_DotNetRuntimeMsixNoticeFiles Include="@(_DotNetRuntimeMsixPack->'%(PackageDirectory)\THIRD-PARTY-NOTICES.TXT')"/>
     </ItemGroup>
 
     <Error Condition="'@(_DotNetRuntimeMsixNoticeFiles)' == ''"
