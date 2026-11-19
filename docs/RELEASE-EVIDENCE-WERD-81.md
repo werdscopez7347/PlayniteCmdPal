@@ -52,6 +52,34 @@ first step, so it produced no package. Recorded because it is real evidence abou
 Nothing above is a substitute for the package run: the two MSIX files, the signatures and the inspection results
 are still missing.
 
+### The second Windows attempt (2026-11-19)
+
+The checkout was cleaned (test certificate moved to `C:\secure\`, stale `AppPackages/` removed) and the sequence
+was re-run. Packaging works; signing did not run:
+
+| Step | Command | Observed result |
+| --- | --- | --- |
+| Working tree | `git status --short` | Empty after the certificate and packaging output were removed from the checkout. |
+| Restore | `dotnet restore .\PlayniteCmdPal.sln` | `Restore complete (4.9s)`, `Build succeeded in 5.4s`. |
+| Inventory | `powershell -File scripts\licensing\New-DependencyInventory.ps1 -Configuration Release` | **Ran under Windows PowerShell 5.1** and wrote `artifacts/dependency-inventory.json`: 4 shipped-runtime, 4 shipped-build, 12 test-only, 0 developer-tool, 0 unclassified, 5 review flags (4 in shipped classifications). The JSON SHA-256 has not been captured yet. |
+| Preflight | `python scripts/release/release_tool.py preflight` | **PASS (33 checks)**. |
+| Build (win-x64) | `python scripts/release/release_tool.py build --inventory artifacts/dependency-inventory.json --certificate-pfx C:\secure\PlayniteCmdPal-Test.pfx` | `dotnet publish` produced `artifacts\release\0.0.8.0\appx\win-x64\PlayniteCmdPal_0.0.8.0_x64_Test\PlayniteCmdPal_0.0.8.0_x64.msix`. Signing then failed with `Executable not found: signtool.exe` and the run stopped, so no signature, no inspection and no evidence bundle exist for either architecture. |
+
+What this establishes: the single-project MSIX packaging switches used by `build`
+(`GenerateAppxPackageOnBuild`, `UapAppxPackageBuildMode=SideloadOnly`, `AppxBundle=Never`) do produce one
+architecture-specific package under the requested `AppxPackageDir`, and the package name and layout match the
+expectations file. What it does not establish: any signature, any inspection result, the ARM64 package, or any
+hash.
+
+The `signtool.exe` failure is an environment issue, not a package issue: the Windows SDK installer does not add
+its `bin` directory to `PATH`. `build` now resolves `signtool.exe` and `makeappx.exe` from
+`%ProgramFiles(x86)%\Windows Kits\10\bin\<version>\x64` (newest SDK first) before falling back to the name, and
+prints a warning naming `--signtool` when nothing is found.
+
+Inventory review flags from that run, for the licensing gate: `Microsoft.NETFramework.ReferenceAssemblies` and
+`.net462` (license URL only), `Microsoft.Windows.CsWinRT` 2.3.1 (license file in package), `Microsoft.Windows.SDK
+.BuildTools.MSIX` 1.7.261102100 (`sdk_license.txt`), and `xunit.abstractions` (test-only, license URL only).
+
 ## 3. Acceptance criteria
 
 | Criterion | Status | Evidence |

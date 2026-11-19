@@ -403,6 +403,10 @@ if args[0] == 'sign':
     print('Successfully signed: ' + args[-1])
     sys.exit(0)
 if args[0] == 'verify':
+    if os.environ.get('FAKE_SIGNTOOL_UNTRUSTED'):
+        sys.stderr.write('SignTool Error: A certificate chain processed, but terminated in a root '
+                         'certificate which is not trusted by the trust provider. (0x800B0109)\n')
+        sys.exit(1)
     print('Issued to: CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70')
     print('Successfully verified')
     sys.exit(0)
@@ -425,6 +429,25 @@ def write_executable(path, content):
 
 
 @unittest.skipIf(os.name == 'nt', 'stub executables are POSIX shell/python scripts')
+class ToolResolutionTests(unittest.TestCase):
+    def test_signtool_is_discovered_in_the_windows_sdk_without_path(self):
+        with tempfile.TemporaryDirectory() as temp:
+            bin_root = Path(temp) / 'Windows Kits' / '10' / 'bin'
+            for version in ('10.0.22621.0', '10.0.26100.0'):
+                directory = bin_root / version / 'x64'
+                directory.mkdir(parents=True, exist_ok=True)
+                (directory / 'signtool.exe').write_text('stub', encoding='utf-8')
+            environment = {'ProgramFiles(x86)': temp, 'PATH': ''}
+            self.assertEqual(str(bin_root / '10.0.26100.0' / 'x64' / 'signtool.exe'),
+                             release_tool.resolve_tool('signtool.exe', env=environment))
+
+    def test_explicit_tool_paths_are_left_alone(self):
+        self.assertEqual('/opt/tools/signtool', release_tool.resolve_tool('/opt/tools/signtool', env={'PATH': ''}))
+
+    def test_unresolvable_tool_keeps_its_name(self):
+        self.assertEqual('missing-tool.exe', release_tool.resolve_tool('missing-tool.exe', env={'PATH': ''}))
+
+
 class BuildOrchestrationTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -458,6 +481,7 @@ class BuildOrchestrationTests(unittest.TestCase):
         os.environ.pop('FAKE_DOTNET_FAIL', None)
         os.environ.pop('FAKE_SIGNTOOL_FAIL', None)
         os.environ.pop('FAKE_SDK_VERSION', None)
+        os.environ.pop('FAKE_SIGNTOOL_UNTRUSTED', None)
         self.temp.cleanup()
 
     def build_arguments(self, extra=None):
@@ -589,6 +613,26 @@ class BuildOrchestrationTests(unittest.TestCase):
         signing = evidence['environment']['signing']
         self.assertEqual('pfx', signing['certificateSource'])
         self.assertTrue(signing['certificateInsideRepository'])
+
+    def test_absent_signtool_is_reported_with_the_override(self):
+        arguments = self.build_arguments()
+        index = arguments.index('--signtool')
+        arguments[index + 1] = 'definitely-not-signtool.exe'
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            exit_code = release_tool.main(arguments)
+        self.assertEqual(release_tool.EXIT_ENVIRONMENT, exit_code)
+        self.assertIn('signtool was not found on PATH or in the Windows SDK', stderr.getvalue())
+        self.assertIn('--signtool', stderr.getvalue())
+
+    def test_untrusted_signing_chain_points_at_the_certificate_import(self):
+        os.environ['FAKE_SIGNTOOL_UNTRUSTED'] = '1'
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            exit_code = release_tool.main(self.build_arguments())
+        self.assertEqual(release_tool.EXIT_ENVIRONMENT, exit_code)
+        self.assertIn('Import-Certificate', stderr.getvalue())
+        self.assertIn('CurrentUser', stderr.getvalue())
 
     def test_missing_inventory_fails_before_any_package_is_built(self):
         arguments = self.build_arguments(['--inventory', str(self.root / 'missing-inventory.json')])

@@ -191,6 +191,13 @@ extension. It never uploads or publishes anything; it writes a self-contained ev
   anything, so a missing file fails in seconds instead of after two MSIX builds.
 - A NuGet restore of the solution (the tool compares shipped dependency assemblies byte-for-byte with the
   restored packages in `%USERPROFILE%\.nuget\packages`).
+- `signtool.exe` reachable. The Windows SDK installer does not put it on `PATH`, so `build` also searches
+  `%ProgramFiles(x86)%\Windows Kits\10\bin\<version>\x64` (newest SDK first) and the App Certification Kit;
+  pass `--signtool <path>` if it lives somewhere else. `makeappx.exe` is resolved the same way and recorded for
+  the environment evidence.
+- A trusted signing certificate. A self-signed test certificate must be imported into the current user's root
+  store before `signtool verify` can succeed: `Import-Certificate -FilePath <file.cer> -CertStoreLocation
+  Cert:\CurrentUser\Root`. Import the public `.cer`, never the `.pfx`.
 - A signing certificate whose subject matches the manifest Publisher, or the Partner Center Store submission
   path. Signing material must stay outside the repository — a copy at the checkout root is ignored by
   `.gitignore` (`*.pfx`, `*.p12`, `*.cer`, `*.pvk`) so it can never be staged by accident, and `build` warns when
@@ -217,6 +224,10 @@ python scripts/release/release_tool.py build `
 `Windows PowerShell 5.1` (`powershell.exe`) is present on every supported Windows build machine and is what the
 inventory generator targets; substitute `pwsh -File ...` only when PowerShell 7 is installed. The inventory
 generator has been run successfully under 5.1 (see [Licensing and release](LICENSING-AND-RELEASE.md)).
+
+The packaging switches below were validated on the supported Windows build machine on 2026-11-19: `dotnet
+publish` for `win-x64` produced `PlayniteCmdPal_0.0.8.0_x64_Test\PlayniteCmdPal_0.0.8.0_x64.msix` under
+`artifacts/release/0.0.8.0/appx/win-x64`.
 
 The `build` command runs `dotnet publish` with `-p:GenerateAppxPackageOnBuild=true`,
 `-p:UapAppxPackageBuildMode=SideloadOnly` and `-p:AppxBundle=Never` for `win-x64` and `win-arm64`, then signs each
@@ -247,11 +258,21 @@ The command exits `0` only when every check passes. The evidence bundle records 
 every command with its exit code, the package SHA-256, per-file payload hashes, the extracted `AppxManifest.xml`,
 and a pass/fail table for each WERD-81 acceptance criterion.
 
+### When signing or verification fails
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| `Executable not found: signtool.exe` | The Windows SDK bin directory is not on `PATH` | Let `build` discover the SDK copy, or pass `--signtool "C:\Program Files (x86)\Windows Kits\10\bin\<version>\x64\signtool.exe"` |
+| `0x800B0109`, "not trusted by the trust provider" | The self-signed test certificate is not trusted by the machine | `Import-Certificate -FilePath <file.cer> -CertStoreLocation Cert:\CurrentUser\Root` (public certificate only) |
+| `PLAYNITECMDPAL_MSIX_PFX_PASSWORD is empty` warning and a password prompt | The PFX is password-protected but the variable is unset | Set the variable before the run; never commit it |
+| `signing certificate ... does not exist` | The PFX path is wrong or the file is outside the machine | Point `--certificate-pfx` at the real file, or use `--certificate-thumbprint` |
+
 ### Current status
 
 The tool and its self-tests are implemented and pass on the current branch (see [Testing](TESTING.md)). The
-Windows package build for both architectures has **not** been executed yet: the packages, their SHA-256 hashes and
-the signed-inspection results are outstanding and are recorded in
+Windows build has been exercised up to signing: `dotnet publish` produced the `win-x64` MSIX, then the run stopped
+because `signtool.exe` was not on `PATH`. The signed packages for both architectures, their SHA-256 hashes and the
+signed-inspection results are still outstanding and are recorded in
 [WERD-81 release evidence](RELEASE-EVIDENCE-WERD-81.md). Until that run is recorded, the release checklist item
 "x64 and ARM64 packages build and pass package inspection" stays unchecked, and no package may be published.
 

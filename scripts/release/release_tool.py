@@ -44,6 +44,7 @@ import json
 import os
 import platform
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -1179,6 +1180,65 @@ def git_status_entries(repo_root):
     return [line.rstrip() for line in (record['stdoutTail'] or '').splitlines() if line.strip()]
 
 
+WINDOWS_KIT_ARCHITECTURES = ('x64', 'x86', 'arm64')
+
+
+def _kit_version_key(name):
+    """Sort key for SDK version directories such as 10.0.26100.0; unparsable names sort last."""
+    parts = []
+    for piece in name.split('.'):
+        try:
+            parts.append(int(piece))
+        except ValueError:
+            parts = []
+            break
+    return tuple(parts) if parts else ()
+
+
+def discover_windows_kit_tool(executable, env=None):
+    """Locate a Windows SDK build tool (signtool, makeappx) without relying on PATH.
+
+    The Windows SDK installer does not add its bin directory to PATH, so a machine that packages MSIX
+    successfully can still have no signtool.exe on the path. Search the documented install roots and prefer
+    the newest SDK, then x64 before the other architectures.
+    """
+    environment = os.environ if env is None else env
+    basename = os.path.basename(executable)
+    for variable in ('ProgramFiles(x86)', 'ProgramFiles', 'ProgramW6432'):
+        base = environment.get(variable)
+        if not base:
+            continue
+        bin_root = os.path.join(base, 'Windows Kits', '10', 'bin')
+        candidates = []
+        if os.path.isdir(bin_root):
+            for entry in os.listdir(bin_root):
+                for architecture in WINDOWS_KIT_ARCHITECTURES:
+                    candidate = os.path.join(bin_root, entry, architecture, basename)
+                    if os.path.isfile(candidate):
+                        candidates.append((_kit_version_key(entry),
+                                           -WINDOWS_KIT_ARCHITECTURES.index(architecture), candidate))
+        if candidates:
+            candidates.sort(reverse=True)
+            return candidates[0][2]
+        legacy = os.path.join(base, 'Windows Kits', '10', 'App Certification Kit', basename)
+        if os.path.isfile(legacy):
+            return legacy
+    return None
+
+
+def resolve_tool(executable, env=None):
+    """Return a usable executable path: an explicit path, the resolved PATH entry, or the SDK copy."""
+    if not executable:
+        return executable
+    if os.path.dirname(executable):
+        return executable
+    found = shutil.which(executable, path=(os.environ if env is None else env).get('PATH'))
+    if found:
+        return found
+    discovered = discover_windows_kit_tool(executable, env=env)
+    return discovered or executable
+
+
 def collect_environment(repo_root, dotnet, signtool, makeappx):
     environment = {
         'recordedAtUtc': utc_now(),
@@ -1524,6 +1584,16 @@ def build_release(args, expectations):
                   'out of commits, but a private key should not live next to the sources.',
                   file=sys.stderr)
 
+    requested_signtool = args.signtool
+    args.signtool = resolve_tool(args.signtool)
+    args.makeappx = resolve_tool(args.makeappx)
+    if args.signtool != requested_signtool:
+        print('Using signtool: {0}'.format(args.signtool))
+    if not os.path.isabs(args.signtool) and shutil.which(args.signtool) is None:
+        print('WARNING: signtool was not found on PATH or in the Windows SDK (searched Program Files\\Windows '
+              'Kits\\10\\bin\\<version>\\x64). Install the Windows SDK build tools or pass '
+              '--signtool <path to signtool.exe>.', file=sys.stderr)
+
     environment = collect_environment(repo_root, args.dotnet, args.signtool, args.makeappx)
     environment['signing'] = {
         'certificateSource': 'pfx' if args.certificate_pfx else 'thumbprint',
@@ -1626,8 +1696,13 @@ def build_release(args, expectations):
             verify_record = run_command([args.signtool, 'verify', '/pa', '/all', '/v', package_path],
                                         cwd=repo_root, log=commands)
             if verify_record['exitCode'] != 0:
+                verification_output = (verify_record['stdoutTail'] or '') + (verify_record['stderrTail'] or '')
                 print(verify_record['stdoutTail'])
                 print(verify_record['stderrTail'], file=sys.stderr)
+                if '0x800b0109' in verification_output.lower() or 'not trusted' in verification_output.lower():
+                    print('Hint: a self-signed test certificate is only trusted after it is imported, for example '
+                          'Import-Certificate -FilePath <file.cer> -CertStoreLocation Cert:\\CurrentUser\\Root. '
+                          'Import the public .cer, never the .pfx.', file=sys.stderr)
                 print('ERROR: signature verification failed for {0}.'.format(package_path), file=sys.stderr)
                 return EXIT_ENVIRONMENT
             signature_verified = True
