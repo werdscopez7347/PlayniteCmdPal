@@ -97,8 +97,8 @@ validation, not a production certificate, Store certification, or a trust claim 
 | Project MSIX package version | `0.0.8.0`, matching the manifest |
 | Partner Center product ID / Store URL | Not supplied |
 | Local test certificate (WERD-81, 2026-11-19) | Subject `CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70`, thumbprint `018EBC36ABEB48F1550AFD658369B2C9BC9FB560` in `Cert:\CurrentUser\My`, public `.cer` in `Cert:\CurrentUser\Root`; disposable, not a distribution identity |
-| x64 MSIX candidate | Not yet signed or inspected; `dotnet publish` produces `PlayniteCmdPal_0.0.8.0_x64.msix` (`scripts/release/release_tool.py build`) |
-| ARM64 MSIX candidate | Not yet built or inspected; pipeline ready |
+| x64 MSIX candidate | Built, signed with the test certificate, chain-verified and inspected strict at `f2c2854`: `PlayniteCmdPal_0.0.8.0_x64.msix`, SHA-256 `C2F101A0D2F9943C4B5318D78FC2DEDCD5F0F570180C47F532379CA25BFDE8C4` |
+| ARM64 MSIX candidate | Built, signed with the test certificate, chain-verified and inspected strict at `f2c2854`: `PlayniteCmdPal_0.0.8.0_arm64.msix`, SHA-256 `45CEA6BEC5B4B2E2C4E0897C359AB89FA5A3F50E63B877F154D207935BF823D9` |
 | MSIX bundle | Not yet built and validated |
 | Partner Center certification | Not submitted |
 | Store listing availability | Not published |

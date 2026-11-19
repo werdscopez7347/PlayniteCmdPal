@@ -1,7 +1,9 @@
 # Release packaging and Command Palette Gallery readiness
 
-**Status (2026-11-17): release-candidate tooling implemented and self-tested; the Windows package build and
-inspection run is still outstanding. No public release or Gallery submission is approved.**
+**Status (2026-11-19): the release-candidate build, signing and inspection run is complete — both architectures
+pass strict inspection and all six WERD-81 acceptance criteria pass (see
+[WERD-81 release evidence](RELEASE-EVIDENCE-WERD-81.md)). No public release or Gallery submission is approved:
+the licensing review, the clean-machine walkthrough and Store certification remain open.**
 
 This document is the release checklist for PlayniteCmdPal. It supersedes the generic examples in the publish-extension skill where those examples conflict with this repository's actual package, manifest, or licensing review.
 
@@ -157,7 +159,7 @@ Before the first public release, the maintainer must confirm:
 - [ ] The dependency inventory has been regenerated and all review items resolved.
 - [ ] Runtime notices are present in both architecture outputs.
 - [ ] Partner Center identity is confirmed against the product dashboard; x64 and ARM64 MSIX packages pass validation and Store certification. Direct GitHub/WinGet distribution has a separately documented trust model.
-- [ ] x64 and ARM64 packages build, sign and pass `scripts/release/release_tool.py` inspection, with the evidence bundle recorded in [WERD-81 release evidence](RELEASE-EVIDENCE-WERD-81.md).
+- [x] x64 and ARM64 packages build, sign and pass `scripts/release/release_tool.py` inspection, with the evidence bundle recorded in [WERD-81 release evidence](RELEASE-EVIDENCE-WERD-81.md) (x64 `C2F101A0…8C4`, ARM64 `45CEA6BE…3D9`, both inspected strict at `f2c2854`).
 - [ ] A clean supported Windows machine passes install, first-run, update, uninstall, and rollback checks.
 - [ ] Release notes, support/troubleshooting instructions, version, hashes, and notices are complete.
 - [ ] The live Gallery metadata uses a real install source, validates against the current schema, and has a matching icon.
@@ -283,12 +285,13 @@ and a pass/fail table for each WERD-81 acceptance criterion.
 
 ### Current status
 
-The tool and its self-tests are implemented and pass on the current branch (see [Testing](TESTING.md)). The
-Windows build has been exercised up to signing: `dotnet publish` produced the `win-x64` MSIX, then the run stopped
-because `signtool.exe` was not on `PATH`. The signed packages for both architectures, their SHA-256 hashes and the
-signed-inspection results are still outstanding and are recorded in
-[WERD-81 release evidence](RELEASE-EVIDENCE-WERD-81.md). Until that run is recorded, the release checklist item
-"x64 and ARM64 packages build and pass package inspection" stays unchecked, and no package may be published.
+The run is complete. On 2026-11-19, from commit `f2c2854`, preflight passed its 33 checks, `dotnet publish` produced
+both architecture packages, both were signed with the test certificate and chain-verified by
+`signtool verify /pa /all /v`, and both passed strict package inspection: all six WERD-81 acceptance criteria pass.
+The hashes, the certificate thumbprint and the command sequence are recorded in
+[WERD-81 release evidence](RELEASE-EVIDENCE-WERD-81.md), with the full bundle in `artifacts\release\0.0.8.0` on the
+build machine. Package publication stays out of scope: distribution is still gated on the licensing review
+(WERD-78), on the remaining go/no-go items above, and on Store certification.
 
 ## Official references
 
@@ -326,7 +329,7 @@ The targeting pack is a development-time compile reference. Its use is governed 
 - [ ] Generate the actual ARM64 MSIX/MSIX bundle with the existing ARM64 packaging pipeline on the available x64 Windows machine. Extract/inspect it with MakeAppx or an archive tool and verify that the manifest declares ARM64, `dotnet-runtime-THIRD-PARTY-NOTICES.txt` is in the payload, and the expected `LICENSE`, `THIRD-PARTY-NOTICES.md`, and `Microsoft-PowerToys-LICENSE.txt` files are present. Record the exact package filename, SHA-256, inspection method, and results in the PR.
 - [ ] Complete any remaining architecture-specific package-content comparison after ARM64 archive generation.
 
-The migration validation above was performed on Windows 11 build 26200 with .NET SDK 10.0.403 and MSBuild 18.9.15. The ARM64 publish and packaging-recipe checks do not establish the contents of the final ARM64 MSIX archive. **Archive inspection is still outstanding, but it can be performed on this x64 Windows machine; ARM64 hardware is not required.** A separate ARM64 install/launch/runtime-activation test does require ARM64 hardware and has not been performed. The clean-machine installation/update/uninstall/rollback walkthrough and public-release licensing obligations remain independent release gates.
+The migration validation above was performed on Windows 11 build 26200 with .NET SDK 10.0.403 and MSBuild 18.9.15. The ARM64 publish and packaging-recipe checks do not establish the contents of the final ARM64 MSIX archive, which is why that archive is inspected separately: the WERD-81 run inspected the ARM64 package on this x64 Windows machine and it passed, so ARM64 hardware is not required for archive inspection. A separate ARM64 install/launch/runtime-activation test does require ARM64 hardware and has not been performed. The clean-machine installation/update/uninstall/rollback walkthrough and public-release licensing obligations remain independent release gates.
 
 ### Release-pin reconciliation (2026-11-17)
 

@@ -1,36 +1,69 @@
 # WERD-81 release MSIX evidence record
 
-**Status (2026-11-17): release tooling implemented and self-tested, continuous integration green on both
-platforms. The Windows package build, signing and archive inspection have not been executed yet, so no
-release-candidate MSIX exists and none of the WERD-81 acceptance criteria are complete.**
+**Status (2026-11-19): complete. Both release-candidate packages were built, signed and chain-verified on the
+Windows build machine from commit `f2c2854`, and both pass strict package inspection. All six acceptance criteria
+pass. Nothing was uploaded, submitted or published.**
 
 This record accompanies the release pipeline in [`scripts/release/`](../scripts/release/) and the process in
-[Release packaging](RELEASE-PACKAGING.md#10-release-msix-build-and-inspection-werd-81). It exists so the package
-evidence is recorded in one place, with explicit statements about what ran, what did not, and what the remaining
-run must produce. Nothing here authorizes publication.
+[Release packaging](RELEASE-PACKAGING.md#10-release-msix-build-and-inspection-werd-81). It records what ran, on
+which commit, with which certificate, and what the resulting artifacts were. Nothing here authorizes publication:
+distribution remains gated on the licensing review in [WERD-78](LICENSING-AND-RELEASE.md) and on Store
+certification.
 
-## 1. Why the packages are not built yet
+## 1. Result
 
-The WERD-81 implementation session had no Windows host, .NET SDK, MSBuild, Windows SDK, `signtool.exe` or
-`makeappx.exe`. `dotnet`, `pwsh`, `signtool` and the MSIX packaging toolchain were all unavailable, and the
-sandbox has no access to the NuGet restore graph. A release MSIX cannot be produced, signed or installed from
-that environment, so this branch does not fabricate package hashes or claim a build.
+| Item | Value |
+| --- | --- |
+| Source commit | `f2c2854` on `arena/2e83f054-playnitecmdpal` (PR #42), branched from `dev` at `b62cc8e` |
+| Build machine | Windows build host; commands run from a clean checkout with `git status --short` empty |
+| Tool | `python scripts/release/release_tool.py build --inventory artifacts/dependency-inventory.json --certificate-thumbprint 018EBC36ABEB48F1550AFD658369B2C9BC9FB560` |
+| Preflight | PASS, 33 checks |
+| Signing | Test certificate `CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70`, thumbprint `018EBC36ABEB48F1550AFD658369B2C9BC9FB560`, in `Cert:\CurrentUser\My` with its public `.cer` in `Cert:\CurrentUser\Root`; `signtool verify /pa /all /v` succeeded for both packages |
+| signtool | `C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\signtool.exe` |
+| Runtime notice SHA-256 | `6D15E10A101C6BFFF2AB4429ED061BF76C456FC4B23AD6B03E0D0F8377148A21` for both RIDs |
+| Evidence bundle | `artifacts\release\0.0.8.0` (`evidence.json`, `evidence.md`, `SHA256SUMS`, `environment.json`, `inspection\*.json`, `manifests\*.xml`); `artifacts/` is git-ignored, so the bundle stays on the build machine and the values below are copied from it |
 
-What the branch does provide is the deterministic pipeline that performs the run on the supported Windows build
-machine, plus the tests that prove the inspection logic rejects the failure modes the acceptance criteria care
-about.
+### Packages
 
-## 2. What was executed in this session
+| Architecture | File | SHA-256 | Inspection |
+| --- | --- | --- | --- |
+| x64 | `PlayniteCmdPal_0.0.8.0_x64.msix` | `C2F101A0D2F9943C4B5318D78FC2DEDCD5F0F570180C47F532379CA25BFDE8C4` | PASS (strict) |
+| ARM64 | `PlayniteCmdPal_0.0.8.0_arm64.msix` | `45CEA6BEC5B4B2E2C4E0897C359AB89FA5A3F50E63B877F154D207935BF823D9` | PASS (strict) |
+
+Both packages were signed before inspection, so these hashes cover the signed archives. Signing is timestamped,
+so a later re-signing produces different bytes even from the same inputs; reproduce the build from `f2c2854` to
+get packages that are equivalent but not necessarily byte-identical.
+
+`SHA256SUMS` in the evidence bundle lists every artifact and extracted part. Per-file payload hashes, the
+extracted `AppxManifest.xml` for each architecture and every command with its exit code are in `evidence.json`
+and `evidence.md`.
+
+## 2. Run history
+
+Five Windows attempts were needed; each one found a defect in the inspection tooling rather than in the packages,
+and each fix was committed and re-run rather than worked around.
+
+| # | Commit | Outcome |
+| --- | --- | --- |
+| 1–2 | `4a17113` and earlier | Built and signed, but stopped at `signtool.exe` not being on `PATH`, then at a false identity mismatch (signtool prints the common name; the manifest Publisher carries the `CN=` prefix). |
+| 3 | `4a17113` | Both packages signed and chain-verified; inspection failed on five tool defects (language case, one-arbitrary-TFM comparison, a hand-maintained payload list, block-map metadata, a property-supplied package missing from the inventory). |
+| 4 | `fcef43c` | Both packages signed and chain-verified; one defect left — `deps.json` prefixes runtime-pack keys with `runtimepack.`, hiding 187 runtime files from the runtime classification. |
+| 5 | `f2c2854` | **Preflight PASS, both packages signed and chain-verified, strict inspection PASS on both, all six criteria pass.** |
+
+### The implementation session (sandbox, 2026-11-17)
+
+The branch was written and self-tested without a Windows host, so the pipeline was proven against synthetic
+fixtures before any real package existed.
 
 | Step | Command | Result |
 | --- | --- | --- |
 | Repository preflight | `python -m unittest discover -s scripts/release/tests -v` (case `test_repository_matches_reviewed_expectations`) | 33 preflight checks pass: manifest, project, central properties, publish profiles, notices and the `10.0.26100.84` SDK pin agree with `scripts/release/release_expectations.json`. |
-| Release-tool self-tests | `python -m unittest discover -s scripts/release/tests` | 35 tests pass (inspection pass/fail paths, preflight drift detection, signing/subject gating, dirty-tree gating, build orchestration with stub `dotnet`/`signtool`, evidence generation). |
-| CI (PR #42) | GitHub Actions on the pull request | `Restore, build, and test (Windows)` pass (2m04s) and `Release tooling self-tests (cross-platform)` pass (7s on Ubuntu); `Analyze C#` and `CodeQL` pass. The Windows job runs `scripts/ci.ps1`, whose `Invoke-PythonStep` exits non-zero on failure (127 when `python` is absent), so the pass is proof that the 35 self-tests also pass on `windows-latest`. It is **not** a package build. |
+| Release-tool self-tests | `python -m unittest discover -s scripts/release/tests` | 35 tests pass at that point, 58 after the run-time fixes below (inspection pass/fail paths, preflight drift detection, signing/subject gating, dirty-tree gating, build orchestration with stub `dotnet`/`signtool`, evidence generation). |
+| CI (PR #42) | GitHub Actions on the pull request | `Restore, build, and test (Windows)` pass (2m04s) and `Release tooling self-tests (cross-platform)` pass (7s on Ubuntu); `Analyze C#` and `CodeQL` pass. The Windows job runs `scripts/ci.ps1`, whose `Invoke-PythonStep` exits non-zero on failure (127 when `python` is absent), so the pass is proof that the self-tests also pass on `windows-latest`. It is **not** a package build. |
 | Build-command plan | `python scripts/release/release_tool.py build --dry-run` | Prints the two `dotnet publish` invocations and the `signtool sign`/`verify` steps without executing them. |
 | MSIX generation | — | **Not executed.** No Windows host or .NET SDK. |
 | Signing / `signtool verify` | — | **Not executed.** No certificate and no `signtool`. |
-| Archive inspection of real packages | — | **Not executed.** No packages exist. |
+| Archive inspection of real packages | — | **Not executed at that point.** No packages existed until the Windows runs below. |
 | Install / launch / activation | — | Out of scope; tracked by WERD-82. |
 
 Test-only fixtures are synthetic ZIP archives. They prove the checks work; they are not evidence about the
@@ -130,18 +163,19 @@ license URL only).
 
 | Criterion | Status | Evidence |
 | --- | --- | --- |
-| x64 package builds, signs, and passes package inspection | **Open** | Pipeline implemented; run outstanding. |
-| ARM64 package builds, signs, and passes package inspection | **Open** | Pipeline implemented; run outstanding. |
-| Package contents match the reviewed dependency inventory | **Open** | `inspect` enforces presence, package-source byte equality (any target-framework copy), forbidden content, and `*.deps.json` attribution of every payload file to the app, a reviewed package or the runtime; the inventory must be regenerated after the PR #41 version bumps before the run. |
-| Required licenses/notices are present in each package | **Open** | `inspect` compares `LICENSE`, `THIRD-PARTY-NOTICES.md` and `Microsoft-PowerToys-LICENSE.txt` with the repository copies and the RID-specific runtime notice with its reviewed SHA-256. |
-| Hashes and reproducible build evidence are recorded | **Open** | `build` writes `evidence.json`, `evidence.md`, `SHA256SUMS`, extracted `AppxManifest.xml` files, per-file payload hashes and every command with its exit code. |
-| No package is submitted or published by this issue | Satisfied by design | The tooling has no upload, submission or publishing step and writes only to the git-ignored `artifacts/` tree. |
+| x64 package builds, signs, and passes package inspection | **Pass** | `dotnet publish` succeeded; package signed and chain-verified; strict inspection PASS; SHA-256 `C2F101A0D2F9943C4B5318D78FC2DEDCD5F0F570180C47F532379CA25BFDE8C4`. |
+| ARM64 package builds, signs, and passes package inspection | **Pass** | `dotnet publish` succeeded; package signed and chain-verified; strict inspection PASS; SHA-256 `45CEA6BEC5B4B2E2C4E0897C359AB89FA5A3F50E63B877F154D207935BF823D9`. |
+| Package contents match the reviewed dependency inventory | **Pass** | Strict inspection passed on both architectures: required application and dependency assemblies present, every reviewed package-source hash matched, every payload file attributed through `*.deps.json` to the app, a reviewed package or the .NET runtime, no build-only or test-only content. |
+| Required licenses/notices are present in each package | **Pass** | `LICENSE`, `THIRD-PARTY-NOTICES.md` and `Microsoft-PowerToys-LICENSE.txt` match the repository copies byte-for-byte; the RID-specific .NET runtime notice matches the reviewed SHA-256 `6D15E10A101C6BFFF2AB4429ED061BF76C456FC4B23AD6B03E0D0F8377148A21`. |
+| Hashes and reproducible build evidence are recorded | **Pass** | `artifacts\release\0.0.8.0` holds `evidence.json`, `evidence.md`, `SHA256SUMS`, `environment.json`, extracted `AppxManifest.xml` per architecture, per-file payload hashes and every command with its exit code; the package hashes are recorded above. |
+| No package is submitted or published by this issue | **Satisfied by design** | The tooling has no upload, submission or publishing step and writes only to the git-ignored `artifacts/` tree. |
 
-## 4. Completing the record on Windows
+## 4. Reproducing the record
 
 Run from a clean checkout of the merge commit on the supported Windows build machine. `git status --short` must
 print nothing: `build` refuses an uncommitted revision, because evidence that cannot be tied to a commit is not
-reproducible.
+reproducible. The sequence below is the one that produced the record above — restore, regenerate the inventory,
+check the repository declarations, then build, sign and inspect both architectures.
 
 ```powershell
 dotnet restore .\PlayniteCmdPal.sln
@@ -156,19 +190,19 @@ python scripts/release/release_tool.py build `
 `build` validates the inventory and certificate paths before it starts publishing, so a missing file fails in
 seconds rather than after two MSIX builds.
 
-The run must exit `0`. Then copy the values below from `artifacts/release/0.0.8.0/evidence.md` and
-`evidence.json`, attach the bundle to the WERD-81 review, and leave the packages out of Git.
+The run must exit `0`. The bundle is the authoritative artifact; attach `artifacts/release/0.0.8.0` to the
+WERD-81 review and leave the packages out of Git.
 
-| Field | Value |
+| Field | Where it is recorded |
 | --- | --- |
-| Source commit | _to be recorded by the run_ |
-| Windows build / .NET SDK / MSBuild / signtool | _to be recorded by the run_ |
-| x64 package filename, size, SHA-256 | _to be recorded by the run_ |
-| ARM64 package filename, size, SHA-256 | _to be recorded by the run_ |
-| Signing certificate subject and thumbprint | _subject must equal `CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70`; record the thumbprint without the private key_ |
-| `signtool verify /pa /all` result | _to be recorded by the run_ |
-| Inspection result (x64 / ARM64) | _to be recorded by the run_ |
-| Regenerated inventory SHA-256 | _to be recorded by the run_ |
+| Source commit, dirty-tree state, branch | `evidence.json` (`source.commit`, `source.branch`, `source.clean`) |
+| Windows build, .NET SDK, MSBuild and `signtool` versions | `environment.json` and the `environment` block of `evidence.json` |
+| Package filename, size and SHA-256 per architecture | `SHA256SUMS` and `evidence.json` (`packages[]`) |
+| Signing certificate subject and thumbprint | `evidence.json` (`environment.signing`); the private key never leaves the build machine |
+| `signtool verify /pa /all /v` transcript | `evidence.json` (`commands[]`) |
+| Inspection result and every check detail per architecture | `inspection/win-x64.json`, `inspection/win-arm64.json` |
+| Per-file payload hashes and the extracted manifests | `evidence.json` (`packages[].inspection.payload.files`), `manifests/*.xml` |
+| Regenerated dependency-inventory SHA-256 | `Get-FileHash artifacts\dependency-inventory.json -Algorithm SHA256`; used by the WERD-78 licensing review |
 
 ## 5. Why the earlier ARM64 artifact is not reused
 
@@ -195,24 +229,33 @@ repository, and let `release_tool.py` run `signtool sign` and `signtool verify /
 signer subject and fails when it differs from the Publisher. This validates signability and identity alignment; it
 does not claim Store certification or a trusted production certificate.
 
-## 7. Known risks and follow-ups for the Windows run
+## 7. Known risks and follow-ups
 
-1. **MSBuild packaging flags are unvalidated on Windows in this branch.** The pipeline uses
-   `dotnet publish` with `-p:GenerateAppxPackageOnBuild=true`, `-p:UapAppxPackageBuildMode=SideloadOnly`,
-   `-p:AppxBundle=Never` and `-p:AppxPackageDir=...`, which is the documented single-project MSIX pattern. If the
-   project's packaging targets require a different switch, the run fails loudly and records the failing command;
-   fix the command (or pass `--msbuild-property`) and re-run rather than editing evidence by hand.
-2. **Dependency inventory is stale.** The audit tables in [Licensing and release readiness](LICENSING-AND-RELEASE.md)
-   record the 2026-11-01 graph. PR #41 moved four shipped package versions, so the inventory must be regenerated
-   and the licensing tables updated before the WERD-81 run; `inspect --inventory` compares its shipped
-   classifications and versions against the reviewed expectations.
-3. **Runtime-notice hash.** The expected `.NET` runtime notice SHA-256
-   (`6D15E10A101C6BFFF2AB4429ED061BF76C456FC4B23AD6B03E0D0F8377148A21`) is the WERD-77/78 value for .NET SDK
-   10.0.403. A different .NET runtime patch changes the notice file; the run fails with the observed hash so the
-   reviewer can confirm and update `release_expectations.json` deliberately.
-4. **Payload review.** `build` runs inspection in strict mode, so any payload file that is not attributable to the
-   app, a reviewed dependency package or the .NET runtime fails the release gate. Attribution is read from the
-   generated `*.deps.json`; a failure names the package that ships the file, so the fix is to review that package in
-   the inventory (or record an exemption with a reason), never to add the file to a pattern list to make a run pass.
-5. **Python prerequisite.** The tool needs Python 3.9+ on the build machine. It uses only the standard library;
+1. **Packaging flags are validated.** `dotnet publish` with `-p:GenerateAppxPackageOnBuild=true`,
+   `-p:UapAppxPackageBuildMode=SideloadOnly`, `-p:AppxBundle=Never` and `-p:AppxPackageDir=...` produced both
+   packages on the first attempt, so the documented single-project MSIX pattern holds for this project. Keep the
+   commands in `evidence.json` as the reference if the project's packaging targets change.
+2. **Licensing review is still open (WERD-78).** The dependency inventory was regenerated for this run and
+   `inspect --inventory` compared its versions and shipped classifications against the reviewed expectations, but
+   the audit tables in [Licensing and release readiness](LICENSING-AND-RELEASE.md) still carry five flagged
+   packages: `Microsoft.NETFramework.ReferenceAssemblies` and `.net462` (license URL only),
+   `Microsoft.Windows.CsWinRT` 2.3.1 (license file inside the package),
+   `Microsoft.Windows.SDK.BuildTools.MSIX` 1.7.261102100 (`sdk_license.txt`) and `xunit.abstractions` (test-only,
+   license URL only). Record the inventory SHA-256
+   (`Get-FileHash artifacts\dependency-inventory.json -Algorithm SHA256`) with the assessment.
+3. **Runtime-notice hash is pinned.** The expected `.NET` runtime notice SHA-256
+   (`6D15E10A101C6BFFF2AB4429ED061BF76C456FC4B23AD6B03E0D0F8377148A21`) matched on both RIDs. A different .NET
+   runtime patch changes the notice file; the run fails with the observed hash so the reviewer can confirm and
+   update `release_expectations.json` deliberately.
+4. **Payload review never relaxes.** `build` runs inspection in strict mode, so any payload file that is not
+   attributable to the app, a reviewed dependency package or the .NET runtime fails the gate. Attribution is read
+   from the generated `*.deps.json`; a failure names the package that ships the file, so the fix is to review that
+   package in the inventory (or record an exemption with a reason), never to add the file to a pattern list to make
+   a run pass. The five defects found during these runs were all fixed this way.
+5. **Signing is a test certificate.** `CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70` proves the package identity is
+   valid and installable and that it matches the manifest Publisher. It is not a trusted production certificate and
+   it is not Store certification; the private key stays on the build machine and outside the repository, and the
+   public `.cer` was imported into `Cert:\CurrentUser\Root` only to let `signtool verify /pa` succeed locally.
+6. **Python prerequisite.** The tool needs Python 3.9+ on the build machine. It uses only the standard library;
    no package installation is required.
+7. **Install, first run, update, uninstall and rollback** are out of scope here and tracked by WERD-82.

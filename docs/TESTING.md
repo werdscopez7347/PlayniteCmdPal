@@ -185,7 +185,7 @@ python -m unittest discover -s scripts/release/tests -v
 They run in `scripts/ci.ps1` on Windows (preflight and inspection cases; the stub-tool orchestration cases skip) and
 in the separate `release-tools` GitHub Actions job on Ubuntu (full suite). They are not a Windows package build:
 they prove the gates reject the failure modes WERD-81 cares about, not that a release MSIX exists. See
-[WERD-81 release evidence](RELEASE-EVIDENCE-WERD-81.md) for the outstanding Windows run.
+[WERD-81 release evidence](RELEASE-EVIDENCE-WERD-81.md) for the Windows run that produced the release candidates.
 
 ### One test project while iterating
 

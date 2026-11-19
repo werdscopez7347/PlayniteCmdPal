@@ -120,7 +120,7 @@ Capture the stable canonical Playnite ID in the result command and force-revalid
 
 ## ADR-014: Executable release evidence with a reviewed expectations gate
 
-**Status:** Accepted for WERD-81 on 2026-11-17; tooling implemented and self-tested, Windows package run outstanding.
+**Status:** Accepted for WERD-81 on 2026-11-17; tooling implemented and self-tested, and the Windows run completed on 2026-11-19 from `f2c2854` with both packages signed and inspected (see [WERD-81 release evidence](RELEASE-EVIDENCE-WERD-81.md)).
 
 The release-candidate MSIX build is a checked-in tool (`scripts/release/release_tool.py`, Python standard library
 only) rather than a prose runbook or a Visual Studio session. It builds the Release configuration for `win-x64` and
