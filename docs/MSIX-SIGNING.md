@@ -96,7 +96,7 @@ validation, not a production certificate, Store certification, or a trust claim 
 | Project MSIX identity properties | Set to the same Partner Center name and publisher |
 | Project MSIX package version | `0.0.8.0`, matching the manifest |
 | Partner Center product ID / Store URL | Not supplied |
-| x64 MSIX candidate | Not yet built or inspected; pipeline ready (`scripts/release/release_tool.py build`) |
+| x64 MSIX candidate | Not yet signed or inspected; `dotnet publish` produces `PlayniteCmdPal_0.0.8.0_x64.msix` (`scripts/release/release_tool.py build`) |
 | ARM64 MSIX candidate | Not yet built or inspected; pipeline ready |
 | MSIX bundle | Not yet built and validated |
 | Partner Center certification | Not submitted |
@@ -105,7 +105,44 @@ validation, not a production certificate, Store certification, or a trust claim 
 | Release SDK pin | `Microsoft.Windows.SDK.NET.Ref 10.0.26100.84` (REDIST-listed; enforced by the release preflight) |
 | Evidence bundle | [WERD-81 release evidence](RELEASE-EVIDENCE-WERD-81.md) |
 
-## 6. Release gates and dependencies
+## 6. Signing a package when the PFX password is unknown
+
+The local test certificate is disposable: the release gate checks that the signer subject equals the manifest
+Publisher, not that a particular key survives. Two paths, in order of preference:
+
+1. **Use the certificate copy in the user store.** If the certificate used to create the PFX is still installed,
+   signing needs no password at all:
+
+   ```powershell
+   Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Format-List Subject, Thumbprint, HasPrivateKey
+   python scripts/release/release_tool.py build `
+       --inventory artifacts/dependency-inventory.json `
+       --certificate-thumbprint <thumbprint>
+   ```
+
+   The subject must be `CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70` and `HasPrivateKey` must be `True`.
+
+2. **Recreate the test certificate with a known password.** Acceptable because it is a local engineering
+   validation, not a distribution identity. Keep the subject identical to the manifest Publisher:
+
+   ```powershell
+   $cert = New-SelfSignedCertificate -Type Custom `
+       -Subject 'CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70' `
+       -KeyUsage DigitalSignature -FriendlyName 'PlayniteCmdPal test signing' `
+       -CertStoreLocation 'Cert:\CurrentUser\My' `
+       -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3', '2.5.29.19={text}')
+   $password = ConvertTo-SecureString -String '<new password>' -Force -AsPlainText
+   Export-PfxCertificate -Cert $cert -FilePath C:\secure\PlayniteCmdPal-Test.pfx -Password $password
+   Export-Certificate -Cert $cert -FilePath C:\secure\PlayniteCmdPal-Test.cer
+   Import-Certificate -FilePath C:\secure\PlayniteCmdPal-Test.cer -CertStoreLocation Cert:\CurrentUser\Root
+   ```
+
+   Then set `PLAYNITECMDPAL_MSIX_PFX_PASSWORD` for the run. Record the new thumbprint in the validation record
+   below, and never commit the PFX or the password.
+
+`build` prints both remedies when signtool reports `The specified PFX password is not correct`.
+
+## 7. Release gates and dependencies
 
 This issue establishes the Store identity and documents the Store-managed signing model. It does not complete package production or Store certification.
 

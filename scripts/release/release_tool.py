@@ -1570,8 +1570,8 @@ def build_release(args, expectations):
         return EXIT_ENVIRONMENT
 
     if args.certificate_pfx and not os.environ.get(args.certificate_password_env or '', ''):
-        print('WARNING: {0} is empty, so signtool is run without /p and may prompt for the PFX password '
-              'interactively. Set it for an unattended release run.'.format(
+        print('WARNING: {0} is empty, so signtool runs without /p. A password-protected PFX then fails with '
+              '"The specified PFX password is not correct".'.format(
                   args.certificate_password_env or 'PLAYNITECMDPAL_MSIX_PFX_PASSWORD'), file=sys.stderr)
 
     certificate_inside_repository = False
@@ -1689,8 +1689,15 @@ def build_release(args, expectations):
             sign_record['command'] = mask_signing_arguments(sign_record['command'])
             commands.append(sign_record)
             if sign_record['exitCode'] != 0:
+                signing_output = (sign_record['stdoutTail'] or '') + (sign_record['stderrTail'] or '')
                 print(sign_record['stdoutTail'])
                 print(sign_record['stderrTail'], file=sys.stderr)
+                if 'password is not correct' in signing_output.lower() or '0x80070056' in signing_output.lower():
+                    print('Hint: the PFX is password-protected and no password reached signtool. Set {0} to that '
+                          'password, or install the certificate in Cert:\\CurrentUser\\My and sign with '
+                          '--certificate-thumbprint, which needs no password.'.format(
+                              args.certificate_password_env or 'PLAYNITECMDPAL_MSIX_PFX_PASSWORD'),
+                          file=sys.stderr)
                 print('ERROR: signing failed for {0}.'.format(package_path), file=sys.stderr)
                 return EXIT_ENVIRONMENT
             verify_record = run_command([args.signtool, 'verify', '/pa', '/all', '/v', package_path],

@@ -400,6 +400,9 @@ if os.environ.get('FAKE_SIGNTOOL_FAIL'):
     sys.stderr.write('SignTool Error: simulated signing failure\n')
     sys.exit(1)
 if args[0] == 'sign':
+    if os.environ.get('FAKE_SIGNTOOL_BAD_PASSWORD'):
+        sys.stderr.write('SignTool Error: The specified PFX password is not correct.\n')
+        sys.exit(1)
     print('Successfully signed: ' + args[-1])
     sys.exit(0)
 if args[0] == 'verify':
@@ -484,6 +487,7 @@ class BuildOrchestrationTests(unittest.TestCase):
         os.environ.pop('FAKE_SIGNTOOL_FAIL', None)
         os.environ.pop('FAKE_SDK_VERSION', None)
         os.environ.pop('FAKE_SIGNTOOL_UNTRUSTED', None)
+        os.environ.pop('FAKE_SIGNTOOL_BAD_PASSWORD', None)
         self.temp.cleanup()
 
     def build_arguments(self, extra=None):
@@ -609,8 +613,7 @@ class BuildOrchestrationTests(unittest.TestCase):
         self.assertEqual(0, exit_code)
         self.assertIn('inside the repository', stderr.getvalue())
         # Without the password the run still works, but signtool may prompt, so the operator is told.
-        self.assertIn('PLAYNITECMDPAL_MSIX_PFX_PASSWORD', stderr.getvalue())
-        self.assertIn('may prompt for the PFX password', stderr.getvalue())
+        self.assertIn('PLAYNITECMDPAL_MSIX_PFX_PASSWORD is empty, so signtool runs without /p', stderr.getvalue())
         evidence = json.loads((self.output / 'evidence.json').read_text(encoding='utf-8'))
         signing = evidence['environment']['signing']
         self.assertEqual('pfx', signing['certificateSource'])
@@ -635,6 +638,15 @@ class BuildOrchestrationTests(unittest.TestCase):
         self.assertEqual(release_tool.EXIT_ENVIRONMENT, exit_code)
         self.assertIn('Import-Certificate', stderr.getvalue())
         self.assertIn('CurrentUser', stderr.getvalue())
+
+    def test_wrong_pfx_password_points_at_the_variable_and_the_thumbprint(self):
+        os.environ['FAKE_SIGNTOOL_BAD_PASSWORD'] = '1'
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            exit_code = release_tool.main(self.build_arguments())
+        self.assertEqual(release_tool.EXIT_ENVIRONMENT, exit_code)
+        self.assertIn('PLAYNITECMDPAL_MSIX_PFX_PASSWORD', stderr.getvalue())
+        self.assertIn('--certificate-thumbprint', stderr.getvalue())
 
     def test_missing_inventory_fails_before_any_package_is_built(self):
         arguments = self.build_arguments(['--inventory', str(self.root / 'missing-inventory.json')])

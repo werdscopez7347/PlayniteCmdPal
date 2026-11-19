@@ -76,6 +76,12 @@ its `bin` directory to `PATH`. `build` now resolves `signtool.exe` and `makeappx
 `%ProgramFiles(x86)%\Windows Kits\10\bin\<version>\x64` (newest SDK first) before falling back to the name, and
 prints a warning naming `--signtool` when nothing is found.
 
+The retry with the discovery fix found `C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\signtool.exe`
+and published the `win-x64` package again, then failed with `SignTool Error: The specified PFX password is not
+correct`: the test PFX is password-protected and the password is no longer known. `build` now names both remedies
+(set the password variable, or sign with `--certificate-thumbprint` from `Cert:\CurrentUser\My`) instead of
+reporting only that signing failed; the recovery paths are in [MSIX signing](MSIX-SIGNING.md#6-signing-a-package-when-the-pfx-password-is-unknown).
+
 The fix is exercised on `windows-latest` by the CI job: it runs the full self-test suite (45 tests, including the
 SDK tool-discovery cases) through `scripts/ci.ps1` in 2m02s, so the resolution path is known to work on Windows
 before the next manual run.

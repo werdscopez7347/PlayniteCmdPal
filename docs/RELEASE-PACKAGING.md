@@ -264,7 +264,7 @@ and a pass/fail table for each WERD-81 acceptance criterion.
 | --- | --- | --- |
 | `Executable not found: signtool.exe` | The Windows SDK bin directory is not on `PATH` | Let `build` discover the SDK copy, or pass `--signtool "C:\Program Files (x86)\Windows Kits\10\bin\<version>\x64\signtool.exe"` |
 | `0x800B0109`, "not trusted by the trust provider" | The self-signed test certificate is not trusted by the machine | `Import-Certificate -FilePath <file.cer> -CertStoreLocation Cert:\CurrentUser\Root` (public certificate only) |
-| `PLAYNITECMDPAL_MSIX_PFX_PASSWORD is empty` warning and a password prompt | The PFX is password-protected but the variable is unset | Set the variable before the run; never commit it |
+| `SignTool Error: The specified PFX password is not correct` | The PFX is password-protected and the variable is unset or wrong | Set `PLAYNITECMDPAL_MSIX_PFX_PASSWORD`, or sign with `--certificate-thumbprint` from a certificate in `Cert:\CurrentUser\My`; if the password is lost, regenerate the test certificate — see [MSIX signing](MSIX-SIGNING.md#7-if-the-test-pfx-password-is-unknown) |
 | `signing certificate ... does not exist` | The PFX path is wrong or the file is outside the machine | Point `--certificate-pfx` at the real file, or use `--certificate-thumbprint` |
 
 ### Current status
