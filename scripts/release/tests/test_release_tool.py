@@ -570,6 +570,7 @@ class BuildOrchestrationTests(unittest.TestCase):
         self.assertFalse(self.output.exists())
 
     def test_certificate_inside_the_repository_is_warned_about_and_recorded(self):
+        os.environ.pop('PLAYNITECMDPAL_MSIX_PFX_PASSWORD', None)
         certificate = self.repo / 'PlayniteCmdPal-Test.pfx'
         certificate.write_bytes(b'placeholder for a real PKCS#12 blob')
         arguments = self.build_arguments()
@@ -581,6 +582,9 @@ class BuildOrchestrationTests(unittest.TestCase):
             exit_code = release_tool.main(arguments)
         self.assertEqual(0, exit_code)
         self.assertIn('inside the repository', stderr.getvalue())
+        # Without the password the run still works, but signtool may prompt, so the operator is told.
+        self.assertIn('PLAYNITECMDPAL_MSIX_PFX_PASSWORD', stderr.getvalue())
+        self.assertIn('may prompt for the PFX password', stderr.getvalue())
         evidence = json.loads((self.output / 'evidence.json').read_text(encoding='utf-8'))
         signing = evidence['environment']['signing']
         self.assertEqual('pfx', signing['certificateSource'])

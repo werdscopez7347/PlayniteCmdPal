@@ -1509,6 +1509,11 @@ def build_release(args, expectations):
               'use --certificate-thumbprint.'.format(args.certificate_pfx), file=sys.stderr)
         return EXIT_ENVIRONMENT
 
+    if args.certificate_pfx and not os.environ.get(args.certificate_password_env or '', ''):
+        print('WARNING: {0} is empty, so signtool is run without /p and may prompt for the PFX password '
+              'interactively. Set it for an unattended release run.'.format(
+                  args.certificate_password_env or 'PLAYNITECMDPAL_MSIX_PFX_PASSWORD'), file=sys.stderr)
+
     certificate_inside_repository = False
     if args.certificate_pfx:
         repository_prefix = os.path.realpath(repo_root).rstrip(os.sep) + os.sep
