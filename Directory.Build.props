@@ -2,7 +2,7 @@
   <PropertyGroup>
     <Platforms>x64;ARM64</Platforms>
     <!-- Stable 26100 Windows SDK targeting pack whose shipped projection assets are
-         enumerated by Microsoft's Windows SDK REDIST list. The WERD-76 licensing
+         enumerated by Microsoft's Windows SDK REDIST list. The licensing
          decision selects 10.0.26100.84 for distribution; see docs/RELEASE-PACKAGING.md
          and docs/LICENSING-AND-RELEASE.md. Do not replace this with 10.0.26100.87
          without completing the redistribution review for its lib/net9.0 assets. -->

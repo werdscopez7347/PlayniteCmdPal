@@ -1,6 +1,6 @@
 # Command Palette extension metadata: what is displayed, and why
 
-**Investigated:** 2026-10-31 for WERD-70.
+**Investigated:** 2026-10-31.
 **Scope:** why Command Palette shows the PlayniteCmdPal extension's logo but not the extension's manifest `Description`, and which metadata each Command Palette surface actually renders.
 
 This document records evidence, not preference. Where a conclusion depends on PowerToys source, the file is named. Nothing here changes the manifest: the extension description is correct and stays as it is.
@@ -73,7 +73,7 @@ The logo appearing is evidence that the package is registered and discovered: th
 Only the extension can supply it, through the command model. The supported, non-invented options are:
 
 1. **Leave it as is.** One result named `Playnite` with no secondary line. This is what the current stable host renders for the declared metadata, and it matches the `Reload Command Palette extensions` reload behaviour Microsoft documents (rebuild → deploy → reload).
-2. **Set `CommandItem.Subtitle`** on the top-level item in `PlayniteCmdPalCommandsProvider` — for example the same sentence as the manifest description. This is a one-line change to the command model, purely presentational, and outside WERD-70's branding scope.
+2. **Set `CommandItem.Subtitle`** on the top-level item in `PlayniteCmdPalCommandsProvider` — for example the same sentence as the manifest description. This is a one-line change to the command model and purely presentational.
 3. **Fill in the Gallery entry** (`docs/gallery/extension.json.template`) if the extension is ever listed; the Gallery surfaces `shortDescription` and `description` from that feed, not from the package manifest.
 
 Adding new `uap3:Properties`, inventing manifest attributes, or duplicating the description into `uap:VisualElements/Description` (which belongs to the hidden host app and is not shown by Command Palette) would not make the description appear. Those are rejected.

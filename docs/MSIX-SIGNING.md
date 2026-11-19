@@ -29,7 +29,7 @@ For packages distributed through Microsoft Store, the publisher does not need to
 Consequences:
 
 - Do not create a publisher-controlled certificate requirement for the Store submission path.
-- Do not add a PFX, private key, certificate password, or signing token to this repository, Linear, or release artifacts.
+- Do not add a PFX, private key, certificate password, or signing token to this repository, an issue tracker, or release artifacts.
 - Do not run a local self-signed certificate workflow as a substitute for Store signing.
 - Store signing applies to the Store-distributed package. A copy downloaded directly from GitHub or installed through a WinGet manifest that points to GitHub is a separate distribution path and does not automatically receive Store signing or Store installation reputation.
 - If direct-download MSIX distribution is retained, its signing/trust model must be evaluated and documented separately. Do not claim that Store certification covers those files.
@@ -62,8 +62,8 @@ Record the following evidence when the actual build/submission is performed:
 `python scripts/release/release_tool.py build` produces these values as an evidence bundle
 (`artifacts/release/<version>/evidence.json` and `evidence.md`): the source commit, Windows/.NET/MSBuild/signtool
 versions, both package filenames and SHA-256 hashes, the extracted `AppxManifest.xml`, and every inspection result.
-See [Release packaging](RELEASE-PACKAGING.md#10-release-msix-build-and-inspection-werd-81) and
-[WERD-81 release evidence](RELEASE-EVIDENCE-WERD-81.md).
+See [Release packaging](RELEASE-PACKAGING.md#10-release-msix-build-and-inspection) and the
+[release candidate record](RELEASE-PACKAGING.md#release-candidate-record).
 
 Do not commit generated packages or private signing material.
 
@@ -92,11 +92,11 @@ validation, not a production certificate, Store certification, or a trust claim 
 | Package identity Name | `werdscopez7347.PlayniteforCommandPalette` |
 | Manifest Publisher | `CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70` |
 | Publisher display name | `werdscopez7347` |
-| Manifest updated | Yes, on the WERD-79 branch |
+| Manifest updated | Yes |
 | Project MSIX identity properties | Set to the same Partner Center name and publisher |
 | Project MSIX package version | `0.0.8.0`, matching the manifest |
 | Partner Center product ID / Store URL | Not supplied |
-| Local test certificate (WERD-81, 2026-11-19) | Subject `CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70`, thumbprint `018EBC36ABEB48F1550AFD658369B2C9BC9FB560` in `Cert:\CurrentUser\My`, public `.cer` in `Cert:\CurrentUser\Root`; disposable, not a distribution identity |
+| Local test certificate (2026-11-19) | Self-signed, subject `CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70`, created on the build machine with its public `.cer` imported into `Cert:\CurrentUser\Root`. Disposable, not a distribution identity; its thumbprint is recorded in the evidence bundle rather than here |
 | x64 MSIX candidate | Built, signed with the test certificate, chain-verified and inspected strict at `f2c2854`: `PlayniteCmdPal_0.0.8.0_x64.msix`, SHA-256 `C2F101A0D2F9943C4B5318D78FC2DEDCD5F0F570180C47F532379CA25BFDE8C4` |
 | ARM64 MSIX candidate | Built, signed with the test certificate, chain-verified and inspected strict at `f2c2854`: `PlayniteCmdPal_0.0.8.0_arm64.msix`, SHA-256 `45CEA6BEC5B4B2E2C4E0897C359AB89FA5A3F50E63B877F154D207935BF823D9` |
 | MSIX bundle | Not yet built and validated |
@@ -104,7 +104,7 @@ validation, not a production certificate, Store certification, or a trust claim 
 | Store listing availability | Not published |
 | Current manifest version | `0.0.8.0` |
 | Release SDK pin | `Microsoft.Windows.SDK.NET.Ref 10.0.26100.84` (REDIST-listed; enforced by the release preflight) |
-| Evidence bundle | [WERD-81 release evidence](RELEASE-EVIDENCE-WERD-81.md) |
+| Evidence bundle | [Release candidate record](RELEASE-PACKAGING.md#release-candidate-record) |
 
 ## 6. Signing a package when the PFX password is unknown
 
@@ -153,12 +153,14 @@ Two paths, in order of preference:
 
 ## 7. Release gates and dependencies
 
-This issue establishes the Store identity and documents the Store-managed signing model. It does not complete package production or Store certification.
+This document establishes the Store identity and the Store-managed signing model. It does not complete package
+production or Store certification.
 
-- [WERD-76](https://linear.app/werdscopez7347/issue/WERD-76/obtain-authoritative-redistribution-clearance-for-windows-sdk) tracks Windows SDK projection redistribution clearance.
-- [WERD-77](https://linear.app/werdscopez7347/issue/WERD-77/evaluate-and-migrate-from-the-preview-windows-sdk-targeting-pack) tracks migration from the preview targeting pack and Windows validation.
-- [WERD-78](https://linear.app/werdscopez7347/issue/WERD-78/run-the-windows-release-dependency-inventory-and-verify-runtime) tracks dependency inventory and per-RID runtime notices.
-- WERD-81 owns the x64/ARM64 package build and inspection evidence; see [WERD-81 release evidence](RELEASE-EVIDENCE-WERD-81.md).
-- WERD-83 remains the final release go/no-go gate.
+- Windows SDK projection redistribution clearance: see [Licensing and release readiness](LICENSING-AND-RELEASE.md#selected-windows-sdk-projection-package).
+- Targeting-pack migration and Windows validation: see [Release packaging](RELEASE-PACKAGING.md#windows-sdk-targeting-pack-migration-2026-11-01).
+- Dependency inventory and per-RID runtime notices: see [Licensing and release readiness](LICENSING-AND-RELEASE.md#dependency-and-redistribution-audit).
+- Package build and inspection evidence: see the [release candidate record](RELEASE-PACKAGING.md#release-candidate-record).
+- Final go/no-go: see the [ownership and go/no-go checklist](RELEASE-PACKAGING.md#9-ownership-and-gono-go-checklist).
 
-Do not mark WERD-79 complete until the Partner Center identity is confirmed in the product dashboard, the manifest changes are reviewed, and the Store package identity/build prerequisites are validated. Package build and certification remain separate release gates.
+The Partner Center identity still has to be confirmed in the product dashboard before a Store submission. Package
+build and certification remain separate release gates.

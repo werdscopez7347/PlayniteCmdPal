@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build, sign, inspect and record evidence for PlayniteCmdPal release MSIX packages.
 
-This is the reproducible release-candidate pipeline tracked by WERD-81. It has three
+This is the reproducible release-candidate pipeline. It has three
 subcommands:
 
     preflight   Check that the repository declarations (manifest, project, central
@@ -69,6 +69,12 @@ DEFAULT_EXPECTATIONS = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 SIGNATURE_FILE = 'AppxSignature.p7x'
 MSIX_METADATA_FILES = ('[Content_Types].xml', 'AppxBlockMap.xml', SIGNATURE_FILE)
+
+# Inspection reads every payload entry into memory to hash it. Real release packages are tens of megabytes;
+# these ceilings keep a decompression bomb from turning inspection of an untrusted package into a denial of
+# service on the build machine.
+MAX_PACKAGE_BYTES = 1024 * 1024 * 1024
+MAX_ENTRY_BYTES = 256 * 1024 * 1024
 
 
 # --------------------------------------------------------------------------------------
@@ -902,6 +908,22 @@ def inspect_package(package_path, expectations, repo_root, rid=None, nuget_packa
         name_set = set(names)
         report['package']['fileCount'] = len(names)
         checks.append(check('package.archive', PASS, 'Archive contains {0} payload entries.'.format(len(names))))
+
+        declared = [(normalize_entry(info.filename), info.file_size) for info in zf.infolist()
+                    if not info.is_dir()]
+        total_declared = sum(size for _name, size in declared)
+        oversized = sorted((name, size) for name, size in declared if size > MAX_ENTRY_BYTES)
+        if total_declared > MAX_PACKAGE_BYTES or oversized:
+            detail = 'Archive declares {0:,} uncompressed bytes'.format(total_declared)
+            if oversized:
+                detail += '; entries above {0:,} bytes: {1}'.format(
+                    MAX_ENTRY_BYTES,
+                    _name_list(['{0} ({1:,} bytes)'.format(name, size) for name, size in oversized]))
+            checks.append(check('package.payload-size', FAIL,
+                                detail + '. Refusing to inspect: not a plausible MSIX payload.'))
+            report['checks'] = checks
+            report['summary'] = {'status': FAIL, 'counts': summarize_checks(checks)}
+            return report
 
         if 'AppxManifest.xml' not in name_set:
             checks.append(check('manifest.present', FAIL, 'AppxManifest.xml is absent from the package.'))
@@ -2062,10 +2084,10 @@ def build_release(args, expectations):
         'commands': commands,
         'notPerformed': [
             'No package was installed, launched or activated; installation, update, uninstall and '
-            'rollback checks belong to WERD-82.',
+            'rollback checks belong to the install/upgrade validation step.',
             'No package, bundle, certificate or private key was uploaded, published or submitted to '
             'Partner Center.',
-            'No MSIX bundle was produced; this issue covers the per-architecture MSIX packages only.',
+            'No MSIX bundle was produced; this run covers the per-architecture MSIX packages only.',
         ],
     }
     evidence['acceptance'] = acceptance_criteria(evidence_packages, signature_required=not args.allow_unsigned)
@@ -2152,7 +2174,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(
         prog='release_tool.py',
         description='Build, sign, inspect and record evidence for PlayniteCmdPal release MSIX '
-                    'packages (WERD-81).')
+                    'packages.')
     parser.add_argument('--version', action='version',
                         version='{0} {1}'.format(TOOL_NAME, TOOL_VERSION))
     subparsers = parser.add_subparsers(dest='command', required=True)

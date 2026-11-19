@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "reviewedOn": "2026-11-17",
   "notes": [
-    "Reviewed expectations for the PlayniteCmdPal release MSIX packages (WERD-81).",
+    "Reviewed expectations for the PlayniteCmdPal release MSIX packages.",
     "Every value here is a release gate: change it only after re-reading docs/LICENSING-AND-RELEASE.md, docs/MSIX-SIGNING.md and docs/RELEASE-PACKAGING.md.",
-    "Package identity and publisher are the Partner Center values supplied by the maintainer (WERD-79). Do not substitute a repository name, a display name or a development certificate subject.",
-    "The Windows SDK projection package is pinned to 10.0.26100.84 because its lib/net8.0 assets are the ones enumerated by Microsoft's Windows SDK REDIST list (WERD-76). 10.0.26100.87 was evaluated under WERD-77 but is not the distribution pin.",
+    "Package identity and publisher are the Partner Center values supplied by the maintainer. Do not substitute a repository name, a display name or a development certificate subject.",
+    "The Windows SDK projection package is pinned to 10.0.26100.84 because its lib/net8.0 assets are the ones enumerated by Microsoft's Windows SDK REDIST list. 10.0.26100.87 was evaluated separately but is not the distribution pin.",
     "dependencyAssemblies are checked against the restored NuGet global-packages folder when it is available, so a version bump must be reflected in both Directory.Packages.props and this file."
   ],
   "source": {
@@ -245,7 +245,7 @@
   "inventoryExemptPackages": [
     {
       "packageId": "Microsoft.Windows.SDK.NET.Ref",
-      "reason": "Supplied by the WindowsSdkPackageVersion property rather than a PackageReference, so the dependency inventory does not enumerate it. Its version is pinned in Directory.Build.props, enforced by preflight.props.windows-sdk-package, and reviewed under WERD-76."
+      "reason": "Supplied by the WindowsSdkPackageVersion property rather than a PackageReference, so the dependency inventory does not enumerate it. Its version is pinned in Directory.Build.props, enforced by preflight.props.windows-sdk-package, and reviewed with the Windows SDK projection decision."
     }
   ]
 }

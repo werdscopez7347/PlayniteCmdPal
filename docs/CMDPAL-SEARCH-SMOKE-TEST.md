@@ -1,4 +1,4 @@
-# Command Palette search, launch, and game-details smoke test (WERD-61 / WERD-73)
+# Command Palette search, launch, and game-details smoke test
 
 These checks require Windows, the repository's .NET 10 SDK, Microsoft PowerToys Command Palette, the packaged extension, and the Playnite companion bridge. Use a small test library where possible. Do not record or share real game titles, IDs, paths, or catalog contents.
 
@@ -70,7 +70,7 @@ The maintainer-reported symptom is two **extension entries** when searching for 
 
 The current source has one `uap3:Extension` with one `uap3:AppExtension` named `com.microsoft.commandpalette` (ID `ID`), one COM class registration, and one `CommandItem` returned by `PlayniteCmdPalCommandsProvider.TopLevelCommands()`. The manifest identity is `Name=PlayniteCmdPal`, `Publisher=CN=PlayniteCmdPal`, `Version=0.0.2.0` (bumped from `0.0.1.0` for this retest). The manifest app-extension `DisplayName`, `CommandProvider.DisplayName`, and `CommandItem.Title` are all `Playnite`. The description is present; there is no source evidence that it creates a second registration.
 
-The `dev` baseline uses the same package identity and version and also declares one Command Palette app extension and one command item; its visible names are `PlayniteCmdPal`. The WERD-61 branch changes the visible names to `Playnite`, not the package identity, version, AppExtension count, or command count. This source inspection does **not** prove what Windows has registered or what Command Palette has cached. The duplicate has not yet been reproduced or cleared on a clean Windows install.
+The `dev` baseline uses the same package identity and version and also declares one Command Palette app extension and one command item; its visible names are `PlayniteCmdPal`. This branch changes the visible names to `Playnite`, not the package identity, version, AppExtension count, or command count. This source inspection does **not** prove what Windows has registered or what Command Palette has cached. The duplicate has not yet been reproduced or cleared on a clean Windows install.
 
 ### Reproduce, record, and cleanly reinstall
 
@@ -106,7 +106,7 @@ Then perform a current-user clean reinstall (this removes the installed Command 
 
 Microsoft's extension-development guidance explicitly requires **Build → Deploy** (not Build alone) and a Command Palette extension reload after package changes. The PowerShell package cmdlets are documented by Microsoft. See the links in the repository PR discussion.
 
-### Duplicate-result mitigation in WERD-61
+### Duplicate-result mitigation
 
 The package contains one executable entry point because the out-of-process COM server needs an application declaration, but that executable is a background host and is not intended to be launched directly by users. The manifest now sets `uap:VisualElements AppListEntry="none"` on that application entry. Microsoft documents this value as excluding the app from the All Apps list; the app's registered extension points remain available. This is materially different from merely renaming the host app.
 

@@ -20,6 +20,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 TESTS_DIR = Path(__file__).resolve().parent
@@ -414,6 +415,17 @@ class InspectionTests(unittest.TestCase):
                       if check['id'] == 'package.blockmap')
         self.assertIn('ghost.dll', detail)
         self.assertEqual(['ghost.dll'], report['blockMap']['extraInBlockMap'])
+
+    def test_decompression_bomb_is_refused(self):
+        # Inspection hashes every entry in memory, so an implausible declared size must fail before reading.
+        package = self.write_package()
+        with mock.patch.object(release_tool, 'MAX_ENTRY_BYTES', 64):
+            report = self.inspect(package)
+        self.assertIn('package.payload-size', failing_ids(report))
+        detail = next(check['detail'] for check in report['checks']
+                      if check['id'] == 'package.payload-size')
+        self.assertIn('Refusing to inspect', detail)
+        self.assertEqual(release_tool.FAIL, report['summary']['status'])
 
     def test_missing_content_type_fails(self):
         package = self.write_package(content_types_omit=('exe',))
