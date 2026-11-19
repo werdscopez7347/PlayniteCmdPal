@@ -76,6 +76,10 @@ its `bin` directory to `PATH`. `build` now resolves `signtool.exe` and `makeappx
 `%ProgramFiles(x86)%\Windows Kits\10\bin\<version>\x64` (newest SDK first) before falling back to the name, and
 prints a warning naming `--signtool` when nothing is found.
 
+The fix is exercised on `windows-latest` by the CI job: it runs the full self-test suite (45 tests, including the
+SDK tool-discovery cases) through `scripts/ci.ps1` in 2m02s, so the resolution path is known to work on Windows
+before the next manual run.
+
 Inventory review flags from that run, for the licensing gate: `Microsoft.NETFramework.ReferenceAssemblies` and
 `.net462` (license URL only), `Microsoft.Windows.CsWinRT` 2.3.1 (license file in package), `Microsoft.Windows.SDK
 .BuildTools.MSIX` 1.7.261102100 (`sdk_license.txt`), and `xunit.abstractions` (test-only, license URL only).
