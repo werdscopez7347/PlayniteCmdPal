@@ -255,8 +255,11 @@ python scripts/release/release_tool.py inspect $package.FullName --rid win-x64 -
   package metadata. Attribution is read from the SDK-generated `*.deps.json` rather than a hand list: each file is
   mapped to the package or runtime pack that ships it, package-shipped assemblies are compared byte-for-byte with
   every copy in the restored NuGet cache (a package may ship the same DLL for several target frameworks), and a
-  file from a package that is not in the reviewed inventory is a failure that names the package. `AppxMetadata/`
-  (the generated catalog) and the OPC parts are treated as package metadata, and the block map may list them.
+  file from a package that is not in the reviewed inventory is a failure that names the package. Runtime packs are
+  recognised by the `runtimepack.`/`runtime.` key prefix, by `"type": "runtimepack"` in the `libraries` section and
+  by the library id, because `deps.json` keys them as `runtimepack.Microsoft.NETCore.App.Runtime.win-x64/10.0.14`.
+  `AppxMetadata/` (the generated catalog) and the OPC parts are treated as package metadata, and the block map may
+  list them.
   `knownExtraPatterns` remains only as the fallback for files the SDK does not describe. `--strict` (used by
   `build`) makes an unreviewed file a failure.
 - Language tags are compared case-insensitively, because MakeAppx writes BCP-47 resource languages in upper case.

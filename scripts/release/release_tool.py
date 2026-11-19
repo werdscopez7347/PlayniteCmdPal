@@ -729,10 +729,31 @@ def find_package_sources(nuget_root, package_id, version, file_name):
 RUNTIME_LIBRARY_PREFIXES = ('microsoft.netcore.app.runtime.', 'microsoft.netcore.app.host.',
                             'microsoft.aspnetcore.app.runtime.', 'microsoft.windowsdesktop.app.runtime.')
 RUNTIME_LIBRARY_IDS = ('microsoft.netcore.app', 'microsoft.windowsdesktop.app', 'microsoft.aspnetcore.app')
+RUNTIME_LIBRARY_TYPES = ('runtimepack', 'runtime')
+LIBRARY_TYPE_PREFIXES = ('runtimepack.', 'runtime.')
 
 
-def is_runtime_library(library_id):
+def normalize_library_id(library_id):
+    """deps.json prefixes non-package library keys with their type, e.g. runtimepack.Microsoft.NETCore.App.Runtime.win-x64."""
     lowered = (library_id or '').lower()
+    for prefix in LIBRARY_TYPE_PREFIXES:
+        if lowered.startswith(prefix):
+            return lowered[len(prefix):]
+    return lowered
+
+
+def library_display_name(library_id):
+    """The library id without its deps.json type prefix, for messages and evidence."""
+    for prefix in LIBRARY_TYPE_PREFIXES:
+        if (library_id or '').lower().startswith(prefix):
+            return library_id[len(prefix):]
+    return library_id
+
+
+def is_runtime_library(library_id, library_type=None):
+    if (library_type or '').lower() in RUNTIME_LIBRARY_TYPES:
+        return True
+    lowered = normalize_library_id(library_id)
     return lowered in RUNTIME_LIBRARY_IDS or lowered.startswith(RUNTIME_LIBRARY_PREFIXES)
 
 
@@ -751,6 +772,11 @@ def read_deps_libraries(zf, names):
         payload = json.loads(zf.read(deps_names[0]).decode('utf-8', 'replace'))
     except (ValueError, KeyError):
         return {}, None
+    declared = {}
+    for library_key, library in (payload.get('libraries') or {}).items():
+        if isinstance(library, dict):
+            library_id, _, version = str(library_key).partition('/')
+            declared[library_id.lower()] = {'libraryType': library.get('type'), 'version': version}
     libraries = {}
     targets = payload.get('targets') or {}
     for target in targets.values():
@@ -768,6 +794,7 @@ def read_deps_libraries(zf, names):
                     name = str(asset_path).rsplit('/', 1)[-1]
                     libraries.setdefault(name.lower(), {
                         'libraryId': library_id,
+                        'libraryType': declared.get(library_id.lower(), {}).get('libraryType'),
                         'version': version,
                         'assetPath': asset_path,
                     })
@@ -1220,16 +1247,18 @@ def inspect_package(package_path, expectations, repo_root, rid=None, nuget_packa
                     unreviewed.append(name)
                 continue
             library_id, library_version = library['libraryId'], library['version']
-            record = {'path': name, 'libraryId': library_id, 'version': library_version,
+            display_id = library_display_name(library_id)
+            record = {'path': name, 'libraryId': library_id, 'libraryName': display_id,
+                      'libraryType': library.get('libraryType'), 'version': library_version,
                       'assetPath': library['assetPath']}
-            if is_runtime_library(library_id):
+            if is_runtime_library(library_id, library.get('libraryType')):
                 attribution['runtime'].append(record)
                 continue
-            package_entry = inventory_packages.get(library_id.lower())
+            package_entry = inventory_packages.get(normalize_library_id(library_id))
             if package_entry is not None:
                 record['inventoryClassification'] = package_entry.get('classification')
                 if nuget_packages:
-                    sources = find_package_sources(nuget_packages, library_id, library_version,
+                    sources = find_package_sources(nuget_packages, display_id, library_version,
                                                    os.path.basename(name))
                     digests = {sha256_file(path) for path in sources}
                     identical = payload_by_path[name]['sha256'] in digests if digests else None
@@ -1237,16 +1266,16 @@ def inspect_package(package_path, expectations, repo_root, rid=None, nuget_packa
                     record['identicalToPackageSource'] = identical
                     if identical is False:
                         unreviewed.append('{0} does not match any copy in {1} {2}'.format(
-                            name, library_id, library_version))
+                            name, display_id, library_version))
                         continue
                 attribution['dependencies'].append(record)
                 continue
-            if library_id.lower() in exemptions:
-                record['exemptionReason'] = exemptions[library_id.lower()].get('reason')
+            if normalize_library_id(library_id) in exemptions:
+                record['exemptionReason'] = exemptions[normalize_library_id(library_id)].get('reason')
                 attribution['exempt'].append(record)
                 continue
             unreviewed.append('{0} (shipped by {1} {2}, which is not in the reviewed dependency inventory)'.format(
-                name, library_id, library_version))
+                name, display_id, library_version))
         report['attribution'] = {
             'depsFile': deps_name,
             'runtimeFiles': len(attribution['runtime']),

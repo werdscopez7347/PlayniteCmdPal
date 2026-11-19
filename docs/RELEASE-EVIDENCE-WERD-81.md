@@ -111,6 +111,16 @@ Five causes, all in the inspection tooling rather than in the packages:
 | `AppxBlockMap.xml lists 213 payload files` | The block-map comparison counted every `<File>` entry, including generated OPC metadata, against a payload set that excluded it | OPC metadata is excluded from both sides, `AppxMetadata/` entries are allowed, and the detail names every file that is missing from or extra in the block map |
 | `Microsoft.Windows.SDK.NET.Ref is not in the inventory` | The package is supplied by the `WindowsSdkPackageVersion` property, so the inventory generator cannot list it | `inventoryExemptPackages` records the exemption and its reason; the version pin is still enforced by preflight |
 
+#### The run that followed (`fcef43c`, 2026-11-19)
+
+Both packages built, signed and chain-verified again — x64 `81FF4F21FD6A8BA8F804227C74D1BCF7EEBA4136822FF6C4EE1353C6190B3C59`,
+arm64 `254A53BF984D2E47B773461E9BFCEF60543A050AACB072DA81F6348222B8CCB7` — and criteria 4, 5 and 6 passed. One
+finding remained, again in the tooling: `deps.json` names a runtime pack as
+`runtimepack.Microsoft.NETCore.App.Runtime.win-x64/10.0.14`, so the type prefix hid 187 runtime files from the
+runtime classification and they were reported as unreviewed. Runtime libraries are now recognised by the
+`runtimepack.`/`runtime.` key prefix, by `"type": "runtimepack"` in the `libraries` section, and by the id itself,
+and the same fix applies to the library name shown in messages and evidence. These hashes are superseded as well.
+
 Inventory review flags from that run remain open for the licensing gate: `Microsoft.NETFramework.ReferenceAssemblies`
 and `.net462` (license URL only), `Microsoft.Windows.CsWinRT` 2.3.1 (license file in package),
 `Microsoft.Windows.SDK.BuildTools.MSIX` 1.7.261102100 (`sdk_license.txt`), and `xunit.abstractions` (test-only,

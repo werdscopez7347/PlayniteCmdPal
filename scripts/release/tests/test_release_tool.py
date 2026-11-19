@@ -273,16 +273,26 @@ class InspectionTests(unittest.TestCase):
         self.assertNotIn('manifest.languages', failing_ids(report))
 
     def test_payload_files_are_attributed_through_the_deps_manifest(self):
+        # Shaped like a real self-contained publish: runtime packs are keyed with the `runtimepack.` prefix
+        # and the type is declared in the libraries section.
         deps = {
             'runtimeTarget': {'name': '.NETCoreApp,Version=v10.0/win-x64'},
             'targets': {'.NETCoreApp,Version=v10.0/win-x64': {
-                'Some.Package/1.2.3': {'runtime': {'Some.Package.dll': {}}},
-                'Microsoft.NETCore.App.Runtime.win-x64/10.0.0': {'runtime': {
-                    'System.dll': {}, 'clrgc.dll': {}, 'clrgcexp.dll': {}, 'clretwrc.dll': {},
-                    'msquic.dll': {}},
-                    'native': {'Microsoft.DiaSymReader.Native.amd64.dll': {}}},
+                'Some.Package/1.2.3': {'type': 'package',
+                                       'runtime': {'Some.Package.dll': {}}},
+                'runtimepack.Microsoft.NETCore.App.Runtime.win-x64/10.0.14': {
+                    'runtime': {
+                        'System.dll': {}, 'clrgc.dll': {}, 'clrgcexp.dll': {}, 'clretwrc.dll': {},
+                        'msquic.dll': {}, 'Microsoft.CSharp.dll': {}, 'System.Buffers.dll': {},
+                        'Microsoft.Win32.Registry.dll': {},
+                    },
+                    'native': {'Microsoft.DiaSymReader.Native.amd64.dll': {}},
+                },
             }},
-            'libraries': {},
+            'libraries': {
+                'Some.Package/1.2.3': {'type': 'package'},
+                'runtimepack.Microsoft.NETCore.App.Runtime.win-x64/10.0.14': {'type': 'runtimepack'},
+            },
         }
         payload = {
             'PlayniteCmdPal.deps.json': json.dumps(deps).encode('utf-8'),
@@ -292,11 +302,22 @@ class InspectionTests(unittest.TestCase):
             'clrgcexp.dll': b'gc-experimental',
             'clretwrc.dll': b'runtime-resources',
             'msquic.dll': b'msquic',
+            'Microsoft.CSharp.dll': b'csharp',
+            'System.Buffers.dll': b'buffers',
+            'Microsoft.Win32.Registry.dll': b'registry',
             'Microsoft.DiaSymReader.Native.amd64.dll': b'pdb-reader',
         }
         package = self.write_package(payload_overrides=payload)
         report = self.inspect(package, strict=True)
-        self.assertEqual(6, report['attribution']['runtimeFiles'])
+        # Every runtime-pack file is attributed, including the ones a reviewed pattern would also accept:
+        # deps.json wins over the pattern list when it names the file.
+        self.assertEqual(9, report['attribution']['runtimeFiles'])
+        attributed = {item['path'] for item in report['attribution']['details']['runtime']}
+        by_pattern = {item['path'] for item in report['attribution']['details']['pattern']}
+        for name in ('System.Buffers.dll', 'Microsoft.CSharp.dll', 'Microsoft.Win32.Registry.dll'):
+            self.assertIn(name, attributed)
+            self.assertNotIn(name, by_pattern)
+        self.assertTrue(by_pattern, 'the fixture still exercises the pattern fallback')
         self.assertEqual(0, report['attribution']['dependencyFiles'])
         self.assertIn('payload.reviewed-inventory', failing_ids(report))
         detail = next(check['detail'] for check in report['checks']
@@ -332,23 +353,15 @@ class InspectionTests(unittest.TestCase):
                       if check['id'] == 'payload.reviewed-inventory')
         self.assertIn('does not match any copy in Some.Package 1.2.3', detail)
 
-    def test_a_pattern_named_file_from_an_unreviewed_package_still_fails(self):
-        # "System.*.dll" is a fallback pattern for files the SDK does not describe. When deps.json does
-        # name the file's package, that attribution wins and an unknown package is still a failure.
-        deps = {
-            'targets': {'.NETCoreApp,Version=v10.0/win-x64': {
-                'Unknown.Component/9.9.9': {'runtime': {'System.Evil.dll': {}}},
-            }},
-        }
-        payload = {
-            'PlayniteCmdPal.deps.json': json.dumps(deps).encode('utf-8'),
-            'System.Evil.dll': b'evil',
-        }
-        report = self.inspect(self.write_package(payload_overrides=payload), strict=True)
-        detail = next(check['detail'] for check in report['checks']
-                      if check['id'] == 'payload.reviewed-inventory')
-        self.assertIn('System.Evil.dll', detail)
-        self.assertIn('Unknown.Component 9.9.9', detail)
+    def test_runtime_pack_ids_are_recognised_with_or_without_the_type_prefix(self):
+        for library_id in ('runtimepack.Microsoft.NETCore.App.Runtime.win-arm64',
+                           'Microsoft.NETCore.App.Runtime.win-x64',
+                           'microsoft.netcore.app.runtime.linux-x64'):
+            self.assertTrue(release_tool.is_runtime_library(library_id), library_id)
+        self.assertTrue(release_tool.is_runtime_library('Contoso.Pack', 'runtimepack'))
+        self.assertFalse(release_tool.is_runtime_library('Microsoft.CommandPalette.Extensions'))
+        self.assertEqual('Microsoft.NETCore.App.Runtime.win-x64',
+                         release_tool.library_display_name('runtimepack.Microsoft.NETCore.App.Runtime.win-x64'))
 
     def test_property_supplied_package_is_exempt_from_the_inventory(self):
         inventory = {
