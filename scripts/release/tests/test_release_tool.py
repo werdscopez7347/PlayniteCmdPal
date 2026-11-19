@@ -172,7 +172,7 @@ class InspectionTests(unittest.TestCase):
                                               ('manifest_overrides', 'payload_overrides', 'drop')
                                               if key in kwargs})
         write_kwargs = {key: kwargs.pop(key) for key in
-                        ('include_signature', 'blockmap_omit', 'content_types_omit')
+                        ('include_signature', 'blockmap_omit', 'content_types_omit', 'blockmap_extra')
                         if key in kwargs}
         package_path = self.root / '{0}.msix'.format(rid)
         msix_fixture.write_package(package_path, files, **write_kwargs)
@@ -238,6 +238,24 @@ class InspectionTests(unittest.TestCase):
             'WinRT.Runtime.dll': b'not the restored CsWinRT assembly' * 64})
         self.assertIn('payload.dependency-assemblies', failing_ids(self.inspect(package)))
 
+    def test_dependency_matches_any_copy_shipped_for_another_framework(self):
+        # CsWinRT ships WinRT.Runtime.dll under several TFMs; the publish selects one, and any
+        # byte-identical copy is acceptable provenance evidence.
+        files = msix_fixture.package_files(str(REPO_ROOT))
+        msix_fixture.write_nuget_package(self.nuget, 'Microsoft.Windows.CsWinRT', '2.3.1',
+                                         'WinRT.Runtime.dll', b'a different framework build',
+                                         framework='netstandard2.0')
+        msix_fixture.write_nuget_package(self.nuget, 'Microsoft.Windows.CsWinRT', '2.3.1',
+                                         'WinRT.Runtime.dll', files['WinRT.Runtime.dll'],
+                                         framework='net8.0')
+        report = self.inspect(self.write_package(), strict=True)
+        self.assertEqual(release_tool.PASS, report['summary']['status'],
+                         msg='\n'.join(release_tool.format_checks(report['checks'])))
+        dependency = next(item for item in report['dependencyAssemblies']
+                          if item['packageId'] == 'Microsoft.Windows.CsWinRT')
+        self.assertEqual(2, len(dependency['packageSources']))
+        self.assertTrue(dependency['identicalToPackageSource'])
+
     def test_forbidden_test_content_fails(self):
         package = self.write_package(payload_overrides={'xunit.core.dll': b'xunit'})
         self.assertIn('payload.forbidden-content', failing_ids(self.inspect(package)))
@@ -247,6 +265,111 @@ class InspectionTests(unittest.TestCase):
         self.assertNotIn('payload.reviewed-inventory', failing_ids(self.inspect(package)))
         strict_report = self.inspect(package, strict=True)
         self.assertIn('payload.reviewed-inventory', failing_ids(strict_report))
+
+    def test_upper_case_manifest_language_matches_the_bcp47_expectation(self):
+        # MakeAppx writes the resource language in upper case; BCP-47 tags are case-insensitive.
+        package = self.write_package(manifest_overrides={'language': 'EN-US'})
+        report = self.inspect(package)
+        self.assertNotIn('manifest.languages', failing_ids(report))
+
+    def test_payload_files_are_attributed_through_the_deps_manifest(self):
+        deps = {
+            'runtimeTarget': {'name': '.NETCoreApp,Version=v10.0/win-x64'},
+            'targets': {'.NETCoreApp,Version=v10.0/win-x64': {
+                'Some.Package/1.2.3': {'runtime': {'Some.Package.dll': {}}},
+                'Microsoft.NETCore.App.Runtime.win-x64/10.0.0': {'runtime': {
+                    'System.dll': {}, 'clrgc.dll': {}, 'clrgcexp.dll': {}, 'clretwrc.dll': {},
+                    'msquic.dll': {}},
+                    'native': {'Microsoft.DiaSymReader.Native.amd64.dll': {}}},
+            }},
+            'libraries': {},
+        }
+        payload = {
+            'PlayniteCmdPal.deps.json': json.dumps(deps).encode('utf-8'),
+            'Some.Package.dll': b'package-assembly',
+            'System.dll': b'system-facade',
+            'clrgc.dll': b'gc-implementation',
+            'clrgcexp.dll': b'gc-experimental',
+            'clretwrc.dll': b'runtime-resources',
+            'msquic.dll': b'msquic',
+            'Microsoft.DiaSymReader.Native.amd64.dll': b'pdb-reader',
+        }
+        package = self.write_package(payload_overrides=payload)
+        report = self.inspect(package, strict=True)
+        self.assertEqual(6, report['attribution']['runtimeFiles'])
+        self.assertEqual(0, report['attribution']['dependencyFiles'])
+        self.assertIn('payload.reviewed-inventory', failing_ids(report))
+        detail = next(check['detail'] for check in report['checks']
+                      if check['id'] == 'payload.reviewed-inventory')
+        self.assertIn('Some.Package 1.2.3', detail)
+        self.assertIn('not in the reviewed dependency inventory', detail)
+
+        inventory = {
+            'schemaVersion': 1,
+            'generatedAtUtc': '2026-11-17T00:00:00Z',
+            'dotnetSdkVersion': '10.0.403',
+            'summary': {'shipped-runtime': 5},
+            'packages': [{'id': dependency['packageId'], 'version': dependency['version'],
+                          'classification': 'shipped-runtime', 'reviewStatus': 'cleared'}
+                         for dependency in self.expectations['dependencyAssemblies']]
+                        + [{'id': 'Some.Package', 'version': '1.2.3',
+                            'classification': 'shipped-runtime', 'reviewStatus': 'cleared'}],
+        }
+        inventory_path = self.root / 'deps-inventory.json'
+        inventory_path.write_text(json.dumps(inventory), encoding='utf-8')
+        msix_fixture.write_nuget_package(self.nuget, 'Some.Package', '1.2.3',
+                                         'Some.Package.dll', b'package-assembly')
+        report = self.inspect(package, strict=True, inventory=str(inventory_path))
+        self.assertEqual(1, report['attribution']['dependencyFiles'])
+        self.assertEqual(release_tool.PASS, report['summary']['status'],
+                         msg='\n'.join(release_tool.format_checks(report['checks'])))
+
+        # A payload file that is no copy of the reviewed package is called out by name.
+        msix_fixture.write_nuget_package(self.nuget, 'Some.Package', '1.2.3',
+                                         'Some.Package.dll', b'tampered')
+        report = self.inspect(package, strict=True, inventory=str(inventory_path))
+        detail = next(check['detail'] for check in report['checks']
+                      if check['id'] == 'payload.reviewed-inventory')
+        self.assertIn('does not match any copy in Some.Package 1.2.3', detail)
+
+    def test_a_pattern_named_file_from_an_unreviewed_package_still_fails(self):
+        # "System.*.dll" is a fallback pattern for files the SDK does not describe. When deps.json does
+        # name the file's package, that attribution wins and an unknown package is still a failure.
+        deps = {
+            'targets': {'.NETCoreApp,Version=v10.0/win-x64': {
+                'Unknown.Component/9.9.9': {'runtime': {'System.Evil.dll': {}}},
+            }},
+        }
+        payload = {
+            'PlayniteCmdPal.deps.json': json.dumps(deps).encode('utf-8'),
+            'System.Evil.dll': b'evil',
+        }
+        report = self.inspect(self.write_package(payload_overrides=payload), strict=True)
+        detail = next(check['detail'] for check in report['checks']
+                      if check['id'] == 'payload.reviewed-inventory')
+        self.assertIn('System.Evil.dll', detail)
+        self.assertIn('Unknown.Component 9.9.9', detail)
+
+    def test_property_supplied_package_is_exempt_from_the_inventory(self):
+        inventory = {
+            'schemaVersion': 1,
+            'generatedAtUtc': '2026-11-17T00:00:00Z',
+            'dotnetSdkVersion': '10.0.403',
+            'summary': {},
+            'packages': [{'id': dependency['packageId'], 'version': dependency['version'],
+                          'classification': 'shipped-runtime', 'reviewStatus': 'cleared'}
+                         for dependency in self.expectations['dependencyAssemblies']
+                         if dependency['packageId'] != 'Microsoft.Windows.SDK.NET.Ref'],
+        }
+        inventory_path = self.root / 'exempt-inventory.json'
+        inventory_path.write_text(json.dumps(inventory), encoding='utf-8')
+        self.expectations['inventoryExemptPackages'] = [{
+            'packageId': 'Microsoft.Windows.SDK.NET.Ref',
+            'reason': 'Supplied by WindowsSdkPackageVersion.',
+        }]
+        report = self.inspect(self.write_package(), inventory=str(inventory_path), strict=True)
+        self.assertEqual(release_tool.PASS, report['summary']['status'],
+                         msg='\n'.join(release_tool.format_checks(report['checks'])))
 
     def test_in_process_com_registration_fails(self):
         package = self.write_package(manifest_overrides={'com_extension': 'in-process'})
@@ -261,6 +384,23 @@ class InspectionTests(unittest.TestCase):
     def test_blockmap_omission_fails(self):
         package = self.write_package(blockmap_omit=('PlayniteCmdPal.exe',))
         self.assertIn('package.blockmap', failing_ids(self.inspect(package)))
+
+    def test_opc_metadata_is_not_compared_against_the_block_map(self):
+        # MakeAppx lists the generated catalog in the block map; it is package metadata, not payload.
+        package = self.write_package(blockmap_extra=('AppxMetadata/CodeIntegrity.cat',),
+                                     payload_overrides={'AppxMetadata/CodeIntegrity.cat': b'catalog'})
+        report = self.inspect(package, strict=True)
+        self.assertNotIn('package.blockmap', failing_ids(report))
+        self.assertNotIn('payload.reviewed-inventory', failing_ids(report))
+        self.assertIn('appxmetadata/codeintegrity.cat', report['blockMap']['appxMetadataEntries'])
+
+    def test_block_map_extra_file_is_named(self):
+        package = self.write_package(blockmap_extra=('Ghost.dll',))
+        report = self.inspect(package)
+        detail = next(check['detail'] for check in report['checks']
+                      if check['id'] == 'package.blockmap')
+        self.assertIn('ghost.dll', detail)
+        self.assertEqual(['ghost.dll'], report['blockMap']['extraInBlockMap'])
 
     def test_missing_content_type_fails(self):
         package = self.write_package(content_types_omit=('exe',))

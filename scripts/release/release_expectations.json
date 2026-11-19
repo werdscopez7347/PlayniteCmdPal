@@ -241,5 +241,11 @@
     "MakeAppx.exe",
     "makeappx.exe",
     "signtool.exe"
+  ],
+  "inventoryExemptPackages": [
+    {
+      "packageId": "Microsoft.Windows.SDK.NET.Ref",
+      "reason": "Supplied by the WindowsSdkPackageVersion property rather than a PackageReference, so the dependency inventory does not enumerate it. Its version is pinned in Directory.Build.props, enforced by preflight.props.windows-sdk-package, and reviewed under WERD-76."
+    }
   ]
 }

@@ -251,8 +251,17 @@ python scripts/release/release_tool.py inspect $package.FullName --rid win-x64 -
   dependency DLLs/WinMD with the restored NuGet package sources, and detection of build-only or test-only content.
 - `LICENSE`, `THIRD-PARTY-NOTICES.md` and `Microsoft-PowerToys-LICENSE.txt` against the repository copies, plus
   the RID-specific `dotnet-runtime-THIRD-PARTY-NOTICES.txt` against the reviewed SHA-256.
-- Every payload file is attributable to the application, the reviewed dependency inventory or the .NET runtime.
-  `--strict` (used by `build`) makes an unreviewed file a failure.
+- Every payload file is attributable to the application, a reviewed dependency package, the .NET runtime, or
+  package metadata. Attribution is read from the SDK-generated `*.deps.json` rather than a hand list: each file is
+  mapped to the package or runtime pack that ships it, package-shipped assemblies are compared byte-for-byte with
+  every copy in the restored NuGet cache (a package may ship the same DLL for several target frameworks), and a
+  file from a package that is not in the reviewed inventory is a failure that names the package. `AppxMetadata/`
+  (the generated catalog) and the OPC parts are treated as package metadata, and the block map may list them.
+  `knownExtraPatterns` remains only as the fallback for files the SDK does not describe. `--strict` (used by
+  `build`) makes an unreviewed file a failure.
+- Language tags are compared case-insensitively, because MakeAppx writes BCP-47 resource languages in upper case.
+- Property-supplied packages (`inventoryExemptPackages`, currently `Microsoft.Windows.SDK.NET.Ref`, which comes
+  from `WindowsSdkPackageVersion`) are exempt from the inventory listing; their pin is still enforced by preflight.
 
 The command exits `0` only when every check passes. The evidence bundle records the source commit, tool versions,
 every command with its exit code, the package SHA-256, per-file payload hashes, the extracted `AppxManifest.xml`,

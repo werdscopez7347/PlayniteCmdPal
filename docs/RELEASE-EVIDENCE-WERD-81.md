@@ -86,21 +86,35 @@ The fix is exercised on `windows-latest` by the CI job: it runs the full self-te
 SDK tool-discovery cases) through `scripts/ci.ps1` in 2m02s, so the resolution path is known to work on Windows
 before the next manual run.
 
-### The third and fourth Windows attempts (2026-11-19)
+### The signed Windows run (2026-11-19, commit `4a17113`)
 
 | Step | Result |
 | --- | --- |
 | Signing certificate | A test certificate with the manifest Publisher as subject was created in `Cert:\CurrentUser\My` (thumbprint `018EBC36ABEB48F1550AFD658369B2C9BC9FB560`) and its public `.cer` imported into `Cert:\CurrentUser\Root`. |
-| Build | **Both packages built and signed**: `PlayniteCmdPal_0.0.8.0_x64.msix` (SHA-256 `99801D4C2AA21D3AE51F19B8C649296485D99A646E120A4B3E36EB909DA80B73`) and `PlayniteCmdPal_0.0.8.0_arm64.msix` (SHA-256 `CA159A805AC29220B2140F46F5C6F7563FD30FE6E39536F19FEE53AE02993FA7`); `signtool verify /pa /all /v` succeeded for both. |
-| Identity check | Reported FAIL although the certificate was correct: signtool prints `Issued to: B5EE8A57-…` (the common name only) while the manifest Publisher is `CN=B5EE8A57-…`, and the comparison treated the missing prefix as a different subject. Fixed by comparing common names; a genuinely different certificate still fails. |
-| Acceptance | Criteria 4, 5 and 6 passed; 1 and 2 failed only because of that identity comparison; criterion 3 failed and could not be diagnosed, because its detail text was static. The detail now names the failing check ids and messages, and `build` prints every failing check under each package verdict. |
+| Preflight | **PASS** (33 checks), including the runtime-notice SHA-256 `6D15E10A101C6BFFF2AB4429ED061BF76C456FC4B23AD6B03E0D0F8377148A21` for both RIDs. |
+| Build and sign | **Both packages built, signed and chain-verified**: `PlayniteCmdPal_0.0.8.0_x64.msix` (SHA-256 `E1740F0FDEFC797A10CF32729E7FE6F3F09B4EF1A4CB305E6FEDC0CF59C0F554`) and `PlayniteCmdPal_0.0.8.0_arm64.msix` (SHA-256 `FDD77C318ED24830122575FA8348AA4E26FAF4E2E13573B7BAD2B767317CB72D`); `signtool verify /pa /all /v` succeeded for both. Evidence was written to `artifacts\release\0.0.8.0`. |
+| Acceptance | Criteria **4, 5 and 6 passed**. Criteria 1 and 2 failed only because package inspection failed; criterion 3 failed and now named its five causes. |
 
-Those hashes are from a run whose evidence bundle is not authoritative (the package verdicts were wrong), and re-signing
-changes the bytes through the timestamp, so the recorded values will come from the next clean run.
+Those hashes are from a run whose package verdicts were wrong (inspection produced false failures), so they are not
+authoritative: re-signing also changes the bytes through the timestamp. The authoritative values will come from the
+next clean run.
 
-Inventory review flags from that run, for the licensing gate: `Microsoft.NETFramework.ReferenceAssemblies` and
-`.net462` (license URL only), `Microsoft.Windows.CsWinRT` 2.3.1 (license file in package), `Microsoft.Windows.SDK
-.BuildTools.MSIX` 1.7.261102100 (`sdk_license.txt`), and `xunit.abstractions` (test-only, license URL only).
+#### Inspection findings from that run
+
+Five causes, all in the inspection tooling rather than in the packages:
+
+| Finding | Cause | Correction |
+| --- | --- | --- |
+| `manifest.languages` expected `en-US`, observed `EN-US` | MakeAppx upper-cases BCP-47 resource languages, and the comparison was case-sensitive | Language tags are compared case-insensitively on both architectures |
+| `WinRT.Runtime.dll does not match Microsoft.Windows.CsWinRT 2.3.1` | The check compared against one arbitrary target-framework copy in the NuGet cache while the publish selected another, byte-different copy | Every copy of the file in the package folder is a candidate; any byte-identical copy satisfies the check, and a genuine mismatch names how many copies were compared |
+| Nine unreviewed payload files (`System.dll`, `clrgc.dll`, `clrgcexp.dll`, `clretwrc.dll`, `msquic.dll`, `Microsoft.DiaSymReader.Native.amd64.dll`, `Microsoft.CommandPalette.Extensions*.dll`, `AppxMetadata/CodeIntegrity.cat`) | The payload gate relied on a hand-maintained pattern list | Attribution now comes from the SDK-generated `*.deps.json`: each file maps to the package or runtime pack that ships it, package-shipped files are compared with their NuGet sources, and `AppxMetadata/` counts as package metadata |
+| `AppxBlockMap.xml lists 213 payload files` | The block-map comparison counted every `<File>` entry, including generated OPC metadata, against a payload set that excluded it | OPC metadata is excluded from both sides, `AppxMetadata/` entries are allowed, and the detail names every file that is missing from or extra in the block map |
+| `Microsoft.Windows.SDK.NET.Ref is not in the inventory` | The package is supplied by the `WindowsSdkPackageVersion` property, so the inventory generator cannot list it | `inventoryExemptPackages` records the exemption and its reason; the version pin is still enforced by preflight |
+
+Inventory review flags from that run remain open for the licensing gate: `Microsoft.NETFramework.ReferenceAssemblies`
+and `.net462` (license URL only), `Microsoft.Windows.CsWinRT` 2.3.1 (license file in package),
+`Microsoft.Windows.SDK.BuildTools.MSIX` 1.7.261102100 (`sdk_license.txt`), and `xunit.abstractions` (test-only,
+license URL only).
 
 ## 3. Acceptance criteria
 
@@ -108,7 +122,7 @@ Inventory review flags from that run, for the licensing gate: `Microsoft.NETFram
 | --- | --- | --- |
 | x64 package builds, signs, and passes package inspection | **Open** | Pipeline implemented; run outstanding. |
 | ARM64 package builds, signs, and passes package inspection | **Open** | Pipeline implemented; run outstanding. |
-| Package contents match the reviewed dependency inventory | **Open** | `inspect` enforces presence, package-source byte equality, forbidden-content and unreviewed-file gates; the inventory must be regenerated after the PR #41 version bumps before the run. |
+| Package contents match the reviewed dependency inventory | **Open** | `inspect` enforces presence, package-source byte equality (any target-framework copy), forbidden content, and `*.deps.json` attribution of every payload file to the app, a reviewed package or the runtime; the inventory must be regenerated after the PR #41 version bumps before the run. |
 | Required licenses/notices are present in each package | **Open** | `inspect` compares `LICENSE`, `THIRD-PARTY-NOTICES.md` and `Microsoft-PowerToys-LICENSE.txt` with the repository copies and the RID-specific runtime notice with its reviewed SHA-256. |
 | Hashes and reproducible build evidence are recorded | **Open** | `build` writes `evidence.json`, `evidence.md`, `SHA256SUMS`, extracted `AppxManifest.xml` files, per-file payload hashes and every command with its exit code. |
 | No package is submitted or published by this issue | Satisfied by design | The tooling has no upload, submission or publishing step and writes only to the git-ignored `artifacts/` tree. |
@@ -187,7 +201,8 @@ does not claim Store certification or a trusted production certificate.
    10.0.403. A different .NET runtime patch changes the notice file; the run fails with the observed hash so the
    reviewer can confirm and update `release_expectations.json` deliberately.
 4. **Payload review.** `build` runs inspection in strict mode, so any payload file that is not attributable to the
-   app, the reviewed dependency assemblies or the .NET runtime fails the release gate. Classify intentional
-   additions in `release_expectations.json`; never weaken the gate to make a run pass.
+   app, a reviewed dependency package or the .NET runtime fails the release gate. Attribution is read from the
+   generated `*.deps.json`; a failure names the package that ships the file, so the fix is to review that package in
+   the inventory (or record an exemption with a reason), never to add the file to a pattern list to make a run pass.
 5. **Python prerequisite.** The tool needs Python 3.9+ on the build machine. It uses only the standard library;
    no package installation is required.

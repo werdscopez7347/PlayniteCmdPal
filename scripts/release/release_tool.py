@@ -397,7 +397,7 @@ def preflight(repo_root, expectations):
     ))
     checks.append(check(
         'preflight.manifest.languages',
-        PASS if manifest['languages'] == package['languages'] else FAIL,
+        PASS if _languages_match(manifest['languages'], package['languages']) else FAIL,
         'Languages: {0}.'.format(', '.join(manifest['languages']) or '(none)'),
     ))
     checks.append(check(
@@ -614,6 +614,11 @@ def _asset_exists(payload_names, referenced):
     return False
 
 
+def _name_list(items, limit=12):
+    shown = ', '.join(items[:limit])
+    return shown + ('; +{0} more'.format(len(items) - limit) if len(items) > limit else '')
+
+
 def _inspect_blockmap(zf, names, checks):
     if 'AppxBlockMap.xml' not in names:
         checks.append(check('package.blockmap', FAIL,
@@ -626,21 +631,40 @@ def _inspect_blockmap(zf, names, checks):
                             'AppxBlockMap.xml is not well-formed XML: {0}.'.format(error)))
         return {'present': True, 'parseError': str(error)}
 
-    blockmap_files = {normalize_entry(item.get('Name')).lower()
+    metadata = {name.lower() for name in MSIX_METADATA_FILES}
+    blockmap_names = {normalize_entry(item.get('Name')).lower()
                       for item in all_elements(root, 'File') if item.get('Name')}
-    payload = {name.lower() for name in names if name not in MSIX_METADATA_FILES}
+    blockmap_files = set(blockmap_names)
+    # OPC metadata (the content-types part, the block map itself and the signature) is covered by its own
+    # checks; whether the packaging tool lists it in the block map varies, so it is not compared here.
+    blockmap_files -= metadata
+    appx_metadata = sorted(name.lower() for name in names if name.lower().startswith('appxmetadata/'))
+    payload = {name.lower() for name in names
+               if name not in MSIX_METADATA_FILES and not name.lower().startswith('appxmetadata/')}
+    # Every payload file must be in the block map, and the block map may only add the generated catalog.
+    allowed = payload | set(appx_metadata)
     missing_from_blockmap = sorted(payload - blockmap_files)
-    extra_in_blockmap = sorted(blockmap_files - payload)
+    extra_in_blockmap = sorted(blockmap_files - allowed)
     valid = not missing_from_blockmap and not extra_in_blockmap
+    detail = 'AppxBlockMap.xml lists {0} files against {1} archive payload files'.format(
+        len(blockmap_names), len(payload))
+    if valid:
+        detail += ' (consistent).'
+    else:
+        if missing_from_blockmap:
+            detail += '; absent from the block map: {0}'.format(_name_list(missing_from_blockmap))
+        if extra_in_blockmap:
+            detail += '; only in the block map: {0}'.format(_name_list(extra_in_blockmap))
+        detail += '.'
     checks.append(check(
-        'package.blockmap',
-        PASS if valid else FAIL,
-        'AppxBlockMap.xml lists {0} payload files ({1}).'.format(
-            len(blockmap_files), 'consistent with the archive' if valid else 'inconsistent with the archive'),
+        'package.blockmap', PASS if valid else FAIL, detail,
         missingFromBlockMap=missing_from_blockmap,
         extraInBlockMap=extra_in_blockmap,
     ))
-    return {'present': True, 'fileCount': len(blockmap_files), 'consistent': valid}
+    return {'present': True, 'fileCount': len(blockmap_names), 'consistent': valid,
+            'appxMetadataEntries': appx_metadata,
+            'missingFromBlockMap': missing_from_blockmap,
+            'extraInBlockMap': extra_in_blockmap}
 
 
 def _inspect_content_types(zf, names, checks):
@@ -659,7 +683,7 @@ def _inspect_content_types(zf, names, checks):
                  for item in all_elements(root, 'Override')}
     undeclared = []
     for name in names:
-        if name in MSIX_METADATA_FILES:
+        if name in MSIX_METADATA_FILES or name.lower().startswith('appxmetadata/'):
             continue
         normalized = name.lower()
         file_part = normalized.rsplit('/', 1)[-1]
@@ -677,20 +701,77 @@ def _inspect_content_types(zf, names, checks):
     return {'present': True, 'defaultExtensions': sorted(defaults), 'overrideCount': len(overrides)}
 
 
-def find_package_source(nuget_root, package_id, version, file_name):
-    """Locate a dependency assembly in the restored NuGet package folder."""
+def _languages_match(observed, expected):
+    """Language tags are case-insensitive, and the packaged manifest upper-cases them."""
+    return {str(item).strip().lower() for item in (observed or [])} == \
+        {str(item).strip().lower() for item in (expected or [])}
+
+
+def find_package_sources(nuget_root, package_id, version, file_name):
+    """Locate every copy of an assembly in the restored NuGet package folder.
+
+    A package can ship the same file under several target-framework folders (net8.0, net9.0, netstandard2.0),
+    and which one a publish selected depends on the TFM. Any byte-identical copy is acceptable evidence; picking
+    one arbitrary copy produces false mismatches.
+    """
     package_dir = os.path.join(nuget_root, package_id.lower(), version)
     if not os.path.isdir(package_dir):
-        return None
+        return []
     matches = []
     for base, _directories, files in os.walk(package_dir):
         for name in files:
             if name.lower() == file_name.lower():
                 matches.append(os.path.join(base, name))
-    if not matches:
-        return None
-    matches.sort(key=lambda path: (0 if (os.sep + 'lib' + os.sep) in path else 1, len(path)))
-    return matches[0]
+    matches.sort(key=lambda path: (0 if (os.sep + 'lib' + os.sep) in path else 1, len(path), path))
+    return matches
+
+
+RUNTIME_LIBRARY_PREFIXES = ('microsoft.netcore.app.runtime.', 'microsoft.netcore.app.host.',
+                            'microsoft.aspnetcore.app.runtime.', 'microsoft.windowsdesktop.app.runtime.')
+RUNTIME_LIBRARY_IDS = ('microsoft.netcore.app', 'microsoft.windowsdesktop.app', 'microsoft.aspnetcore.app')
+
+
+def is_runtime_library(library_id):
+    lowered = (library_id or '').lower()
+    return lowered in RUNTIME_LIBRARY_IDS or lowered.startswith(RUNTIME_LIBRARY_PREFIXES)
+
+
+def read_deps_libraries(zf, names):
+    """Map payload file names to the library that ships them, using the app's runtime dependency manifest.
+
+    deps.json is generated by the .NET SDK, so it is the authoritative statement of which package (or runtime
+    pack) each file came from. That is stronger than a hand-maintained list and it keeps working when a package
+    adds an assembly or a .NET patch adds runtime files.
+    """
+    deps_names = sorted(name for name in names if name.lower().endswith('.deps.json'))
+    if not deps_names:
+        return {}, None
+    deps_names.sort(key=lambda name: (0 if '/' not in name else 1, len(name), name))
+    try:
+        payload = json.loads(zf.read(deps_names[0]).decode('utf-8', 'replace'))
+    except (ValueError, KeyError):
+        return {}, None
+    libraries = {}
+    targets = payload.get('targets') or {}
+    for target in targets.values():
+        if not isinstance(target, dict):
+            continue
+        for library_key, library in target.items():
+            if not isinstance(library, dict):
+                continue
+            library_id, _, version = library_key.partition('/')
+            for section in ('runtime', 'runtimeTargets', 'native', 'resources'):
+                assets = library.get(section) or {}
+                if not isinstance(assets, dict):
+                    continue
+                for asset_path in assets:
+                    name = str(asset_path).rsplit('/', 1)[-1]
+                    libraries.setdefault(name.lower(), {
+                        'libraryId': library_id,
+                        'version': version,
+                        'assetPath': asset_path,
+                    })
+    return libraries, deps_names[0]
 
 
 def _inspect_inventory(inventory_path, expectations):
@@ -707,9 +788,15 @@ def _inspect_inventory(inventory_path, expectations):
     checks.append(check('inventory.schema', PASS if inventory.get('schemaVersion') == 1 else FAIL,
                         'Inventory schemaVersion={0}.'.format(inventory.get('schemaVersion'))))
 
+    exemptions = {str(item.get('packageId', '')).lower(): item
+                  for item in expectations.get('inventoryExemptPackages') or []}
+    exempted = []
     failures = []
     for dependency in expectations['dependencyAssemblies']:
         entry = packages.get(dependency['packageId'])
+        if entry is None and str(dependency['packageId']).lower() in exemptions:
+            exempted.append(dependency['packageId'])
+            continue
         if entry is None:
             failures.append('{0} is not in the inventory'.format(dependency['packageId']))
         elif entry.get('version') != dependency['version']:
@@ -720,7 +807,8 @@ def _inspect_inventory(inventory_path, expectations):
     checks.append(check(
         'inventory.reviewed-dependencies',
         PASS if not failures else FAIL,
-        'Reviewed dependency packages are present with the expected versions and shipped classifications.'
+        ('Reviewed dependency packages are present with the expected versions and shipped classifications'
+         + ('; exempted: {0}'.format(', '.join(sorted(exempted))) if exempted else '') + '.')
         if not failures else '; '.join(failures),
     ))
 
@@ -856,7 +944,7 @@ def inspect_package(package_path, expectations, repo_root, rid=None, nuget_packa
         ))
         checks.append(check(
             'manifest.languages',
-            PASS if manifest['languages'] == package_expectation['languages'] else FAIL,
+            PASS if _languages_match(manifest['languages'], package_expectation['languages']) else FAIL,
             'Languages: {0}.'.format(', '.join(manifest['languages']) or '(none)'),
         ))
         checks.append(check(
@@ -949,6 +1037,18 @@ def inspect_package(package_path, expectations, repo_root, rid=None, nuget_packa
             })
         payload_by_path = {item['path']: item for item in payload}
         payload_names = set(payload_by_path)
+        libraries, deps_name = read_deps_libraries(zf, names)
+        inventory_packages = {}
+        if inventory and os.path.isfile(inventory):
+            try:
+                inventory_document = read_json(inventory)
+            except ValueError:
+                inventory_document = {}
+            for item in inventory_document.get('packages') or []:
+                if isinstance(item, dict) and item.get('id'):
+                    inventory_packages[str(item['id']).lower()] = item
+        exemptions = {str(item.get('packageId', '')).lower(): item
+                      for item in expectations.get('inventoryExemptPackages') or []}
         report['payload'] = {
             'fileCount': len(payload),
             'totalBytes': sum(item['sizeBytes'] for item in payload),
@@ -1034,16 +1134,24 @@ def inspect_package(package_path, expectations, repo_root, rid=None, nuget_packa
             item = payload_by_path.get(path)
             source_path = None
             source_digest = None
+            candidates = []
             if item is None:
                 dependency_failures.append('{0} is absent'.format(path))
             elif nuget_packages and dependency.get('compareToPackageSource'):
-                source_path = find_package_source(nuget_packages, dependency['packageId'],
+                # A package can ship the same file under several target frameworks, and which copy a publish
+                # selected depends on the TFM. Any byte-identical copy is valid provenance evidence.
+                candidates = find_package_sources(nuget_packages, dependency['packageId'],
                                                   dependency['version'], os.path.basename(path))
-                if source_path:
-                    source_digest = sha256_file(source_path)
-                    if source_digest != item['sha256']:
-                        dependency_failures.append('{0} does not match {1} {2}'.format(
-                            path, dependency['packageId'], dependency['version']))
+                digests = [sha256_file(candidate) for candidate in candidates]
+                if item['sha256'] in digests:
+                    source_path = candidates[digests.index(item['sha256'])]
+                    source_digest = item['sha256']
+                elif candidates:
+                    source_path = candidates[0]
+                    source_digest = digests[0]
+                    dependency_failures.append(
+                        '{0} does not match any of the {1} copies of {2} {3} in the NuGet cache'.format(
+                            path, len(candidates), dependency['packageId'], dependency['version']))
                 else:
                     checks.append(check(
                         'payload.dependency-source.{0}'.format(os.path.basename(path)), WARN,
@@ -1056,6 +1164,7 @@ def inspect_package(package_path, expectations, repo_root, rid=None, nuget_packa
                 'payloadSha256': item['sha256'] if item else None,
                 'packageSourcePath': source_path,
                 'packageSourceSha256': source_digest,
+                'packageSources': candidates or None,
                 'identicalToPackageSource': (source_digest == item['sha256']) if (source_digest and item) else None,
             })
         checks.append(check(
@@ -1093,21 +1202,75 @@ def inspect_package(package_path, expectations, repo_root, rid=None, nuget_packa
         reviewed.update(normalize_entry(item['payloadPath']) for item in expectations['dependencyAssemblies'])
         reviewed.update(normalize_entry(item['packagePath']) for item in expectations['repoMirrors'])
         reviewed.add(notice_path)
-        unreviewed = sorted(
-            name for name in payload_names
-            if name not in reviewed
-            and name not in MSIX_METADATA_FILES
-            and not matches_any(name, expectations['knownExtraPatterns'])
-            and not matches_any(name, expectations['forbiddenPatterns'])
-        )
+
+        unreviewed = []
+        attribution = {'runtime': [], 'dependencies': [], 'exempt': [], 'pattern': []}
+        for name in sorted(payload_names):
+            if (name in reviewed or name in MSIX_METADATA_FILES
+                    or name.lower().startswith('appxmetadata/')
+                    or matches_any(name, expectations['forbiddenPatterns'])):
+                continue
+            library = libraries.get(os.path.basename(name).lower())
+            if library is None:
+                # deps.json is authoritative when it names the file; the reviewed patterns are the fallback
+                # for files the SDK does not describe (pri, runtimeconfig, the manifest itself).
+                if matches_any(name, expectations['knownExtraPatterns']):
+                    attribution['pattern'].append({'path': name})
+                else:
+                    unreviewed.append(name)
+                continue
+            library_id, library_version = library['libraryId'], library['version']
+            record = {'path': name, 'libraryId': library_id, 'version': library_version,
+                      'assetPath': library['assetPath']}
+            if is_runtime_library(library_id):
+                attribution['runtime'].append(record)
+                continue
+            package_entry = inventory_packages.get(library_id.lower())
+            if package_entry is not None:
+                record['inventoryClassification'] = package_entry.get('classification')
+                if nuget_packages:
+                    sources = find_package_sources(nuget_packages, library_id, library_version,
+                                                   os.path.basename(name))
+                    digests = {sha256_file(path) for path in sources}
+                    identical = payload_by_path[name]['sha256'] in digests if digests else None
+                    record['packageSourcePaths'] = sources
+                    record['identicalToPackageSource'] = identical
+                    if identical is False:
+                        unreviewed.append('{0} does not match any copy in {1} {2}'.format(
+                            name, library_id, library_version))
+                        continue
+                attribution['dependencies'].append(record)
+                continue
+            if library_id.lower() in exemptions:
+                record['exemptionReason'] = exemptions[library_id.lower()].get('reason')
+                attribution['exempt'].append(record)
+                continue
+            unreviewed.append('{0} (shipped by {1} {2}, which is not in the reviewed dependency inventory)'.format(
+                name, library_id, library_version))
+        report['attribution'] = {
+            'depsFile': deps_name,
+            'runtimeFiles': len(attribution['runtime']),
+            'dependencyFiles': len(attribution['dependencies']),
+            'exemptFiles': len(attribution['exempt']),
+            'patternFiles': len(attribution['pattern']),
+            'details': attribution,
+        }
+        attribution_note = (
+            '{0} runtime, {1} dependency and {2} exempt file(s) attributed through {3}; {4} SDK-generated '
+            'file(s) matched a reviewed pattern'.format(
+                len(attribution['runtime']), len(attribution['dependencies']), len(attribution['exempt']),
+                'the .deps.json manifest' if deps_name else 'the reviewed expectations',
+                len(attribution['pattern'])))
         checks.append(check(
             'payload.reviewed-inventory',
             (FAIL if strict else WARN) if unreviewed else PASS,
-            'Every payload file is attributable to the app, the reviewed dependency inventory, or the .NET runtime.'
-            if not unreviewed
-            else 'Unreviewed payload files: {0}. Classify them in release_expectations.json.'.format(
-                ', '.join(unreviewed[:20])),
+            'Every payload file is attributable to the app, the reviewed dependency inventory, or the .NET runtime '
+            '({0}).'.format(attribution_note) if not unreviewed
+            else 'Unreviewed payload files ({0}): {1}.'.format(
+                attribution_note, '; '.join(unreviewed[:10])
+                + ('; +{0} more'.format(len(unreviewed) - 10) if len(unreviewed) > 10 else '')),
             matches=unreviewed,
+            attribution=attribution_note,
         ))
 
         signature_item = payload_by_path.get(SIGNATURE_FILE)

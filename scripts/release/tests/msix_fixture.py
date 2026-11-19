@@ -40,7 +40,7 @@ MANIFEST_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
   </Dependencies>
 
   <Resources>
-    <Resource Language="en-US" />
+    <Resource Language="{language}" />
   </Resources>
 
   <Applications>
@@ -130,6 +130,7 @@ def manifest_text(architecture='x64', overrides=None):
         'display_name': package['displayName'],
         'publisher_display_name': package['publisherDisplayName'],
         'minimum_os': package['minimumOsVersion'],
+        'language': 'en-US',
         'executable': package['applicationExecutable'],
         'app_list_entry': package['appListEntry'],
         'extension_name': app_extension['name'],
@@ -221,7 +222,7 @@ def _content_types(extensions, extensionless=()):
 
 
 def write_package(path, files, include_signature=True, blockmap_omit=(), content_types_omit=(),
-                  signature_bytes=b'test-signature-block'):
+                  signature_bytes=b'test-signature-block', blockmap_extra=()):
     payload = {name: data for name, data in files.items() if name != 'AppxManifest.xml'}
     extensions = []
     for name in list(payload) + ['AppxManifest.xml']:
@@ -235,9 +236,9 @@ def write_package(path, files, include_signature=True, blockmap_omit=(), content
         [extension for extension in extensions if extension not in content_types_omit],
         extensionless).encode('utf-8')
 
-    blockmap_names = sorted(set(files) - set(blockmap_omit))
+    blockmap_names = sorted((set(files) - set(blockmap_omit)) | set(blockmap_extra))
     blockmap_files = ['  <File Name="{0}" Size="{1}" LfhSize="40" />'.format(
-        name.replace('/', '\\'), len(files[name])) for name in blockmap_names]
+        name.replace('/', '\\'), len(files.get(name, b''))) for name in blockmap_names]
     entries['AppxBlockMap.xml'] = BLOCKMAP_TEMPLATE.format(files='\n'.join(blockmap_files)).encode('utf-8')
     if include_signature:
         entries['AppxSignature.p7x'] = signature_bytes
