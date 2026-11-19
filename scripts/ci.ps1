@@ -60,10 +60,11 @@ function Invoke-PythonStep {
     $exitCode = $LASTEXITCODE
     if ($exitCode -ne 0) {
         [Console]::Error.WriteLine("ERROR: $Name failed with exit code $exitCode.")
-        # Annotate the lines just before the failure, not the first lines of the captured window.
-        $tail = Get-Content -LiteralPath $logPath -Tail 60 -ErrorAction SilentlyContinue |
-            Where-Object { $_ -and $_.ToString().Trim().Length -gt 0 } |
-            Select-Object -Last 8
+        # Annotate the diagnostic lines (failing test ids and assertion messages); the stdout/stderr
+        # interleaving of a captured native run does not reliably put the traceback at the end.
+        $tail = Get-Content -LiteralPath $logPath -ErrorAction SilentlyContinue |
+            Where-Object { $_ -match '^(FAIL|ERROR): |^AssertionError|^FAILED \(|^Ran .* tests' } |
+            Select-Object -First 8
         foreach ($line in $tail) {
             Write-Host ('::error::' + $line.ToString().Trim())
         }
