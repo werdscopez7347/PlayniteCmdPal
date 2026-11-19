@@ -486,6 +486,8 @@ class BuildOrchestrationTests(unittest.TestCase):
 
         evidence = json.loads((self.output / 'evidence.json').read_text(encoding='utf-8'))
         self.assertEqual(release_tool.PASS, evidence['status'])
+        self.assertEqual({'certificateSource': 'thumbprint', 'certificateInsideRepository': False},
+                         evidence['environment']['signing'])
         self.assertEqual(['win-arm64', 'win-x64'],
                          sorted(package['rid'] for package in evidence['packages']))
         self.assertTrue(all(item['status'] == release_tool.PASS for item in evidence['acceptance']))
@@ -566,6 +568,23 @@ class BuildOrchestrationTests(unittest.TestCase):
         arguments.extend(['--certificate-pfx', str(self.root / 'missing.pfx')])
         self.assertEqual(0, release_tool.main(arguments))
         self.assertFalse(self.output.exists())
+
+    def test_certificate_inside_the_repository_is_warned_about_and_recorded(self):
+        certificate = self.repo / 'PlayniteCmdPal-Test.pfx'
+        certificate.write_bytes(b'placeholder for a real PKCS#12 blob')
+        arguments = self.build_arguments()
+        index = arguments.index('--certificate-thumbprint')
+        del arguments[index:index + 2]
+        arguments.extend(['--certificate-pfx', str(certificate)])
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            exit_code = release_tool.main(arguments)
+        self.assertEqual(0, exit_code)
+        self.assertIn('inside the repository', stderr.getvalue())
+        evidence = json.loads((self.output / 'evidence.json').read_text(encoding='utf-8'))
+        signing = evidence['environment']['signing']
+        self.assertEqual('pfx', signing['certificateSource'])
+        self.assertTrue(signing['certificateInsideRepository'])
 
     def test_missing_inventory_fails_before_any_package_is_built(self):
         arguments = self.build_arguments(['--inventory', str(self.root / 'missing-inventory.json')])

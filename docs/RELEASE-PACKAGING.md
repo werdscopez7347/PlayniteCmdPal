@@ -184,14 +184,17 @@ extension. It never uploads or publishes anything; it writes a self-contained ev
   Visual Studio MSIX/WinUI components required by the project.
 - Python 3.9 or later on `PATH` (`python --version`).
 - A clean working tree: `build` refuses to record evidence for an uncommitted revision and prints the changed
-  paths. Commit or stash them first; `--allow-dirty` records a diagnostic run whose evidence names no usable
+  paths. Signing material and MSBuild's `AppPackages/` output are ignored, so only real source changes or
+  unclassified files remain. Commit or stash them first; `--allow-dirty` records a diagnostic run whose evidence names no usable
   revision.
 - An existing dependency inventory and signing certificate. `build` checks both paths before it publishes
   anything, so a missing file fails in seconds instead of after two MSIX builds.
 - A NuGet restore of the solution (the tool compares shipped dependency assemblies byte-for-byte with the
   restored packages in `%USERPROFILE%\.nuget\packages`).
 - A signing certificate whose subject matches the manifest Publisher, or the Partner Center Store submission
-  path. Signing material must stay outside the repository. The PFX password is read from the
+  path. Signing material must stay outside the repository — a copy at the checkout root is ignored by
+  `.gitignore` (`*.pfx`, `*.p12`, `*.cer`, `*.pvk`) so it can never be staged by accident, and `build` warns when
+  the `--certificate-pfx` path resolves inside the checkout. The PFX password is read from the
   `PLAYNITECMDPAL_MSIX_PFX_PASSWORD` environment variable.
 
 ### Commands

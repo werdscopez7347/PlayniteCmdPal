@@ -1509,7 +1509,21 @@ def build_release(args, expectations):
               'use --certificate-thumbprint.'.format(args.certificate_pfx), file=sys.stderr)
         return EXIT_ENVIRONMENT
 
+    certificate_inside_repository = False
+    if args.certificate_pfx:
+        repository_prefix = os.path.realpath(repo_root).rstrip(os.sep) + os.sep
+        if os.path.realpath(args.certificate_pfx).startswith(repository_prefix):
+            certificate_inside_repository = True
+            print('WARNING: the signing certificate is stored inside the repository checkout. Move it (and its '
+                  'password) outside the repository before publishing evidence; the ignored extension keeps it '
+                  'out of commits, but a private key should not live next to the sources.',
+                  file=sys.stderr)
+
     environment = collect_environment(repo_root, args.dotnet, args.signtool, args.makeappx)
+    environment['signing'] = {
+        'certificateSource': 'pfx' if args.certificate_pfx else 'thumbprint',
+        'certificateInsideRepository': certificate_inside_repository,
+    }
     source = environment.get('source') or {}
     if source.get('dirty') and not args.allow_dirty:
         dirty = source.get('dirtyPaths') or []

@@ -22,6 +22,16 @@ __pycache__/
 .idea/
 .vscode/
 
+# MSBuild packaging output (AppxPackageDir default); never a release artifact
+[Aa]ppPackages/
+
+# Signing material. The PFX and its password stay outside the checkout (see docs/MSIX-SIGNING.md);
+# these rules are a second line of defence so a stray key or exported certificate is never staged.
+*.pfx
+*.p12
+*.cer
+*.pvk
+
 # NuGet
 *.nupkg
 .nuget/

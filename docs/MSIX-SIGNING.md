@@ -72,9 +72,11 @@ Do not commit generated packages or private signing material.
 The Store submission itself must be unsigned; Microsoft signs the certified package. A local release candidate
 still needs a signature so the identity can be validated with `signtool` before submission. Use a test
 certificate whose subject equals the manifest Publisher (`CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70`), keep the
-PFX and password outside the repository, and let `scripts/release/release_tool.py build` sign
+PFX and password outside the repository (for example `C:\secure\`), and let `scripts/release/release_tool.py build` sign
 (`signtool sign /fd SHA256`), timestamp and verify (`signtool verify /pa /all /v`) the package. The tool records
-the signer subject, compares it with the Publisher, and fails on a mismatch. This is a local engineering
+the signer subject, compares it with the Publisher, and fails on a mismatch. Repository ignore rules cover
+`*.pfx`, `*.p12`, `*.cer` and `*.pvk` so a stray key is never staged, and `build` prints a warning and records
+`environment.signing.certificateInsideRepository` when the certificate path is inside the checkout. This is a local engineering
 validation, not a production certificate, Store certification, or a trust claim for direct downloads.
 
 ## 5. Validation record
