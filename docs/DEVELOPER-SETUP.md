@@ -179,21 +179,20 @@ Source of truth: `PlayniteCmdPal.sln`, `PlayniteCmdPal/PlayniteCmdPal.csproj`, `
 
 | Package | Version |
 |---|---|
-| `Microsoft.CommandPalette.Extensions` | `0.9.260303001` |
-| `Microsoft.CodeAnalysis.NetAnalyzers` | `9.0.0-preview.24508.2` |
-| `Microsoft.NET.Test.Sdk` | `17.13.0` |
+| `Microsoft.CommandPalette.Extensions` | `0.12.260812002` |
+| `Microsoft.NET.Test.Sdk` | `18.12.0` |
 | `Microsoft.NETFramework.ReferenceAssemblies` | `1.0.3` |
-| `Microsoft.Web.WebView2` | `1.0.3719.77` |
-| `Microsoft.Windows.CsWin32` | `0.3.183` |
-| `Microsoft.Windows.CsWinRT` | `2.2.0` |
-| `Microsoft.Windows.SDK.BuildTools` | `10.0.26100.4188` |
-| `Microsoft.Windows.SDK.BuildTools.MSIX` | `1.7.20250829.1` |
-| `Microsoft.WindowsAppSDK` | `2.0.1` |
+| `Microsoft.Windows.CsWinRT` | `2.3.1` |
+| `Microsoft.Windows.SDK.BuildTools.MSIX` | `1.7.261102100` |
 | `PlayniteSDK` | `6.18.0` (companion plugin; runtime assembly supplied by Playnite) |
-| `Shmuelie.WinRTServer` | `2.1.1` |
-| `StyleCop.Analyzers` | `1.2.0-beta.556` |
+| `Shmuelie.WinRTServer` | `2.2.1` |
 | `xunit` | `2.9.3` |
-| `xunit.runner.visualstudio` | `3.0.1` |
+| `xunit.runner.visualstudio` | `4.0.1` |
+
+No project references an analyzer, WebView2, CsWin32 or WindowsAppSDK package, so none of those has a central
+version. The Windows SDK targeting pack is not a `PackageReference`: it is selected by the
+`WindowsSdkPackageVersion` property in `Directory.Build.props` and pinned to `10.0.26100.84`;
+`scripts/release/release_tool.py preflight` fails if the pin changes.
 
 The repository does not pin an SDK with `global.json`. The maintainer reports using .NET SDK `10.0.403`, which the checked-in target framework requires because .NET 10 SDK support is needed for the `net10.0-windows` target.
 
@@ -289,7 +288,7 @@ GitHub's PR list showed only three Dependabot PRs, all for Actions ([#1](https:/
 To complete verification, a maintainer with repository access should:
 
 1. On GitHub, check **Insights → Dependency graph → Dependabot**, select the NuGet `/` configuration, and inspect the latest update job and logs; use **Check for updates** if available, or wait for the weekly run. Confirm it is processing `dev`, the root solution/projects and `Directory.Packages.props`, and record the date, job result, discovered package/version and any errors. If the job or button is unavailable, check repository permissions, the default-branch config and Dependabot version-update settings; record the limitation rather than asserting success.
-2. Look for a NuGet PR against `dev`. Pick a directly referenced package such as `Microsoft.NET.Test.Sdk` (currently `17.13.0` on the inspected commit), and confirm from the job or registry that a newer eligible release exists. A grouped PR can contain several minor/patch updates; major releases may be separate, and the five-PR limit can delay new PRs. No eligible update or no PR is not proof of failed discovery.
+2. Look for a NuGet PR against `dev`. Pick a directly referenced package such as `Microsoft.NET.Test.Sdk` (currently `18.12.0` on the inspected commit), and confirm from the job or registry that a newer eligible release exists. A grouped PR can contain several minor/patch updates; major releases may be separate, and the five-PR limit can delay new PRs. No eligible update or no PR is not proof of failed discovery.
 3. Inspect the PR's changed files and diff: the expected package's `PackageVersion` in root `Directory.Packages.props` should change to the proposed version, while consuming `PackageReference` entries remain versionless and no project-level `Version`/`VersionOverride` is introduced. Record the PR URL, old/new version and diff. Run the Windows CI checks described above and review compatibility before any merge. Do not merge merely to perform this verification.
 4. If no eligible update is available, repeat when one exists. If a controlled test is needed sooner, obtain maintainer approval before temporarily downgrading one directly referenced package on `dev` to a known older, compatible version, verify that a newer eligible version exists, then rerun the NuGet job and inspect its PR as above. This changes a shared branch and may expose it to an older dependency: do not do it on production/release branches; restore the original central version and close the test PR afterwards. If that is not acceptable, leave verification pending. Do not alter project-level versions to manufacture a test.
 

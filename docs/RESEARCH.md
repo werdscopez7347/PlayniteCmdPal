@@ -7,7 +7,7 @@
 - Microsoft documents how to generate, deploy, reload, and develop a Command Palette extension: https://learn.microsoft.com/en-us/windows/powertoys/command-palette/creating-an-extension
 - The current repository contains the generated solution `PlayniteCmdPal.sln` and project `PlayniteCmdPal/PlayniteCmdPal.csproj`; build and local deployment are recorded in the developer setup guide.
 - Checked-in target framework is `net10.0-windows10.0.26100.0`; minimum supported Windows platform is `10.0.19041.0`; runtime identifiers are `win-x64;win-arm64`.
-- The central package file pins `Microsoft.CommandPalette.Extensions` to `0.9.260303001`, `Microsoft.Windows.CsWinRT` to `2.2.0`, and `Shmuelie.WinRTServer` to `2.1.1`. Source: https://github.com/werdscopez7347/PlayniteCmdPal/blob/main/Directory.Packages.props
+- The central package file pins `Microsoft.CommandPalette.Extensions` to `0.12.260812002`, `Microsoft.Windows.CsWinRT` to `2.3.1`, and `Shmuelie.WinRTServer` to `2.2.1`. Source: https://github.com/werdscopez7347/PlayniteCmdPal/blob/main/Directory.Packages.props
 - Playnite documents `--start <gameId>` and `playnite://playnite/start/<gameId>`, plus `showgame` and `search` URI commands: https://api.playnite.link/docs/manual/advanced/cmdlineArguments.html
 - Playnite's plugin SDK exposes `IPlayniteAPI.Database` and `StartGame(Guid)` in plugin context: https://api.playnite.link/docs/api/Playnite.SDK.IPlayniteAPI.html
 - The Playnite library tutorial demonstrates enumerating games via `PlayniteApi.Database.Games`: https://api.playnite.link/docs/tutorials/extensions/library.html
@@ -23,7 +23,9 @@ The launch mechanism and catalog transport decision are documented. The snapshot
 
 ## Global direct-launch search finding (updated 2026-11-12)
 
-The repository pins `Microsoft.CommandPalette.Extensions` **0.9.260303001**. The supported API includes multiple cached `TopLevelCommands()` items and `IFallbackHandler.UpdateQuery(string)` on fallback items. It does **not** provide the proposed provider-level `UpdateQuery(string, ICommandContext)`, `ICommandContext.AddResult`, or an `ICommandProvider` per-query hook. The newer main-branch `IFallbackQueryHandler.QueryAsync` is not in the pinned package and remains fallback-scoped. See the [versioned SDK and host evidence](CMDPAL-GLOBAL-SEARCH.md#sdk-and-host-evidence).
+These API observations were recorded against `Microsoft.CommandPalette.Extensions` **0.9.260303001**. The repository now
+pins **0.12.260812002**, against which the extension builds and passes CI, but the observations have not been re-verified on
+the newer package. On 0.9 the supported API includes multiple cached `TopLevelCommands()` items and `IFallbackHandler.UpdateQuery(string)` on fallback items. It does **not** provide the proposed provider-level `UpdateQuery(string, ICommandContext)`, `ICommandContext.AddResult`, or an `ICommandProvider` per-query hook. The newer main-branch `IFallbackQueryHandler.QueryAsync` is not in the pinned package and remains fallback-scoped. See the [versioned SDK and host evidence](CMDPAL-GLOBAL-SEARCH.md#sdk-and-host-evidence).
 
 The maintainer previously selected ordinary per-game root commands, then reported that searching `playnite` flooded Results because the host scores subtitle and extension display name as well as command title. The provider's current design follows the maintainer's 2026-11-12 choice to use fallback results: only navigation pages remain at the root, and one query-reactive fallback can show the game. No game-specific root rows are registered, so `playnite` no longer matches every game's title/subtitle. Fallback results appear in the host-managed **Fallbacks** section by default; an Apps result may remain above them in regular Results. No relative rank is promised.
 

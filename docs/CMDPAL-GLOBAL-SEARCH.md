@@ -26,7 +26,9 @@ Fallback results normally appear in the host-managed **Fallbacks** section, sepa
 
 ## SDK and host evidence
 
-The repository pins `Microsoft.CommandPalette.Extensions` **0.9.260303001**. It supports ordinary top-level navigation and `IFallbackHandler.UpdateQuery(string)` on fallback items. The proposed provider-level `UpdateQuery(string, ICommandContext)`, `ICommandContext.AddResult`, and arbitrary per-query root injection do not exist on the pinned `ICommandProvider`/`IExtensionHost`. The newer main-branch `IFallbackQueryHandler.QueryAsync` is not in the pinned package and remains fallback-scoped.
+These observations were recorded against `Microsoft.CommandPalette.Extensions` **0.9.260303001**. The repository now pins
+**0.12.260812002**, against which the extension builds and passes CI, but the observations have not been re-verified on the
+newer package. On 0.9 the SDK supports ordinary top-level navigation and `IFallbackHandler.UpdateQuery(string)` on fallback items. The proposed provider-level `UpdateQuery(string, ICommandContext)`, `ICommandContext.AddResult`, and arbitrary per-query root injection do not exist on the pinned `ICommandProvider`/`IExtensionHost`. The newer main-branch `IFallbackQueryHandler.QueryAsync` is not in the pinned package and remains fallback-scoped.
 
 - The [pinned SDK IDL](https://github.com/microsoft/PowerToys/blob/f6309ac549ae98fdc4925ac290546319affc4ed7/src/modules/cmdpal/extensionsdk/Microsoft.CommandPalette.Extensions/Microsoft.CommandPalette.Extensions.idl#L365-L419) places `UpdateQuery` on `IFallbackHandler`, not `ICommandProvider`.
 - The [pinned toolkit `FallbackCommandItem`](https://github.com/microsoft/PowerToys/blob/f6309ac549ae98fdc4925ac290546319affc4ed7/src/modules/cmdpal/extensionsdk/Microsoft.CommandPalette.Extensions.Toolkit/FallbackCommandItem.cs) implements that fallback callback.
