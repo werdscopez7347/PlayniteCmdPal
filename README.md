@@ -66,15 +66,35 @@ Uninstalled or installation-unknown games are excluded from this global direct-l
 
 ## Project docs
 
-- [Branding and asset integration](docs/BRANDING.md)
-- [Command Palette extension metadata](docs/CMDPAL-EXTENSION-METADATA.md)
+Product and design:
+
 - [PRD](docs/PRD.md)
 - [Technical design](docs/TECHNICAL-DESIGN.md)
-- [Catalog Bridge](docs/CATALOG-BRIDGE.md)
-- [Testing](docs/TESTING.md)
-- [Research](docs/RESEARCH.md)
 - [Decisions](docs/DECISIONS.md)
+- [Research](docs/RESEARCH.md)
+- [Branding and asset integration](docs/BRANDING.md)
+
+Command Palette integration:
+
+- [Command Palette extension metadata](docs/CMDPAL-EXTENSION-METADATA.md)
+- [Global search and the installed-game fallback](docs/CMDPAL-GLOBAL-SEARCH.md)
+- [Filters](docs/FILTERS.md)
+- [Search, launch, and game-details smoke test](docs/CMDPAL-SEARCH-SMOKE-TEST.md)
+
+Catalog bridge and artwork:
+
+- [Catalog Bridge](docs/CATALOG-BRIDGE.md)
+- [Artwork transport and trust boundary](docs/ARTWORK-TRANSPORT.md)
+
+Release and operations:
+
 - [Release packaging](docs/RELEASE-PACKAGING.md)
+- [MSIX signing](docs/MSIX-SIGNING.md)
+- [Licensing and release readiness](docs/LICENSING-AND-RELEASE.md)
+- [Release notes template](docs/RELEASE-NOTES-TEMPLATE.md)
+- [Testing](docs/TESTING.md)
+- [Repository governance](docs/REPO-GOVERNANCE.md)
+- [Developer setup](docs/DEVELOPER-SETUP.md)
 
 ## References
 
