@@ -1,6 +1,6 @@
 # Artwork transport and trust boundary
 
-Status: WERD-71 transport contract retained; WERD-80 consumer integration is implemented on its PR branch. Automated checks passed on the reviewed head. One real-library ICO-backed Steam entry was verified on 2026-11-11; broader manual coverage remains pending.
+Status: transport contract retained; the Command Palette consumer integration is implemented. Automated checks passed on the reviewed head. One real-library ICO-backed Steam entry was verified on 2026-11-11; broader manual coverage remains pending.
 
 ## Decision
 
@@ -46,7 +46,7 @@ The public API documentation does **not** formally guarantee the exact serialize
 - Copying uses 16 KiB reads and checks the cumulative byte count after each read. The final read can therefore consume up to one 16 KiB chunk beyond the configured per-file limit before the import is rejected; no oversized asset is retained in staging. The initial file-length check is only an optimization, not the enforcement boundary.
 - The snapshot parser validates opaque IDs independently of the filesystem. Traversal strings, rooted paths, separators, alternate data stream syntax, and malformed identifiers are rejected before path construction.
 
-The cache is not an image decoder. The transport validates container signatures and byte limits only. WERD-80 owns decoding, unsupported-codec handling, and fallback to another candidate image.
+The cache is not an image decoder. The transport validates container signatures and byte limits only; decoding, unsupported-codec handling and fallback to another candidate image belong to the consumer.
 
 ## Refresh, invalidation, and cleanup
 
@@ -124,17 +124,17 @@ The plugin publishes the new schema to catalog-v2.json. The adapter checks the v
 - Cleanup preserves every asset referenced by the currently published snapshot and removes orphaned assets only after successful publication.
 - v1 fixtures remain readable with null artwork; v2 valid and invalid artwork fields are covered, including explicit v1 fallback only when v2 is missing.
 - Real Playnite reference grammar is covered: game GUID plus file GUID/extension; raw paths, URLs, traversal, mismatched game IDs, and unsupported extensions are rejected before SDK resolution.
-- Supported raster signatures and signature-invalid/unknown containers are covered; ICO directory/range validation and conversion-to-PNG are covered; cache path resolution accepts only digest identifiers and fixed extensions. The transport does not guarantee detection of every structurally truncated image when its outer signature markers remain valid; decoder-level validation belongs to WERD-80.
+- Supported raster signatures and signature-invalid/unknown containers are covered; ICO directory/range validation and conversion-to-PNG are covered; cache path resolution accepts only digest identifiers and fixed extensions. The transport does not guarantee detection of every structurally truncated image when its outer signature markers remain valid; decoder-level validation belongs to the consumer.
 - A malformed or unsupported v2 file does not trigger silent v1 fallback.
 - Missing artwork never makes a valid catalog unavailable.
 
 ## Non-goals
 
-No third-party artwork downloads, storefront scraping, cloud hosting, network listener, IPC, Playnite database writes, arbitrary file access, or Command Palette artwork UI changes. WERD-80 owns UI rendering, asynchronous/cancellable loading, bounded decoded-image caching, image fallback, and DPI verification.
+No third-party artwork downloads, storefront scraping, cloud hosting, network listener, IPC, Playnite database writes, arbitrary file access, or Command Palette artwork UI changes. The consumer owns UI rendering, asynchronous/cancellable loading, bounded decoded-image caching, image fallback, and DPI verification.
 
-## WERD-80 consumer contract: saved icon only
+## Consumer contract: saved icon only
 
-WERD-80 consumes this transport without widening its trust boundary.
+The Command Palette consumes this transport without widening its trust boundary.
 
 - The Command Palette uses only the per-game iconArtworkId for result artwork. coverArtworkId remains part of the shared v2 transport for compatibility with the earlier transport contract, but it is not a fallback candidate for Search or Favorites UI.
 - A missing, invalid, unreadable, unsupported, or undecodable icon produces the existing neutral game symbol. It does not trigger a cover/background/launcher-art lookup and does not invalidate the game record, search result, or launch action.
@@ -143,7 +143,7 @@ WERD-80 consumes this transport without widening its trust boundary.
 - The consumer performs image resolution and decoding asynchronously, with bounded concurrency and successful-result caching. Catalog refresh invalidates stale resolutions; transient failures are not treated as permanent missing-artwork facts.
 - The existing 5 MiB source-file limit, 256 MiB active cache-generation limit, opaque digest rules, atomic generation publication, read-only consumer, and path/reparse-point checks remain unchanged.
 
-### WERD-80 real-library evidence
+### Real-library evidence
 
 On 2026-11-11, one installed Steam library entry with a saved ICO-backed Playnite icon completed the end-to-end path: Playnite resolved the saved icon path; the producer converted the ICO to PNG; the snapshot contained the resulting SHA-256 identifier; the matching PNG existed in the bridge cache; and the maintainer confirmed the icon appeared in Command Palette after loading the updated extension/catalog.
 

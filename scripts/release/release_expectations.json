@@ -1,0 +1,251 @@
+{
+  "schemaVersion": 1,
+  "reviewedOn": "2026-11-17",
+  "notes": [
+    "Reviewed expectations for the PlayniteCmdPal release MSIX packages.",
+    "Every value here is a release gate: change it only after re-reading docs/LICENSING-AND-RELEASE.md, docs/MSIX-SIGNING.md and docs/RELEASE-PACKAGING.md.",
+    "Package identity and publisher are the Partner Center values supplied by the maintainer. Do not substitute a repository name, a display name or a development certificate subject.",
+    "The Windows SDK projection package is pinned to 10.0.26100.84 because its lib/net8.0 assets are the ones enumerated by Microsoft's Windows SDK REDIST list. 10.0.26100.87 was evaluated separately but is not the distribution pin.",
+    "dependencyAssemblies are checked against the restored NuGet global-packages folder when it is available, so a version bump must be reflected in both Directory.Packages.props and this file."
+  ],
+  "source": {
+    "projectFile": "PlayniteCmdPal/PlayniteCmdPal.csproj",
+    "manifestFile": "PlayniteCmdPal/Package.appxmanifest",
+    "centralBuildPropsFile": "Directory.Build.props",
+    "centralPackagePropsFile": "Directory.Packages.props",
+    "solutionFile": "PlayniteCmdPal.sln",
+    "publishProfiles": {
+      "win-x64": "PlayniteCmdPal/Properties/PublishProfiles/win-x64.pubxml",
+      "win-arm64": "PlayniteCmdPal/Properties/PublishProfiles/win-arm64.pubxml"
+    },
+    "artifactNoticeTargets": [
+      "CopyDotNetRuntimeThirdPartyNotices",
+      "AddDotNetRuntimeThirdPartyNoticesToMsixPayload"
+    ]
+  },
+  "package": {
+    "displayName": "PlayniteCmdPal",
+    "identityName": "werdscopez7347.PlayniteforCommandPalette",
+    "publisher": "CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70",
+    "publisherDisplayName": "werdscopez7347",
+    "version": "0.0.8.0",
+    "targetFramework": "net10.0-windows10.0.26100.0",
+    "windowsSdkPackageVersion": "10.0.26100.84",
+    "minimumOsVersion": "10.0.19041.0",
+    "languages": [
+      "en-US"
+    ],
+    "capabilities": [
+      "internetClient",
+      "runFullTrust"
+    ],
+    "logo": "Assets\\StoreLogo.png",
+    "applicationExecutable": "PlayniteCmdPal.exe",
+    "appListEntry": "none",
+    "minimumPackageBytes": 20000000
+  },
+  "architectures": {
+    "win-x64": {
+      "platform": "x64",
+      "manifestArchitecture": "x64",
+      "fileName": "PlayniteCmdPal_0.0.8.0_x64.msix"
+    },
+    "win-arm64": {
+      "platform": "ARM64",
+      "manifestArchitecture": "arm64",
+      "fileName": "PlayniteCmdPal_0.0.8.0_arm64.msix"
+    }
+  },
+  "comServer": {
+    "extensionCategory": "windows.comServer",
+    "serverElement": "ExeServer",
+    "executable": "PlayniteCmdPal.exe",
+    "arguments": "-RegisterProcessAsComServer",
+    "classId": "5fa90ed5-fcab-47c0-bbc0-e0b72f39aa16"
+  },
+  "appExtension": {
+    "extensionCategory": "windows.appExtension",
+    "name": "com.microsoft.commandpalette",
+    "publicFolder": "Public",
+    "supportedInterface": "Commands"
+  },
+  "runtimeNotice": {
+    "packagePath": "dotnet-runtime-THIRD-PARTY-NOTICES.txt",
+    "minBytes": 50000,
+    "sha256ByRid": {
+      "win-x64": "6D15E10A101C6BFFF2AB4429ED061BF76C456FC4B23AD6B03E0D0F8377148A21",
+      "win-arm64": "6D15E10A101C6BFFF2AB4429ED061BF76C456FC4B23AD6B03E0D0F8377148A21"
+    }
+  },
+  "repoMirrors": [
+    {
+      "packagePath": "LICENSE",
+      "repoPath": "LICENSE",
+      "description": "Project MIT license text."
+    },
+    {
+      "packagePath": "THIRD-PARTY-NOTICES.md",
+      "repoPath": "third-party/THIRD-PARTY-NOTICES.md",
+      "description": "Third-party notices and attribution."
+    },
+    {
+      "packagePath": "Microsoft-PowerToys-LICENSE.txt",
+      "repoPath": "third-party/Microsoft-PowerToys-LICENSE.txt",
+      "description": "PowerToys extension template license retained in the payload."
+    }
+  ],
+  "requiredFiles": [
+    {
+      "path": "PlayniteCmdPal.exe",
+      "minBytes": 1024
+    },
+    {
+      "path": "PlayniteCmdPal.dll",
+      "minBytes": 1024
+    },
+    {
+      "path": "PlayniteCmdPal.Core.dll",
+      "minBytes": 1024
+    },
+    {
+      "path": "PlayniteCmdPal.Playnite.dll",
+      "minBytes": 1024
+    },
+    {
+      "path": "PlayniteCmdPal.Snapshot.dll",
+      "minBytes": 1024
+    },
+    {
+      "path": "PlayniteCmdPal.deps.json",
+      "minBytes": 1
+    },
+    {
+      "path": "PlayniteCmdPal.runtimeconfig.json",
+      "minBytes": 1
+    },
+    {
+      "path": "Microsoft.CommandPalette.Extensions.winmd",
+      "minBytes": 1024
+    },
+    {
+      "path": "Microsoft.Windows.SDK.NET.dll",
+      "minBytes": 1024
+    },
+    {
+      "path": "WinRT.Runtime.dll",
+      "minBytes": 1024
+    },
+    {
+      "path": "Shmuelie.WinRTServer.dll",
+      "minBytes": 1024
+    },
+    {
+      "path": "LICENSE",
+      "minBytes": 1
+    },
+    {
+      "path": "THIRD-PARTY-NOTICES.md",
+      "minBytes": 1
+    },
+    {
+      "path": "Microsoft-PowerToys-LICENSE.txt",
+      "minBytes": 1
+    },
+    {
+      "path": "dotnet-runtime-THIRD-PARTY-NOTICES.txt",
+      "minBytes": 1
+    }
+  ],
+  "appAssemblies": [
+    "PlayniteCmdPal.dll",
+    "PlayniteCmdPal.Core.dll",
+    "PlayniteCmdPal.Playnite.dll",
+    "PlayniteCmdPal.Snapshot.dll"
+  ],
+  "dependencyAssemblies": [
+    {
+      "packageId": "Microsoft.Windows.SDK.NET.Ref",
+      "version": "10.0.26100.84",
+      "payloadPath": "Microsoft.Windows.SDK.NET.dll",
+      "compareToPackageSource": true
+    },
+    {
+      "packageId": "Microsoft.Windows.CsWinRT",
+      "version": "2.3.1",
+      "payloadPath": "WinRT.Runtime.dll",
+      "compareToPackageSource": true
+    },
+    {
+      "packageId": "Shmuelie.WinRTServer",
+      "version": "2.2.1",
+      "payloadPath": "Shmuelie.WinRTServer.dll",
+      "compareToPackageSource": true
+    },
+    {
+      "packageId": "Microsoft.CommandPalette.Extensions",
+      "version": "0.12.260812002",
+      "payloadPath": "Microsoft.CommandPalette.Extensions.winmd",
+      "compareToPackageSource": true
+    }
+  ],
+  "knownExtraPatterns": [
+    "coreclr.dll",
+    "clrjit.dll",
+    "hostfxr.dll",
+    "hostpolicy.dll",
+    "mscordaccore*.dll",
+    "mscordbi.dll",
+    "dbgshim.dll",
+    "createdump.exe",
+    "mscorrc*.dll",
+    "norm*.nlp",
+    "System.*.dll",
+    "System.Private.*",
+    "Microsoft.CSharp.dll",
+    "Microsoft.VisualBasic*.dll",
+    "Microsoft.Win32.*.dll",
+    "mscorlib.dll",
+    "netstandard.dll",
+    "WindowsBase.dll",
+    "Accessibility.dll",
+    "*.resources.dll",
+    "*.pri",
+    "*.pdb",
+    "*.deps.json",
+    "*.runtimeconfig.json",
+    "Assets/*.png",
+    "AppxManifest.xml",
+    "AppxBlockMap.xml",
+    "[Content_Types].xml",
+    "AppxSignature.p7x"
+  ],
+  "forbiddenPatterns": [
+    "xunit*",
+    "*.xunit*",
+    "testhost*",
+    "Microsoft.TestPlatform*",
+    "Microsoft.NET.Test.Sdk*",
+    "Microsoft.CodeAnalysis*",
+    "Microsoft.CodeAnalysis.CSharp*",
+    "Microsoft.Windows.SDK.BuildTools*",
+    "Microsoft.NETFramework.ReferenceAssemblies*",
+    "PlayniteSDK.dll",
+    "PlayniteCmdPal.PlaynitePlugin*",
+    "*.nupkg",
+    "*.snupkg",
+    "*.cs",
+    "*.props",
+    "*.targets",
+    "*.csproj",
+    "*.sln",
+    "MakeAppx.exe",
+    "makeappx.exe",
+    "signtool.exe"
+  ],
+  "inventoryExemptPackages": [
+    {
+      "packageId": "Microsoft.Windows.SDK.NET.Ref",
+      "reason": "Supplied by the WindowsSdkPackageVersion property rather than a PackageReference, so the dependency inventory does not enumerate it. Its version is pinned in Directory.Build.props, enforced by preflight.props.windows-sdk-package, and reviewed with the Windows SDK projection decision."
+    }
+  ]
+}

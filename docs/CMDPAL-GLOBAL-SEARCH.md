@@ -1,4 +1,4 @@
-# WERD-86: installed Playnite game fallback in global search
+# Installed Playnite game fallback in global search
 
 **Reviewed:** 2026-11-12. **Current choice:** one dynamic fallback for a unique installed exact-title match; ordinary per-game top-level results are removed. The maintainer accepted the host's separate **Fallbacks** section even though another provider's app result may remain higher in regular **Results**. Current installed-host retest is pending.
 

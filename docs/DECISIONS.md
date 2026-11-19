@@ -56,7 +56,7 @@ Use Semantic Versioning; before 1.0.0, use `0.y.z` and increment the minor versi
 
 ## ADR-008: Local favorites preferences
 
-**Status:** Accepted for WERD-75
+**Status:** Accepted
 
 Pinned game IDs belong to the Command Palette extension, not to Playnite's library. Store them in `%LOCALAPPDATA%\PlayniteCmdPal\favorites-v1.json`, scoped to the current Windows user and independent of Playnite's standard or portable install path. The file contains only a schema version and stable Playnite game IDs; it contains no game metadata and is never synchronized to a cloud service.
 
@@ -74,13 +74,13 @@ Use a bridge-owned local cache populated only from canonical, game-owned Playnit
 
 The cache is bounded per generation, and a single producer owns publication. A producer-side periodic revalidation export is required because bytes can change while a database reference remains unchanged. Cache publication is coordinated with the atomic v2 snapshot; cleanup failure must retain transaction state and block a subsequent generation until recovery succeeds. The reader's returned local path is a short-lived locator, not a lease: consumers accept missing artwork after generation replacement and must re-resolve against the current snapshot.
 
-The threat model excludes a malicious process running as the same Windows user. Reparse-point and normalized-path checks are defense-in-depth, not a claim of race-proof containment against same-user path replacement. Transport signature checks do not prove successful decoding; WERD-80 owns decoding and image fallback. A surviving v2 snapshot remains authoritative after producer downgrade; safe rollback requires the owner to stop the producer, verify the v1 snapshot, and explicitly retire the stale v2 snapshot before v1 fallback can occur.
+The threat model excludes a malicious process running as the same Windows user. Reparse-point and normalized-path checks are defense-in-depth, not a claim of race-proof containment against same-user path replacement. Transport signature checks do not prove successful decoding; decoding and image fallback are the consumer's job. A surviving v2 snapshot remains authoritative after producer downgrade; safe rollback requires the owner to stop the producer, verify the v1 snapshot, and explicitly retire the stale v2 snapshot before v1 fallback can occur.
 
 The complete trust boundary, limits, migration, refresh, cleanup, and failure contract is recorded in [Artwork transport](ARTWORK-TRANSPORT.md).
 
 
 ## ADR-010: Recently Played presentation and refresh
-**Status:** Accepted for WERD-74
+**Status:** Accepted
 
 Recently Played is a read-only view over Playnite's authoritative LastActivity value. Sort by UTC instant, treating DateTimeKind.Unspecified as local machine time because that is the documented .NET conversion policy used by this implementation. Display only a relative-age badge; do not display or expose an absolute timestamp, timezone, UTC offset, or hover tooltip. Relative units are truncated to whole minutes (<1 hour), hours (<1 day), days (<7 days), weeks (<30 days), months (<365 days), then years; values under one minute read just now, and future values use in ... wording.
 
@@ -110,10 +110,40 @@ Reuse the saved-icon-only artwork transport/loader. Publish commands immediately
 
 ## ADR-013: Installed-game fallback result
 
-**Status:** Accepted for WERD-86 on 2026-11-12; implementation is complete on this branch, with current-head CI/CodeQL and installed-host retest pending.
+**Status:** Accepted on 2026-11-12; implementation is complete on this branch, with current-head CI/CodeQL and installed-host retest pending.
 
 The maintainer selected the supported fallback-results model after the direct per-game root rows caused unwanted query flooding. Keep only Search games, Favorites, and Recently played games in `TopLevelCommands()`. Return a single cached `FallbackCommandItem` from `FallbackCommands()`; update its title/action/icon for the current query rather than registering a root or fallback item per game. No provider-level query-interception API, host-internal dependency, global-results promotion setting, or other-provider modification is used.
 
 Expose a row only when the trimmed query exactly matches one installed game's title, case-insensitively, and that title is unique among installed games. Uninstalled/unknown-installation entries do not appear and do not make an installed same-title entry ambiguous. Multiple installed IDs with the same matching title produce no direct-launch row. The visible row is the game title, subtitle **Open with Playnite**, and the saved Playnite game icon (neutral symbol while loading/unavailable); do not append platform/source/install labels. Partial, unknown, empty, unhealthy, stale, invalid, or conflicting catalog inputs produce no row. The broader in-extension library pages keep their existing behavior.
 
 Capture the stable canonical Playnite ID in the result command and force-revalidate the same unique installed exact-title match before dispatching the existing `playnite://playnite/start/{id}` path. Query changes, invocation, or disposal invalidate retained commands and cancel old icon work. Saved-icon loading remains asynchronous and icon-only; an icon failure never prevents a valid launch. Normal host ranking/placement remains host-owned: fallbacks are shown in the Fallbacks section by default, and a built-in Apps result can remain in regular Results above it.
+
+## ADR-014: Executable release evidence with a reviewed expectations gate
+
+**Status:** Accepted on 2026-11-17; tooling implemented and self-tested, and the Windows run completed on 2026-11-19 from `f2c2854` with both packages signed and inspected (see the [release candidate record](RELEASE-PACKAGING.md#release-candidate-record)).
+
+The release-candidate MSIX build is a checked-in tool (`scripts/release/release_tool.py`, Python standard library
+only) rather than a prose runbook or a Visual Studio session. It builds the Release configuration for `win-x64` and
+`win-arm64`, signs each package with the validated publisher identity, inspects the archive, and writes a
+self-contained evidence bundle (JSON, Markdown, extracted manifests, SHA-256 sums) to the git-ignored
+`artifacts/release/<version>/` tree. Nothing is uploaded or published.
+
+All release gates live in one reviewed file, `scripts/release/release_expectations.json`: identity, version,
+architecture, executable COM server registration, Command Palette app extension, capabilities, minimum OS, required
+payload files, byte-for-byte notice copies, reviewed dependency assemblies, forbidden build/test content, and the
+RID-specific .NET runtime notice hashes. A failing check exits non-zero; a check that cannot be evaluated is a
+warning or skip with the reason, never a pass. A payload file that cannot be attributed to the application, the
+reviewed dependency inventory or the .NET runtime fails the gate in strict mode, so shipping new content requires
+an explicit expectations change.
+
+The Windows SDK pin stays at `Microsoft.Windows.SDK.NET.Ref 10.0.26100.84` because only that package's `lib/net8.0`
+projection assets are enumerated by Microsoft's Windows SDK REDIST list. The stable `10.0.26100.87`
+migration remains recorded as evaluation evidence, but it is not a distribution pin: its
+`lib/net9.0` asset group was not cleared by that review. `preflight` fails if the pin, trimming, ReadyToRun,
+publish-profile, manifest, notice or version declarations drift from the reviewed expectations.
+
+Signing is split by channel: the Store submission path relies on Microsoft's post-certification signing and keeps no
+publisher certificate in the repository; a local release candidate is signed with a test certificate whose subject
+equals the manifest Publisher, verified with `signtool verify /pa /all /v`, and checked by the tool for a subject
+match. Package installation, activation and update behaviour remain separate runtime work and are not claimed by
+archive inspection.

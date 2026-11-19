@@ -2,9 +2,9 @@
 
 This page explains what is tested, where each check runs, and how to run it. For installing the toolchain and deploying the extension, see [Developer Setup](DEVELOPER-SETUP.md).
 
-**WERD-85 unified navigation (2026-11-14):** the provider exposes exactly one Playnite top-level command. Search games, Recently played, and Favorites are keyboard-selectable views inside that page. The installed-game fallback remains a separate host-managed fallback result. Windows CI and CodeQL on [PR #39](https://github.com/werdscopez7347/PlayniteCmdPal/pull/39) are the authoritative automated verification; installed-host keyboard/UI checks remain pending. The historical WERD-74/80 screenshots and smoke tests do not validate the unified navigation layout. This environment cannot perform the local Windows build or installed Command Palette smoke test.
+**Unified navigation (2026-11-14):** the provider exposes exactly one Playnite top-level command. Search games, Recently played, and Favorites are keyboard-selectable views inside that page. The installed-game fallback remains a separate host-managed fallback result. Windows CI and CodeQL on [PR #39](https://github.com/werdscopez7347/PlayniteCmdPal/pull/39) are the authoritative automated verification; installed-host keyboard/UI checks remain pending. The earlier screenshots and smoke tests for the previous per-command layout do not validate the unified navigation layout. This environment cannot perform the local Windows build or installed Command Palette smoke test.
 
-**Prior verification context (2026-11-11):** Automated coverage is synthetic and runs without Playnite, PowerToys, a personal game library, or secrets. The WERD-80 Windows CI ([run 42948025706](https://github.com/shxo07/PlayniteCmdPal/actions/runs/42948025706)) and CodeQL ([run 42948025712](https://github.com/shxo07/PlayniteCmdPal/actions/runs/42948025712)) results predate WERD-85 and do not validate this revision. The test commands below are executed by `scripts/ci.ps1`. The previously verified Recently Played list and relative badges are historical context, not a manual pass for the unified page. See [Developer Setup](DEVELOPER-SETUP.md) for the evidence trail and its limits.
+**Prior verification context (2026-11-11):** Automated coverage is synthetic and runs without Playnite, PowerToys, a personal game library, or secrets. The earlier Windows CI ([run 42948025706](https://github.com/shxo07/PlayniteCmdPal/actions/runs/42948025706)) and CodeQL ([run 42948025712](https://github.com/shxo07/PlayniteCmdPal/actions/runs/42948025712)) results predate the unified navigation and do not validate this revision. The test commands below are executed by `scripts/ci.ps1`. The previously verified Recently Played list and relative badges are historical context, not a manual pass for the unified page. See [Developer Setup](DEVELOPER-SETUP.md) for the evidence trail and its limits.
 
 ## Test projects
 
@@ -45,7 +45,7 @@ Test data is generated in the test process and written to a temporary directory 
 | `PlayniteLibraryRequestCoordinatorTests` | New requests cancel and invalidate prior view/search/artwork leases; disposal cancels the current request and rejects future requests. |
 | `PlayniteGameFallbackTests` | Actual fallback-handler callback and title/action, exact/partial/no-match/installed-title ambiguity, installed/uninstalled duplicate policy, stable-ID revalidation, retained command/query/invocation/disposal races, read/launch failures, async saved-icon property notification, neutral icon behavior, cover exclusion, obsolete icon cancellation, and cross-thread/reentrant property changes. All catalog data, artwork, and dispatch are synthetic. |
 
-### Global direct-launch policy (WERD-86)
+### Global direct-launch policy
 
 | File | Project | Covers |
 |---|---|---|
@@ -55,7 +55,7 @@ Test data is generated in the test process and written to a temporary directory 
 
 These tests are synthetic, not installed-host integration tests. The [global-search design](CMDPAL-GLOBAL-SEARCH.md) uses the pinned SDK's fallback callback, not provider-level query injection. Record the installed CmdPal version, query `playnite`, fallback-section coexistence with another Results/Apps item, installed/uninstalled/ambiguous title behavior, saved and neutral icon rendering, query/icon lifecycle, and actual Playnite launch. Do not assert adjacency or a particular rank. Existing `scripts/ci.ps1` discovers the tests without a new workflow step.
 
-### Command Palette artwork (WERD-80)
+### Command Palette artwork
 
 | File | Covers |
 |---|---|
@@ -72,7 +72,7 @@ Manual verification requires a real Playnite library and the packaged Command Pa
 6. Repeat at 100% and 150% (or higher) Windows display scaling. Confirm icons remain correctly sized and do not clip or displace title/subtitle text.
 
 Record the PowerToys version, Windows build, display scaling, and outcome. Do not include real game names, IDs, or library paths in committed evidence.
-#### WERD-80 manual verification log (2026-11-11)
+#### Manual artwork verification log (2026-11-11)
 
 - **Verified:** One installed Steam library entry with a saved ICO-backed Playnite icon. The updated plugin logged the resolved Playnite icon path; the v2 snapshot contained the icon digest; the matching converted PNG existed in artwork-v2; and the maintainer confirmed the icon displayed in Command Palette after loading the updated extension/catalog.
 - **Diagnostic cross-check:** The digest in the snapshot/cache matched the SHA-256 digest of the PNG produced by an independent local conversion of the same Playnite ICO.
@@ -132,6 +132,7 @@ Capture screenshots of Search actions, populated Favorites, and empty/no-match s
 | CodeQL C# analysis | No | n/a | Yes | Yes (workflow runs on `windows-latest`) | No |
 | MSIX deploy + Command Palette extension reload | Manual | No | No | Yes | PowerToys |
 | Companion plugin packaging (`scripts/package-playnite-plugin.ps1`) | Manual | No | No | Yes | No (publishes and smoke-tests the `.pext`) |
+| Release tooling self-tests (`scripts/release/tests`) | Yes, via `scripts/ci.ps1` (inspection/preflight) and directly on any OS (full suite) | Yes (cross-platform job) | No | No (the build-orchestration cases use stub tools and skip on Windows) | No |
 | Real-library verification (`tools/CatalogVerifier` and the [Catalog Bridge checklist](CATALOG-BRIDGE.md#manual-playnite-verification-still-required)) | Manual | No | No | Yes | Playnite (PowerToys only for the launch UI) |
 | Launch-by-ID URI smoke test | Manual | No | No | Yes | Playnite + PowerToys, plus one real game |
 
@@ -157,7 +158,7 @@ set up. Do not mark a test as passing locally unless you actually ran it.
 
 The real-library and launch smoke tests are intentionally outside the automated suites: they depend on a particular installed Playnite, a particular PowerToys version, and one user's library. Normal CI must never require them.
 
-`scripts/ci.ps1` is the single source of truth for the automated checks. Windows CI and the CodeQL workflow invoke it instead of repeating commands, so a step cannot drift between a developer machine and CI. When you add a check, add it to that script rather than only to the workflow.
+`scripts/ci.ps1` is the single source of truth for the automated checks. Windows CI and the CodeQL workflow invoke it instead of repeating commands, so a step cannot drift between a developer machine and CI. When you add a check, add it to that script rather than only to the workflow. The only intentional exception is the cross-platform release-tooling job, which runs the same `python -m unittest discover -s scripts/release/tests` command on Ubuntu because the stub-tool build-orchestration cases cannot run on Windows.
 
 ## Running the tests
 
@@ -170,6 +171,22 @@ From the repository root in PowerShell on Windows:
 ```
 
 It prints the exact `dotnet` command it runs before each step, stops at the first failure, reports the step name and exit code, and returns that exit code.
+
+### Release tooling self-tests
+
+`scripts/release/release_tool.py` builds, signs, inspects and records evidence for the release MSIX packages. Its
+self-tests are standard-library Python and cover the inspection pass/fail paths, repository-declaration drift, and
+the build orchestration with stub `dotnet`/`signtool` executables:
+
+```powershell
+python -m unittest discover -s scripts/release/tests -v
+```
+
+They run in `scripts/ci.ps1` on Windows (preflight and inspection cases; the stub-tool orchestration cases skip) and
+in the separate `release-tools` GitHub Actions job on Ubuntu (full suite). They are not a Windows package build:
+they prove the gates reject the failure modes the release criteria care about. See the
+[release candidate record](RELEASE-PACKAGING.md#release-candidate-record) for the Windows run that produced the
+release candidates.
 
 ### One test project while iterating
 
@@ -196,8 +213,7 @@ dotnet test .\PlayniteCmdPal.Core.Tests\PlayniteCmdPal.Core.Tests.csproj --logge
 
 ### Coverage at a glance
 
-The historical count baseline below predates the later WERD-74/WERD-80/WERD-86 changes; it is **not the current suite total**. At that baseline there were **293 authored cases** (facts plus `[InlineData]` rows): **107** domain/search, **3** Command Palette favorite command results, and **183** snapshot/adapter cases. Of those, 148 were added for
-[WERD-62](https://linear.app/werdscopez7347/issue/WERD-62/expand-automated-tests-and-finalize-the-developer-setup-guide).
+The historical count baseline below predates later test additions; it is **not the current suite total**. At that baseline there were **293 authored cases** (facts plus `[InlineData]` rows): **107** domain/search, **3** Command Palette favorite command results, and **183** snapshot/adapter cases. Most of those were added while expanding automated coverage and finalizing the developer setup guide.
 
 How that number is established, so it can be re-derived rather than trusted:
 
@@ -207,7 +223,7 @@ How that number is established, so it can be re-derived rather than trusted:
 | Existing Windows CI baseline before command-result tests ([run 41184115994](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41184115994)) | 66 | — | 183 | 249 |
 | Latest verified Windows CI before the schema-version regression cases ([run 42331229094](https://github.com/shxo07/PlayniteCmdPal/actions/runs/42331229094)) | 101 | 3 | 183 | 287 |
 
-The earlier Windows CI baseline reported 249 passing cases (66 Core and 183 adapter). The branch then added 35 Core cases and 3 Command Palette command cases; Windows CI executed all 287 successfully in run [42331229094](https://github.com/shxo07/PlayniteCmdPal/actions/runs/42331229094). The WERD-74 merge adds further cases; re-count authored cases and record executed totals from the merged-head CI logs rather than extrapolating from earlier runs.
+The earlier Windows CI baseline reported 249 passing cases (66 Core and 183 adapter). The branch then added 35 Core cases and 3 Command Palette command cases; Windows CI executed all 287 successfully in run [42331229094](https://github.com/shxo07/PlayniteCmdPal/actions/runs/42331229094). Later changes add further cases; re-count authored cases and record executed totals from the merged-head CI logs rather than extrapolating from earlier runs.
 
 Counts drift as tests change. Treat the per-file table above as the authoritative map and re-read each `Passed!` line rather than trusting a number written here. If the written count and `dotnet test` disagree, the `dotnet test` output wins: it is the only measurement that actually executed the tests.
 
@@ -279,9 +295,9 @@ These are deliberately not automated yet; each needs a Windows host and, in most
 - Minimum supported versions of Windows, Visual Studio, PowerToys, and Playnite are recorded as "validated once", not as tested minimums. See the contributor environment table in [Developer Setup](DEVELOPER-SETUP.md).
 
 
-- [42331229094](https://github.com/shxo07/PlayniteCmdPal/actions/runs/42331229094) — Windows CI on the pre-schema-fix WERD-75 head: Release build, `101/101` Core tests, `183/183` adapter tests, `3/3` Command Palette command tests, and the .NET Framework snapshot smoke step all passed.
+- [42331229094](https://github.com/shxo07/PlayniteCmdPal/actions/runs/42331229094) — Windows CI on an earlier pre-schema-fix head: Release build, `101/101` Core tests, `183/183` adapter tests, `3/3` Command Palette command tests, and the .NET Framework snapshot smoke step all passed.
 - [42331229144](https://github.com/shxo07/PlayniteCmdPal/actions/runs/42331229144) — CodeQL on the same pre-schema-fix head passed.
-- **WERD-74 current-head regression coverage:** recently-played ordering and relative-time presentation, schema v2 `lastActivity` parsing/serialization, adapter race/revalidation, and the combined .NET Framework smoke path. Execution remains pending on the final-review head; earlier CI totals are not evidence for this revision.
+- **Current-head regression coverage:** recently-played ordering and relative-time presentation, schema v2 `lastActivity` parsing/serialization, adapter race/revalidation, and the combined .NET Framework smoke path. Execution remains pending on the final-review head; earlier CI totals are not evidence for this revision.
 
 ### Recently Played activity refresh
 

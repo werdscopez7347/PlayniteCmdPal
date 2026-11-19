@@ -4,7 +4,7 @@ The **Filters** row opens a keyboard-first `ListPage`. Type to narrow the option
 
 A fresh filter state selects **Installed**. Installed and Not installed can be selected independently: selecting neither or both removes the installation-status restriction. Clear status, Clear sources, Clear platforms, and Clear all remove only their named restrictions and never re-enable Installed. Source/platform selections persist across picker reopenings and catalog refreshes while the metadata value remains available. A temporary unavailable catalog does not clear selections; a successful refresh removes selections whose metadata is no longer present.
 
-The checked and unchecked appearances are glyphs on list items, as explicitly authorized for WERD-72 to override the issue's earlier preference for native CmdPal checkbox controls. These are **not native checkbox controls** and do not claim checkbox-specific accessibility semantics.
+The checked and unchecked appearances are glyphs on list items, chosen deliberately over native CmdPal checkbox controls. These are **not native checkbox controls** and do not claim checkbox-specific accessibility semantics.
 
 ## Verification checklist
 

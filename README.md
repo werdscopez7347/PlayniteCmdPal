@@ -10,13 +10,13 @@
 
 Search and launch games from a Playnite library through Microsoft PowerToys Command Palette.
 
-> **Status:** The generated Command Palette template has been validated, and the independent core game model and deterministic search implementation are complete. Windows CI and CodeQL run on pull requests and `main`, with verified successful runs. The catalog bridge (snapshot transport, adapter, and companion Playnite plugin) is implemented and has maintainer-reported Windows build/packaging and real-library verification; see [Catalog Bridge](docs/CATALOG-BRIDGE.md) for the exact evidence and remaining gaps. CmdPal search and launch are implemented and merged through WERD-61 / [PR #15](https://github.com/werdscopez7347/PlayniteCmdPal/pull/15); independent clean Windows 11 setup and integration validation remains outstanding ([WERD-69](https://linear.app/werdscopez7347/issue/WERD-69/run-clean-windows-11-setup-and-integration-validation)). Release preparation is documented in [Release packaging](docs/RELEASE-PACKAGING.md); the Gallery metadata is an unlisted draft and licensing/signing/package-validation gates remain open. There are no releases yet.
+> **Status:** The generated Command Palette template has been validated, and the independent core game model and deterministic search implementation are complete. Windows CI and CodeQL run on pull requests and `main`, with verified successful runs. The catalog bridge (snapshot transport, adapter, and companion Playnite plugin) is implemented and has maintainer-reported Windows build/packaging and real-library verification; see [Catalog Bridge](docs/CATALOG-BRIDGE.md) for the exact evidence and remaining gaps. CmdPal search and launch are implemented and merged (see [PR #15](https://github.com/werdscopez7347/PlayniteCmdPal/pull/15)); independent clean Windows 11 setup and integration validation remains outstanding. Release preparation is documented in [Release packaging](docs/RELEASE-PACKAGING.md); the Gallery metadata is an unlisted draft and licensing/signing/package-validation gates remain open. The reproducible x64/ARM64 Release MSIX build, signing and inspection pipeline lives in [`scripts/release/`](scripts/release/); both signed release-candidate packages were built and pass strict inspection (hashes in [the release candidate record](docs/RELEASE-PACKAGING.md#release-candidate-record)), and nothing has been published. There are no releases yet.
 
 ## Goal
 
 Provide a keyboard-first route to a user's unified Playnite library: open Command Palette, type a game name, press Enter, and let Playnite handle launch configuration.
 
-## Installed-game fallback result (WERD-86)
+## Installed-game fallback result
 
 Exactly one **Playnite** top-level command opens a unified page with in-page **Search games**, **Recently played**, and **Favorites** views. Search covers the full supported catalog; Recent retains Playnite's authoritative LastActivity ordering and relative-time badges; Favorites retains local pin/unpin behavior. Installed-status, source, and platform filters are shared across all three views, apply immediately, and persist locally across page/Command Palette restarts. One page-level refresh action serves all views. A game is **not** registered as a root command. Instead, an exact, unambiguous title match for an **installed** game appears as one PlayniteCmdPal fallback result. The row shows the game title, the subtitle/action **Open with Playnite**, and the saved Playnite game icon (or a neutral symbol while it loads or when no valid icon is available). It does not show platform/install labels.
 
@@ -52,11 +52,12 @@ Uninstalled or installation-unknown games are excluded from this global direct-l
 - Windows CI and CodeQL have successful runs. All three test projects (`PlayniteCmdPal.Core.Tests`, `PlayniteCmdPal.Playnite.Tests`, and `PlayniteCmdPal.Command.Tests`) run in CI through `scripts/ci.ps1` alongside the .NET Framework snapshot smoke test; see [Testing](docs/TESTING.md) for the coverage map. Do not describe the repository as a working end-to-end extension until local deployment and Playnite integration acceptance criteria pass.
 - **License:** MIT for PlayniteCmdPal-authored material; see [LICENSE](LICENSE). Third-party components and assets retain their own license and attribution requirements; distribution artifacts carry [third-party notices](third-party/THIRD-PARTY-NOTICES.md). See [licensing and release readiness](docs/LICENSING-AND-RELEASE.md) for the dependency audit and its open review items.
 
-## Development and project tracking
+## Development
 
 - [Developer setup](docs/DEVELOPER-SETUP.md): clean Windows setup, Visual Studio/`.NET 10` prerequisites, deploy/reload/debug loop, and troubleshooting.
 - [Testing](docs/TESTING.md): what the automated suites cover, which checks run in CI versus requiring a local Playnite/PowerToys install, and how to run one project or one test.
-- [Release packaging](docs/RELEASE-PACKAGING.md): project-specific MSIX distribution decision, Gallery metadata draft, installation/update/uninstall guidance, and release blockers.
+- [Release packaging](docs/RELEASE-PACKAGING.md): project-specific MSIX distribution decision, Gallery metadata draft, installation/update/uninstall guidance, release blockers, and the release MSIX build/inspection pipeline.
+- [Release candidate record](docs/RELEASE-PACKAGING.md#release-candidate-record): what the release pipeline verifies, what ran on Windows, and the package hashes to compare a build against.
 - [Release notes template](docs/RELEASE-NOTES-TEMPLATE.md): checklist-backed template for a future public release.
 - Run the same Windows restore/build/test checks as CI with `.\scripts\ci.ps1` from PowerShell on Windows with the .NET 10 SDK; the script is the single source of truth for the automated steps.
 - [Contributing](.github/CONTRIBUTING.md)
@@ -65,15 +66,35 @@ Uninstalled or installation-unknown games are excluded from this global direct-l
 
 ## Project docs
 
-- [Branding and asset integration](docs/BRANDING.md)
-- [Command Palette extension metadata](docs/CMDPAL-EXTENSION-METADATA.md)
+Product and design:
+
 - [PRD](docs/PRD.md)
 - [Technical design](docs/TECHNICAL-DESIGN.md)
-- [Catalog Bridge](docs/CATALOG-BRIDGE.md)
-- [Testing](docs/TESTING.md)
-- [Research](docs/RESEARCH.md)
 - [Decisions](docs/DECISIONS.md)
+- [Research](docs/RESEARCH.md)
+- [Branding and asset integration](docs/BRANDING.md)
+
+Command Palette integration:
+
+- [Command Palette extension metadata](docs/CMDPAL-EXTENSION-METADATA.md)
+- [Global search and the installed-game fallback](docs/CMDPAL-GLOBAL-SEARCH.md)
+- [Filters](docs/FILTERS.md)
+- [Search, launch, and game-details smoke test](docs/CMDPAL-SEARCH-SMOKE-TEST.md)
+
+Catalog bridge and artwork:
+
+- [Catalog Bridge](docs/CATALOG-BRIDGE.md)
+- [Artwork transport and trust boundary](docs/ARTWORK-TRANSPORT.md)
+
+Release and operations:
+
 - [Release packaging](docs/RELEASE-PACKAGING.md)
+- [MSIX signing](docs/MSIX-SIGNING.md)
+- [Licensing and release readiness](docs/LICENSING-AND-RELEASE.md)
+- [Release notes template](docs/RELEASE-NOTES-TEMPLATE.md)
+- [Testing](docs/TESTING.md)
+- [Repository governance](docs/REPO-GOVERNANCE.md)
+- [Developer setup](docs/DEVELOPER-SETUP.md)
 
 ## References
 

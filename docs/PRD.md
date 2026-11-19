@@ -1,6 +1,6 @@
 # Product Requirements Document
 
-Status: Draft v0.1 — overall product scope remains subject to ongoing validation. WERD-80 artwork requirements reviewed: 2026-11-11; WERD-86 fallback-results requirements updated: 2026-11-12.
+Status: Draft v0.1 — overall product scope remains subject to ongoing validation. Artwork requirements reviewed: 2026-11-11; fallback-results requirements updated: 2026-11-12.
 
 ## Summary
 A PowerToys Command Palette extension that searches a user's Playnite library and launches a selected game without switching to the Playnite window.
@@ -73,7 +73,7 @@ Alpha: local search and launch. Beta: packaging, custom paths, failure states, f
 
 ## Acceptance tests
 Exact title ranks first; prefix/substring results are deterministic; duplicate titles are distinguishable; launch uses stable ID; missing integration/empty library/stale cache/errors are handled; tests pass in CI; no Playnite data writes.
-## Game artwork in Command Palette results (WERD-80)
+## Game artwork in Command Palette results
 
 **Decision:** Search results display the saved per-game icon managed by Playnite. If that icon is absent, unreadable, unsupported, or invalid, the result displays the existing neutral game symbol. A cover image, background image, promotional image, storefront image, or launcher/application icon is never substituted.
 
@@ -90,14 +90,14 @@ Exact title ranks first; prefix/substring results are deterministic; duplicate t
 - Catalog refresh must invalidate stale artwork so changed Playnite icon bytes do not leave an old image displayed.
 
 **Transport and format policy**
-- Reuse WERD-71's opaque SHA-256 artwork transport. The snapshot exposes an optional digest, never a Playnite reference, source path, absolute path, or URL.
+- Reuse the opaque SHA-256 artwork transport. The snapshot exposes an optional digest, never a Playnite reference, source path, absolute path, or URL.
 - Playnite-managed PNG, JPEG, GIF, and WebP sources are accepted by the transport based on signature. ICO is accepted as a source only, structurally validated, decoded within the producer's 256×256 icon bound, and converted to PNG before caching.
 - Missing, malformed, unsupported, inaccessible, oversized, or undecodable artwork is an optional-field failure, not a catalog or launch failure.
 - The cache and source-file limits documented in [Artwork Transport](ARTWORK-TRANSPORT.md) remain in force.
 
 **Verification status (2026-11-11):** The maintainer confirmed one installed Steam library entry with a saved ICO-backed Playnite icon now displays its icon in Command Palette. Diagnostics showed the Playnite path resolved, ICO conversion succeeded, the converted PNG was published to the content-addressed cache, and the matching icon digest appeared in the v2 snapshot. This verifies one real-library ICO case; it does not establish all formats, uninstalled-game behavior, or high-DPI behavior. See [Testing](TESTING.md) for the manual verification log and remaining checks.
 
-## Installed-game fallback result (WERD-86)
+## Installed-game fallback result
 
 - Expose exactly one **Playnite** top-level command. Its single page provides in-page Search games, Recently played, and Favorites views; do not register the three views as separate root commands or register every Playnite game as a root command.
 - Share installed-status, source, and platform filter selections across all three views; apply them consistently and persist them locally so they survive closing/reopening the page and restarting Command Palette.

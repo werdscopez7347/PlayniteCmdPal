@@ -10,7 +10,7 @@ The current repository contains `PlayniteCmdPal.sln` and `PlayniteCmdPal/Playnit
 Observed from checked-in project files:
 - Target framework: `net10.0-windows10.0.26100.0`.
 - Minimum/supported Windows platform: `10.0.19041.0`.
-- Windows SDK package property: `10.0.26100.87` (stable; selected centrally by `WindowsSdkPackageVersion` in `Directory.Build.props`).
+- Windows SDK package property: `10.0.26100.84` (stable; selected centrally by `WindowsSdkPackageVersion` in `Directory.Build.props` and enforced by the release preflight).
 - Runtime identifiers: `win-x64;win-arm64`.
 - Build platforms: `x64;ARM64`.
 - Central package management is enabled.
@@ -24,7 +24,7 @@ Sources: [project](../PlayniteCmdPal/PlayniteCmdPal.csproj), [package versions](
 
 ## Template validation update (2026-10-27)
 
-Historical note (2026-10-27, before WERD-77): the generated project was inspected without regeneration and at that time pinned `net10.0-windows10.0.26100.0`, Windows SDK package property `10.0.26100.68-preview`, minimum/supported platform `10.0.19041.0`, and RIDs `win-x64;win-arm64`. The preview property was subsequently replaced by stable `10.0.26100.87`; see the WERD-77 decision record below. The remaining template/package observations in this dated note describe that earlier inspection. Shared build platforms are `x64;ARM64`. Central package versions are recorded in `Directory.Packages.props`; the primary extension packages are `Microsoft.CommandPalette.Extensions` 0.9.260303001, `Microsoft.Windows.CsWinRT` 2.2.0, `Shmuelie.WinRTServer` 2.1.1, and `Microsoft.Windows.SDK.BuildTools.MSIX` 1.7.20250829.1. Maintainer-reported SDK: .NET SDK 10.0.403. The solution metadata reports VS 17.13.35507.96 as generator environment, not as a verified minimum.
+Historical note (2026-10-27, before the stable targeting pack): the generated project was inspected without regeneration and at that time pinned `net10.0-windows10.0.26100.0`, Windows SDK package property `10.0.26100.68-preview`, minimum/supported platform `10.0.19041.0`, and RIDs `win-x64;win-arm64`. The preview property was subsequently replaced by a stable targeting pack; the release pin is `10.0.26100.84` (the REDIST decision), while `10.0.26100.87` remains an evaluation result only. See the targeting-pack decision record below and the reconciliation note in [Release packaging](RELEASE-PACKAGING.md#release-pin-reconciliation-2026-11-17). The remaining template/package observations in this dated note describe that earlier inspection. Shared build platforms are `x64;ARM64`. Central package versions are recorded in `Directory.Packages.props`; the primary extension packages are `Microsoft.CommandPalette.Extensions` 0.9.260303001, `Microsoft.Windows.CsWinRT` 2.2.0, `Shmuelie.WinRTServer` 2.1.1, and `Microsoft.Windows.SDK.BuildTools.MSIX` 1.7.20250829.1. Maintainer-reported SDK: .NET SDK 10.0.403. The solution metadata reports VS 17.13.35507.96 as generator environment, not as a verified minimum.
 
 The initial build failure was `APPX1685` because `x-generate` selected default language `en-AE`. The source manifest now explicitly declares `<Resource Language="en-US"/>`; this valid language tag avoids dependence on the build machine locale while keeping manifest validation enabled. On the maintainer's Windows 10.0.19044 machine with .NET SDK 10.0.403, restore succeeded and x64/ARM64 builds succeeded both with and without `-p:DefaultLanguage=en-US` (all build commands exit code 0). Visual Studio package deployment succeeded; Command Palette was reloaded, the extension opened, and the placeholder page was confirmed. Exact Visual Studio version/workloads and PowerToys version were not recorded. See [developer setup](DEVELOPER-SETUP.md) for commands and detailed results.
 
@@ -61,7 +61,7 @@ Playnite remains the source of truth for game identity, library metadata, and la
 - Handle duplicate display names and empty query/catalog explicitly.
 - Keep search logic independently unit-testable.
 
-### Installed-game fallback result (WERD-86)
+### Installed-game fallback result
 
 The provider's `TopLevelCommands()` contains exactly one **Playnite** command. That command opens one `DynamicListPage` with in-page Search games, Recently played, and Favorites view selectors. The page owns one catalog reader, favorites store, artwork loader, and refresh action; changing views reuses those shared services rather than creating sibling pages. The provider still returns one stable `FallbackCommandItem` from `FallbackCommands()` and updates that item's title, command, and icon for the current query. The pinned SDK has a query callback on fallback items, but no provider-level method for injecting query-aware root results. The implementation does not put per-game commands in the root list or copy every game into separate fallback registrations.
 
@@ -160,28 +160,28 @@ See [DEVELOPER-SETUP.md](DEVELOPER-SETUP.md). Key loop:
 
 
 
-## Stable Windows SDK targeting-pack decision (WERD-77, 2026-11-01)
+## Stable Windows SDK targeting-pack decision (2026-11-01)
 
-The earlier preview property recorded in the historical template-validation notes above has been superseded. The project now selects stable `Microsoft.Windows.SDK.NET.Ref 10.0.26100.87` through the shared `WindowsSdkPackageVersion` property in [Directory.Build.props](../Directory.Build.props); the project file no longer pins `10.0.26100.68-preview`.
+The earlier preview property recorded in the historical template-validation notes above has been superseded. The project selects stable `Microsoft.Windows.SDK.NET.Ref 10.0.26100.84` through the shared `WindowsSdkPackageVersion` property in [Directory.Build.props](../Directory.Build.props); the project file no longer pins `10.0.26100.68-preview`. Version `10.0.26100.84` is the package whose `lib/net8.0` projection assets are enumerated by Microsoft's Windows SDK REDIST list, which is the redistribution condition recorded in [Licensing and release readiness](LICENSING-AND-RELEASE.md). `10.0.26100.87` was validated as a stable upgrade but is not the distribution pin, because its `lib/net9.0` asset group was not cleared by that review.
 
 The candidate is a Microsoft-published stable servicing release in the same 26100 Windows 11 24H2 SDK family as `net10.0-windows10.0.26100.0`. NuGet package metadata identifies the targeting pack as compatible with .NET 9 and later, including .NET 10. The project's minimum OS remains build 19041; this compile-time targeting-pack selection does not raise that minimum. The CmdPal extension package version is independent, and the same targeting pack serves both x64 and ARM64 runtime targets.
 
-Official references: [NuGet package](https://www.nuget.org/packages/Microsoft.Windows.SDK.NET.Ref/10.0.26100.87), [Windows SDK downloads](https://learn.microsoft.com/en-us/windows/apps/windows-sdk/downloads), [Windows SDK versioning](https://learn.microsoft.com/en-us/windows/apps/get-started/versioning-overview), and [Microsoft Windows SDK license terms](https://github.com/microsoft/win32metadata/blob/main/licenses/sdk_license.txt). The SDK/targeting pack is a development-time dependency, not an app payload to redistribute; applicable Microsoft SDK license terms govern its use.
+Official references: [NuGet package](https://www.nuget.org/packages/Microsoft.Windows.SDK.NET.Ref/10.0.26100.84), [Windows SDK downloads](https://learn.microsoft.com/en-us/windows/apps/windows-sdk/downloads), [Windows SDK versioning](https://learn.microsoft.com/en-us/windows/apps/get-started/versioning-overview), and [Microsoft Windows SDK license terms](https://github.com/microsoft/win32metadata/blob/main/licenses/sdk_license.txt). The SDK/targeting pack is a development-time dependency, not an app payload to redistribute; applicable Microsoft SDK license terms govern its use.
 
-The stable targeting-pack migration has passed Windows restore, Release solution build, the repository CI baseline, x64 and ARM64 Release publishing, and evaluated MSBuild property checks. The evaluated targeting-pack version is 10.0.26100.87, the application target remains net10.0-windows10.0.26100.0, and the minimum OS remains 10.0.19041.0.
+The stable targeting-pack migration has passed Windows restore, Release solution build, the repository CI baseline, x64 and ARM64 Release publishing, and evaluated MSBuild property checks for `10.0.26100.87`. The release pin is `10.0.26100.84`; its Windows restore/build/test/publish evidence is recorded in [Licensing and release readiness](LICENSING-AND-RELEASE.md) and is re-checked by `python scripts/release/release_tool.py preflight`, which fails if the evaluated `WindowsSdkPackageVersion` differs from the reviewed pin. The application target remains net10.0-windows10.0.26100.0 and the minimum OS remains 10.0.19041.0.
 
 Both architecture publish outputs contain dotnet-runtime-THIRD-PARTY-NOTICES.txt with matching SHA-256 hashes. The x64 MSIX was deployed through Visual Studio, activated successfully in Command Palette, and its installed payload was verified to contain the runtime notice. The ARM64 publish output and packaging recipe were verified, including the ARM64 runtime notice source and package path. The final ARM64 MSIX archive still needs to be generated and inspected; this archive-content check can be performed on the available x64 Windows machine with MakeAppx or an archive tool and does not require ARM64 hardware. A separate ARM64 install/launch/runtime-activation test still requires ARM64 hardware.
 
-No application API or behavior change was identified as part of this targeting-pack-only migration. ARM64 archive inspection remains outstanding. See [Release Packaging](RELEASE-PACKAGING.md) for the detailed evidence and limitations.
+No application API or behavior change was identified as part of this targeting-pack-only migration. ARM64 archive inspection is now covered by the release build and inspection pipeline. See [Release Packaging](RELEASE-PACKAGING.md) for the detailed evidence and limitations.
 
-## WERD-80: Playnite-managed game icons
+## Playnite-managed game icons
 
-**Status (2026-11-11):** Implemented on the WERD-80 PR branch and verified by automated Windows CI/CodeQL plus one maintainer-reported real-library ICO case. Broader manual coverage (including uninstalled entries and high-DPI scaling) remains outstanding.
+**Status (2026-11-11):** Implemented and verified by automated Windows CI/CodeQL plus one maintainer-reported real-library ICO case. Broader manual coverage (including uninstalled entries and high-DPI scaling) remains outstanding.
 
 ### Data flow
 
 1. The companion plugin reads the saved Game.Icon reference from Playnite game metadata and resolves it with Playnite's database API. It does not inspect install directories or executables.
-2. The producer validates the game-owned database reference and resolved path against the WERD-71 trust boundary. Raw paths, URLs, traversal, mismatched game directories, reparse points, unsupported extensions, and invalid file sizes are rejected.
+2. The producer validates the game-owned database reference and resolved path against the artwork transport trust boundary. Raw paths, URLs, traversal, mismatched game directories, reparse points, unsupported extensions, and invalid file sizes are rejected.
 3. Supported raster files are validated by signature and copied into the bridge-owned content-addressed cache. ICO is source-only: the producer validates the ICO directory and entry ranges, converts a bounded icon to PNG, validates the PNG output, and hashes/caches the converted bytes.
 4. The v2 snapshot carries an optional iconArtworkId digest. It does not carry the original Playnite reference, source path, or resolved path.
 5. The read-only catalog adapter maps the digest into the game model. The Command Palette artwork loader resolves only the icon digest; it does not read coverArtworkId as a fallback candidate.

@@ -4,7 +4,7 @@
 
 The project currently ships the Command Palette extension as a packaged MSIX with x64 and ARM64 publish profiles. Microsoft's current Command Palette publishing documentation recommends the Microsoft Store and lists MSIX as the Store package format.
 
-Do not follow a generic sample manifest or replace the current package identity with guessed Partner Center values. The current manifest uses package name `PlayniteCmdPal`, provisional publisher subject `CN=PlayniteCmdPal`, and version `0.0.3.0`. These values are not evidence of a reserved Store identity or a validated signing certificate.
+Do not follow a generic sample manifest or replace the current package identity with guessed Partner Center values. The current manifest uses package identity `werdscopez7347.PlayniteforCommandPalette`, publisher `CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70` and version `0.0.8.0`; release builds pin the Windows SDK targeting pack `Microsoft.Windows.SDK.NET.Ref 10.0.26100.84`. Package build, signing and inspection evidence comes from `scripts/release/release_tool.py`. These values are not evidence of Store certification or a validated production signing certificate.
 
 ## Before a Store submission
 

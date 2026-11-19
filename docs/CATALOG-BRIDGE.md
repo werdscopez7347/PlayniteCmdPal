@@ -74,7 +74,7 @@ The packaging script first runs a synthetic .NET Framework smoke test against th
 
 ## Validation status
 
-**Automated verification:** WERD-74 adds deterministic tests for the v1/v2 publication interleaving, initially missing v2, timestamp-kind handling, search/status composition, empty-state classification, and the combined v1/v2 .NET Framework smoke path. Run Windows CI against the final merged pull-request head before merge; earlier green runs do not validate subsequent commits.
+**Automated verification:** Deterministic tests cover for the v1/v2 publication interleaving, initially missing v2, timestamp-kind handling, search/status composition, empty-state classification, and the combined v1/v2 .NET Framework smoke path. Run Windows CI against the final merged pull-request head before merge; earlier green runs do not validate subsequent commits.
 
 **Manual Playnite verification remains:** CI does not run inside a live Playnite host or inspect a user's library. Install the updated companion plugin in the user's Playnite environment and verify that real cover/icon references are copied into the bridge-owned cache, v2 `lastActivity` is populated and the Recently played page displays relative-time badges only, with no absolute timestamp, timezone suffix, or hover tooltip, the snapshot is refreshed after game/artwork changes, missing artwork remains non-fatal, and the previous cache remains usable if publication is interrupted. Do not share or commit personal game names, IDs, or library exports.
 

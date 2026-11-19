@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param ()
 
-# Read-only diagnostic for the WERD-60 Playnite bridge. It prints paths, file names/sizes,
+# Read-only diagnostic for the Playnite bridge. It prints paths, file names/sizes,
 # add-on state, and matching logs (including exception details), but not catalog contents.
 # Review log output for personal information before sharing it.
 

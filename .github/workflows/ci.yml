@@ -33,3 +33,22 @@ jobs:
       - name: Run shared local CI checks
         shell: pwsh
         run: .\scripts\ci.ps1
+
+  release-tools:
+    name: Release tooling self-tests (cross-platform)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Run release tooling self-tests
+        run: python -m unittest discover -s scripts/release/tests -v
