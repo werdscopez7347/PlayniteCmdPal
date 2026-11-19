@@ -1352,6 +1352,23 @@ def parse_signer_subject(output):
     return match.group(1).strip() if match else None
 
 
+def normalize_subject(subject):
+    """Reduce a subject line to its common name, because signtool prints only the CN.
+
+    signtool verify reports `Issued to: B5EE8A57-...`, while the manifest Publisher is the full distinguished
+    name `CN=B5EE8A57-...`. Comparing the CN values keeps a genuinely different certificate
+    (`CN=PlayniteCmdPal`) failing while not rejecting the correct one over a prefix.
+    """
+    text = (subject or '').strip()
+    if text.lower().startswith('cn='):
+        text = text[3:]
+    return text.replace(' ', '').lower()
+
+
+def subjects_match(signer_subject, publisher):
+    return bool(normalize_subject(signer_subject)) and         normalize_subject(signer_subject) == normalize_subject(publisher)
+
+
 # --------------------------------------------------------------------------------------
 # Evidence
 # --------------------------------------------------------------------------------------
@@ -1388,26 +1405,40 @@ def acceptance_criteria(evidence_packages, signature_required):
         return not any(item['id'] in check_ids and item['status'] == FAIL
                        for item in package['inspection']['checks'])
 
+    def failing_checks(evidence_packages, check_ids):
+        """Name the checks behind a failed criterion; a static sentence cannot be acted on."""
+        failures = []
+        for package in evidence_packages:
+            for item in package['inspection']['checks']:
+                if item['id'] in check_ids and item['status'] == FAIL:
+                    failures.append('{0} ({1}): {2}'.format(item['id'], package['rid'], item['detail']))
+        return '; '.join(failures[:3]) + ('; +{0} more'.format(len(failures) - 3) if len(failures) > 3 else '')
+
+    inventory_check_ids = ('payload.required-files', 'payload.dependency-assemblies',
+                           'payload.app-assemblies', 'payload.forbidden-content',
+                           'payload.reviewed-inventory', 'inventory.reviewed-dependencies')
+    inventory_ok = bool(evidence_packages) and all(
+        no_failed_check(package, inventory_check_ids) for package in evidence_packages)
     criteria.append({
         'criterion': 'Package contents match the reviewed dependency inventory',
-        'status': PASS if (evidence_packages and all(
-            no_failed_check(package, ('payload.required-files', 'payload.dependency-assemblies',
-                                      'payload.app-assemblies', 'payload.forbidden-content',
-                                      'payload.reviewed-inventory', 'inventory.reviewed-dependencies'))
-            for package in evidence_packages)) else FAIL,
-        'detail': 'Required application and dependency assemblies are present, reviewed package-source '
-                  'hashes match, and no build-only or test-only content is packaged.',
+        'status': PASS if inventory_ok else FAIL,
+        'detail': ('Required application and dependency assemblies are present, reviewed package-source '
+                   'hashes match, and no build-only or test-only content is packaged.') if inventory_ok
+        else 'Failing checks: ' + (failing_checks(evidence_packages, inventory_check_ids) or 'no package produced'),
     })
 
+    notice_check_ids = ('payload.repo-notices', 'payload.runtime-notice')
+    notices_ok = bool(evidence_packages) and all(
+        no_failed_check(package, notice_check_ids)
+        and not any(item['id'] in notice_check_ids and item['status'] == WARN
+                    for item in package['inspection']['checks'])
+        for package in evidence_packages)
     criteria.append({
         'criterion': 'Required licenses and notices are present in each package',
-        'status': PASS if (evidence_packages and all(
-            no_failed_check(package, ('payload.repo-notices', 'payload.runtime-notice'))
-            and not any(item['id'] in ('payload.repo-notices', 'payload.runtime-notice')
-                        and item['status'] == WARN for item in package['inspection']['checks'])
-            for package in evidence_packages)) else FAIL,
-        'detail': 'LICENSE, THIRD-PARTY-NOTICES.md, Microsoft-PowerToys-LICENSE.txt and the RID-specific '
-                  '.NET runtime notices are present and match their reviewed SHA-256 values.',
+        'status': PASS if notices_ok else FAIL,
+        'detail': ('LICENSE, THIRD-PARTY-NOTICES.md, Microsoft-PowerToys-LICENSE.txt and the RID-specific '
+                   '.NET runtime notices are present and match their reviewed SHA-256 values.') if notices_ok
+        else 'Failing checks: ' + (failing_checks(evidence_packages, notice_check_ids) or 'no package produced'),
     })
 
     criteria.append({
@@ -1452,6 +1483,15 @@ def build_evidence_markdown(evidence):
         dirty_label = 'yes ({0} changed path{1})'.format(
             source.get('dirtyPathCount', 0), '' if source.get('dirtyPathCount') == 1 else 's')
     lines.append('| Working tree dirty | {0} |'.format(dirty_label))
+    signing = (evidence.get('environment') or {}).get('signing') or {}
+    if signing.get('certificateSource'):
+        lines.append('| Signing certificate source | `{0}`{1} |'.format(
+            signing.get('certificateSource'),
+            ' (inside the repository checkout)' if signing.get('certificateInsideRepository') else ''))
+    signers = sorted({package.get('signerSubject') for package in evidence.get('packages', [])
+                      if package.get('signerSubject')})
+    if signers:
+        lines.append('| Signer subject (as reported by signtool) | `{0}` |'.format('`, `'.join(signers)))
     lines.append('')
 
     environment = evidence.get('environment') or {}
@@ -1752,7 +1792,7 @@ def build_release(args, expectations):
 
         if signer_subject:
             expected_subject = package_expectation['publisher']
-            matches = signer_subject.replace(' ', '').lower() == expected_subject.replace(' ', '').lower()
+            matches = subjects_match(signer_subject, expected_subject)
             if not matches:
                 print('ERROR: the signing certificate subject is {0}, but the manifest Publisher is {1}. '
                       'A package signed with a different subject fails the identity gate. Create a test '
@@ -1799,6 +1839,9 @@ def build_release(args, expectations):
         })
         print('{0}: {1} inspection {2}'.format(
             rid, os.path.basename(package_path), inspection['summary']['status'].upper()))
+        for item in inspection['checks']:
+            if item['status'] == FAIL:
+                print('  [FAIL] {0}: {1}'.format(item['id'], item['detail']))
 
     if args.dry_run:
         print('[dry-run] No package was built. Run without --dry-run on a Windows machine with the '

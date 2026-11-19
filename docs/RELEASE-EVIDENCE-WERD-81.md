@@ -86,6 +86,18 @@ The fix is exercised on `windows-latest` by the CI job: it runs the full self-te
 SDK tool-discovery cases) through `scripts/ci.ps1` in 2m02s, so the resolution path is known to work on Windows
 before the next manual run.
 
+### The third and fourth Windows attempts (2026-11-19)
+
+| Step | Result |
+| --- | --- |
+| Signing certificate | A test certificate with the manifest Publisher as subject was created in `Cert:\CurrentUser\My` (thumbprint `018EBC36ABEB48F1550AFD658369B2C9BC9FB560`) and its public `.cer` imported into `Cert:\CurrentUser\Root`. |
+| Build | **Both packages built and signed**: `PlayniteCmdPal_0.0.8.0_x64.msix` (SHA-256 `99801D4C2AA21D3AE51F19B8C649296485D99A646E120A4B3E36EB909DA80B73`) and `PlayniteCmdPal_0.0.8.0_arm64.msix` (SHA-256 `CA159A805AC29220B2140F46F5C6F7563FD30FE6E39536F19FEE53AE02993FA7`); `signtool verify /pa /all /v` succeeded for both. |
+| Identity check | Reported FAIL although the certificate was correct: signtool prints `Issued to: B5EE8A57-…` (the common name only) while the manifest Publisher is `CN=B5EE8A57-…`, and the comparison treated the missing prefix as a different subject. Fixed by comparing common names; a genuinely different certificate still fails. |
+| Acceptance | Criteria 4, 5 and 6 passed; 1 and 2 failed only because of that identity comparison; criterion 3 failed and could not be diagnosed, because its detail text was static. The detail now names the failing check ids and messages, and `build` prints every failing check under each package verdict. |
+
+Those hashes are from a run whose evidence bundle is not authoritative (the package verdicts were wrong), and re-signing
+changes the bytes through the timestamp, so the recorded values will come from the next clean run.
+
 Inventory review flags from that run, for the licensing gate: `Microsoft.NETFramework.ReferenceAssemblies` and
 `.net462` (license URL only), `Microsoft.Windows.CsWinRT` 2.3.1 (license file in package), `Microsoft.Windows.SDK
 .BuildTools.MSIX` 1.7.261102100 (`sdk_license.txt`), and `xunit.abstractions` (test-only, license URL only).

@@ -410,7 +410,7 @@ if args[0] == 'verify':
         sys.stderr.write('SignTool Error: A certificate chain processed, but terminated in a root '
                          'certificate which is not trusted by the trust provider. (0x800B0109)\n')
         sys.exit(1)
-    print('Issued to: ' + os.environ.get('FAKE_SIGNTOOL_SUBJECT', 'CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70'))
+    print('Issued to: ' + os.environ.get('FAKE_SIGNTOOL_SUBJECT', 'B5EE8A57-B227-4726-A4E9-AF40E9D47E70'))
     print('Successfully verified')
     sys.exit(0)
 sys.stderr.write('fake signtool: unsupported arguments\n')
@@ -526,7 +526,9 @@ class BuildOrchestrationTests(unittest.TestCase):
         for package in evidence['packages']:
             self.assertTrue(package['package']['signed'])
             self.assertEqual(64, len(package['package']['sha256']))
-            self.assertEqual(EXPECTATIONS['package']['publisher'], package['signerSubject'])
+            # signtool prints the CN only, so compare through the same normalisation the gate uses.
+            self.assertTrue(release_tool.subjects_match(
+                package['signerSubject'], EXPECTATIONS['package']['publisher']))
             check_ids = {item['id']: item['status'] for item in package['inspection']['checks']}
             self.assertEqual(release_tool.PASS, check_ids['package.signature-publisher'])
 
@@ -569,6 +571,23 @@ class BuildOrchestrationTests(unittest.TestCase):
     def test_signature_verification_failure_is_reported(self):
         os.environ['FAKE_SIGNTOOL_FAIL'] = '1'
         self.assertEqual(release_tool.EXIT_ENVIRONMENT, release_tool.main(self.build_arguments()))
+
+    def test_unreviewed_payload_file_is_named_in_the_acceptance_detail(self):
+        for rid, architecture in (('win-x64', 'x64'), ('win-arm64', 'arm64')):
+            files = msix_fixture.package_files(str(REPO_ROOT), rid=rid, architecture=architecture)
+            files['mystery.dll'] = b'unreviewed payload'
+            msix_fixture.write_package(self.msix_sources / (architecture + '.msix'), files)
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            exit_code = release_tool.main(self.build_arguments())
+        self.assertEqual(release_tool.EXIT_INSPECTION_FAILED, exit_code)
+        self.assertIn('[FAIL] payload.reviewed-inventory', stdout.getvalue())
+        evidence = json.loads((self.output / 'evidence.json').read_text(encoding='utf-8'))
+        inventory_criterion = [item for item in evidence['acceptance']
+                               if 'dependency inventory' in item['criterion']][0]
+        self.assertEqual(release_tool.FAIL, inventory_criterion['status'])
+        self.assertIn('payload.reviewed-inventory', inventory_criterion['detail'])
+        self.assertIn('mystery.dll', inventory_criterion['detail'])
 
     def test_dirty_working_tree_blocks_release_evidence(self):
         subprocess.run(['git', 'init', '-q'], cwd=str(self.repo), check=True)
@@ -659,8 +678,14 @@ class BuildOrchestrationTests(unittest.TestCase):
         evidence = json.loads((self.output / 'evidence.json').read_text(encoding='utf-8'))
         self.assertEqual(release_tool.PASS, evidence['status'])
 
+    def test_subject_with_cn_prefix_also_matches(self):
+        os.environ['FAKE_SIGNTOOL_SUBJECT'] = 'CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70'
+        self.assertEqual(0, release_tool.main(self.build_arguments()))
+        evidence = json.loads((self.output / 'evidence.json').read_text(encoding='utf-8'))
+        self.assertEqual(release_tool.PASS, evidence['status'])
+
     def test_subject_mismatch_explains_the_identity_gate(self):
-        os.environ['FAKE_SIGNTOOL_SUBJECT'] = 'CN=PlayniteCmdPal'
+        os.environ['FAKE_SIGNTOOL_SUBJECT'] = 'PlayniteCmdPal'
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):
             exit_code = release_tool.main(self.build_arguments())
