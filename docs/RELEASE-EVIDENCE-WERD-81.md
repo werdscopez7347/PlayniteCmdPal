@@ -7,8 +7,8 @@ pass. Nothing was uploaded, submitted or published.**
 This record accompanies the release pipeline in [`scripts/release/`](../scripts/release/) and the process in
 [Release packaging](RELEASE-PACKAGING.md#10-release-msix-build-and-inspection-werd-81). It records what ran, on
 which commit, with which certificate, and what the resulting artifacts were. Nothing here authorizes publication:
-distribution remains gated on the licensing review in [WERD-78](LICENSING-AND-RELEASE.md) and on Store
-certification.
+the licensing audit in [Licensing and release readiness](LICENSING-AND-RELEASE.md) still has to be refreshed for the
+package versions this run used, and Store certification has not been requested.
 
 ## 1. Result
 
@@ -202,7 +202,7 @@ WERD-81 review and leave the packages out of Git.
 | `signtool verify /pa /all /v` transcript | `evidence.json` (`commands[]`) |
 | Inspection result and every check detail per architecture | `inspection/win-x64.json`, `inspection/win-arm64.json` |
 | Per-file payload hashes and the extracted manifests | `evidence.json` (`packages[].inspection.payload.files`), `manifests/*.xml` |
-| Regenerated dependency-inventory SHA-256 | `Get-FileHash artifacts\dependency-inventory.json -Algorithm SHA256`; used by the WERD-78 licensing review |
+| Regenerated dependency-inventory SHA-256 | `Get-FileHash artifacts\dependency-inventory.json -Algorithm SHA256`; the value the licensing audit should record for these package versions |
 
 ## 5. Why the earlier ARM64 artifact is not reused
 
@@ -235,14 +235,13 @@ does not claim Store certification or a trusted production certificate.
    `-p:UapAppxPackageBuildMode=SideloadOnly`, `-p:AppxBundle=Never` and `-p:AppxPackageDir=...` produced both
    packages on the first attempt, so the documented single-project MSIX pattern holds for this project. Keep the
    commands in `evidence.json` as the reference if the project's packaging targets change.
-2. **Licensing review is still open (WERD-78).** The dependency inventory was regenerated for this run and
-   `inspect --inventory` compared its versions and shipped classifications against the reviewed expectations, but
-   the audit tables in [Licensing and release readiness](LICENSING-AND-RELEASE.md) still carry five flagged
-   packages: `Microsoft.NETFramework.ReferenceAssemblies` and `.net462` (license URL only),
-   `Microsoft.Windows.CsWinRT` 2.3.1 (license file inside the package),
-   `Microsoft.Windows.SDK.BuildTools.MSIX` 1.7.261102100 (`sdk_license.txt`) and `xunit.abstractions` (test-only,
-   license URL only). Record the inventory SHA-256
-   (`Get-FileHash artifacts\dependency-inventory.json -Algorithm SHA256`) with the assessment.
+2. **Licensing evidence predates the package bumps.** WERD-78 completed the inventory and runtime-notice work on
+   2026-11-05, but that run recorded `Microsoft.Windows.CsWinRT` 2.2.0 and
+   `Microsoft.Windows.SDK.BuildTools.MSIX` 1.7.20250829.1. PR #41 moved them to 2.3.1 and 1.7.261102100, which is
+   what these packages ship, and [Licensing and release readiness](LICENSING-AND-RELEASE.md) carries a 2026-11-17
+   currentness note saying so. This run regenerated the inventory and `inspect --inventory` passed against it, but
+   the audit table itself still describes the older graph. Refresh that table — and record the inventory SHA-256
+   with it — before any public distribution. No open tracker item covers this yet.
 3. **Runtime-notice hash is pinned.** The expected `.NET` runtime notice SHA-256
    (`6D15E10A101C6BFFF2AB4429ED061BF76C456FC4B23AD6B03E0D0F8377148A21`) matched on both RIDs. A different .NET
    runtime patch changes the notice file; the run fails with the observed hash so the reviewer can confirm and

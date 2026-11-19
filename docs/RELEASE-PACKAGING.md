@@ -290,8 +290,10 @@ both architecture packages, both were signed with the test certificate and chain
 `signtool verify /pa /all /v`, and both passed strict package inspection: all six WERD-81 acceptance criteria pass.
 The hashes, the certificate thumbprint and the command sequence are recorded in
 [WERD-81 release evidence](RELEASE-EVIDENCE-WERD-81.md), with the full bundle in `artifacts\release\0.0.8.0` on the
-build machine. Package publication stays out of scope: distribution is still gated on the licensing review
-(WERD-78), on the remaining go/no-go items above, and on Store certification.
+build machine. Package publication stays out of scope: distribution is still gated on refreshing the licensing
+audit for the package versions this build uses (see the currentness note in
+[Licensing and release readiness](LICENSING-AND-RELEASE.md#dependency-and-redistribution-audit)), on the remaining
+go/no-go items above, and on Store certification.
 
 ## Official references
 
