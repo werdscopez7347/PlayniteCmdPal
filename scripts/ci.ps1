@@ -53,18 +53,32 @@ function Invoke-PythonStep {
     Write-Host "==> $Name"
     Write-Host ('python ' + ($Arguments -join ' '))
 
-    & python @Arguments
+    # Keep the output so a failure can be surfaced as a workflow annotation: the log is not always
+    # reachable, but annotations are, and a bare exit code says nothing about which check failed.
+    $logPath = Join-Path ([System.IO.Path]::GetTempPath()) ('playnitecmdpal-ci-{0}.log' -f [System.Guid]::NewGuid())
+    & python @Arguments 2>&1 | Tee-Object -FilePath $logPath
     $exitCode = $LASTEXITCODE
     if ($exitCode -ne 0) {
         [Console]::Error.WriteLine("ERROR: $Name failed with exit code $exitCode.")
+        $tail = Get-Content -LiteralPath $logPath -Tail 40 -ErrorAction SilentlyContinue |
+            Where-Object { $_ -and $_.ToString().Trim().Length -gt 0 } |
+            Select-Object -First 8
+        foreach ($line in $tail) {
+            Write-Host ('::error::' + $line.ToString().Trim())
+        }
+        Remove-Item -LiteralPath $logPath -Force -ErrorAction SilentlyContinue
         exit $exitCode
     }
+    Remove-Item -LiteralPath $logPath -Force -ErrorAction SilentlyContinue
 }
 
 if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
     [Console]::Error.WriteLine('ERROR: Python 3.9 or later is required for the release-tooling self-tests. Install Python and ensure python is on PATH.')
     exit 127
 }
+
+Write-Host ''
+Write-Host ('==> Python: ' + (python --version 2>&1) + ' (' + (Get-Command python).Source + ')')
 
 Invoke-PythonStep -Name 'Release tooling self-tests (scripts/release/tests)' -Arguments @(
     '-m', 'unittest', 'discover', '-s', (Join-Path $repoRoot 'scripts/release/tests'))
