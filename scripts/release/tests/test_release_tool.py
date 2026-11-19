@@ -428,8 +428,9 @@ def write_executable(path, content):
     return path
 
 
-@unittest.skipIf(os.name == 'nt', 'stub executables are POSIX shell/python scripts')
 class ToolResolutionTests(unittest.TestCase):
+    """Tool discovery is pure path logic, so it runs on every platform."""
+
     def test_signtool_is_discovered_in_the_windows_sdk_without_path(self):
         with tempfile.TemporaryDirectory() as temp:
             bin_root = Path(temp) / 'Windows Kits' / '10' / 'bin'
@@ -448,6 +449,7 @@ class ToolResolutionTests(unittest.TestCase):
         self.assertEqual('missing-tool.exe', release_tool.resolve_tool('missing-tool.exe', env={'PATH': ''}))
 
 
+@unittest.skipIf(os.name == 'nt', 'stub executables are POSIX shell/python scripts')
 class BuildOrchestrationTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
