@@ -60,9 +60,10 @@ function Invoke-PythonStep {
     $exitCode = $LASTEXITCODE
     if ($exitCode -ne 0) {
         [Console]::Error.WriteLine("ERROR: $Name failed with exit code $exitCode.")
-        $tail = Get-Content -LiteralPath $logPath -Tail 40 -ErrorAction SilentlyContinue |
+        # Annotate the lines just before the failure, not the first lines of the captured window.
+        $tail = Get-Content -LiteralPath $logPath -Tail 60 -ErrorAction SilentlyContinue |
             Where-Object { $_ -and $_.ToString().Trim().Length -gt 0 } |
-            Select-Object -First 8
+            Select-Object -Last 8
         foreach ($line in $tail) {
             Write-Host ('::error::' + $line.ToString().Trim())
         }
