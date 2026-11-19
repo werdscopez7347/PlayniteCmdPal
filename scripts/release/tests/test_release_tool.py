@@ -9,7 +9,9 @@ platform. Build-orchestration tests use stub dotnet/signtool executables and are
 skipped on Windows because the stubs are POSIX shell scripts.
 """
 
+import contextlib
 import copy
+import io
 import json
 import os
 import shutil
@@ -82,6 +84,14 @@ class PreflightTests(unittest.TestCase):
         checks = release_tool.preflight(str(REPO_ROOT), EXPECTATIONS)
         self.assertEqual([], failing_ids(checks),
                          msg='\n'.join(release_tool.format_checks(checks)))
+
+    def test_every_preflight_check_is_printed_once(self):
+        checks = release_tool.preflight(str(REPO_ROOT), EXPECTATIONS)
+        identifiers = [item['id'] for item in checks]
+        self.assertEqual(len(identifiers), len(set(identifiers)),
+                         msg='duplicate check ids: {0}'.format(
+                             sorted({name for name in identifiers if identifiers.count(name) > 1})))
+        self.assertEqual(len(checks), len(release_tool.format_checks(checks)))
 
     def test_manifest_version_drift_is_detected(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -534,10 +544,50 @@ class BuildOrchestrationTests(unittest.TestCase):
                         '-c', 'user.name=Release Tool Self-Test', 'commit', '-q', '-m', 'fixture'],
                        cwd=str(self.repo), check=True)
         (self.repo / 'README-dirty.md').write_text('uncommitted change', encoding='utf-8')
-        self.assertEqual(release_tool.EXIT_INSPECTION_FAILED, release_tool.main(self.build_arguments()))
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            exit_code = release_tool.main(self.build_arguments())
+        self.assertEqual(release_tool.EXIT_INSPECTION_FAILED, exit_code)
+        # The operator has to be told *which* files block the run, not just that something does.
+        self.assertIn('README-dirty.md', stderr.getvalue())
         self.assertEqual(0, release_tool.main(self.build_arguments(['--allow-dirty'])))
         evidence = json.loads((self.output / 'evidence.json').read_text(encoding='utf-8'))
-        self.assertTrue(evidence['environment']['source']['dirty'])
+        source = evidence['environment']['source']
+        self.assertTrue(source['dirty'])
+        self.assertEqual(1, source['dirtyPathCount'])
+        self.assertTrue(any('README-dirty.md' in entry for entry in source['dirtyPaths']))
+        markdown = (self.output / 'evidence.md').read_text(encoding='utf-8')
+        self.assertIn('| Working tree dirty | yes (1 changed path) |', markdown)
+
+    def test_dry_run_does_not_require_the_inventory_or_certificate(self):
+        arguments = self.build_arguments(['--dry-run', '--inventory', str(self.root / 'missing-inventory.json')])
+        index = arguments.index('--certificate-thumbprint')
+        del arguments[index:index + 2]
+        arguments.extend(['--certificate-pfx', str(self.root / 'missing.pfx')])
+        self.assertEqual(0, release_tool.main(arguments))
+        self.assertFalse(self.output.exists())
+
+    def test_missing_inventory_fails_before_any_package_is_built(self):
+        arguments = self.build_arguments(['--inventory', str(self.root / 'missing-inventory.json')])
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            exit_code = release_tool.main(arguments)
+        self.assertEqual(release_tool.EXIT_ENVIRONMENT, exit_code)
+        self.assertIn('dependency inventory', stderr.getvalue())
+        self.assertIn('New-DependencyInventory.ps1', stderr.getvalue())
+        self.assertFalse(self.output.exists())
+
+    def test_missing_certificate_file_fails_before_any_package_is_built(self):
+        arguments = self.build_arguments()
+        index = arguments.index('--certificate-thumbprint')
+        del arguments[index:index + 2]
+        arguments.extend(['--certificate-pfx', str(self.root / 'missing.pfx')])
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            exit_code = release_tool.main(arguments)
+        self.assertEqual(release_tool.EXIT_ENVIRONMENT, exit_code)
+        self.assertIn('signing certificate', stderr.getvalue())
+        self.assertFalse(self.output.exists())
 
     def test_forced_preflight_failure_never_records_a_pass(self):
         expectations = fixture_expectations()

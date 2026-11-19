@@ -17,7 +17,9 @@
 
     Run this from a Windows machine with the .NET 10 SDK and network access to nuget.org:
 
-        pwsh -File scripts/licensing/New-DependencyInventory.ps1
+        powershell -File scripts/licensing/New-DependencyInventory.ps1
+
+    Windows PowerShell 5.1 (powershell.exe) is the supported host; pwsh 7 also works.
 
     Restore the solution first (this script restores by default). Add -FailOnReview to
     make the run fail (exit code 3) when any resolved package has a missing, ambiguous,

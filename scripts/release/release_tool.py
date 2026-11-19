@@ -1171,6 +1171,14 @@ def git_value(repo_root, *arguments):
     return record['stdoutTail'].strip() if record['exitCode'] == 0 else None
 
 
+def git_status_entries(repo_root):
+    """Return the porcelain status entries of a checkout, [] when Git cannot answer."""
+    record = run_command(['git', 'status', '--porcelain', '--untracked-files=normal'], cwd=repo_root)
+    if record['exitCode'] != 0:
+        return []
+    return [line.rstrip() for line in (record['stdoutTail'] or '').splitlines() if line.strip()]
+
+
 def collect_environment(repo_root, dotnet, signtool, makeappx):
     environment = {
         'recordedAtUtc': utc_now(),
@@ -1203,11 +1211,14 @@ def collect_environment(repo_root, dotnet, signtool, makeappx):
                 version_line = line.strip()
                 break
         environment[label] = {'path': executable, 'versionLine': version_line, 'exitCode': record['exitCode']}
+    status_entries = git_status_entries(repo_root)
     environment['source'] = {
         'commit': git_value(repo_root, 'rev-parse', 'HEAD'),
         'branch': git_value(repo_root, 'rev-parse', '--abbrev-ref', 'HEAD'),
         'describe': git_value(repo_root, 'describe', '--tags', '--always', '--dirty'),
-        'dirty': bool(git_value(repo_root, 'status', '--porcelain')),
+        'dirty': bool(status_entries),
+        'dirtyPathCount': len(status_entries),
+        'dirtyPaths': status_entries[:50],
     }
     return environment
 
@@ -1366,7 +1377,11 @@ def build_evidence_markdown(evidence):
     lines.append('| Commit | `{0}` |'.format(source.get('commit')))
     lines.append('| Branch | `{0}` |'.format(source.get('branch')))
     lines.append('| Describe | `{0}` |'.format(source.get('describe')))
-    lines.append('| Working tree dirty | {0} |'.format('yes' if source.get('dirty') else 'no'))
+    dirty_label = 'no'
+    if source.get('dirty'):
+        dirty_label = 'yes ({0} changed path{1})'.format(
+            source.get('dirtyPathCount', 0), '' if source.get('dirtyPathCount') == 1 else 's')
+    lines.append('| Working tree dirty | {0} |'.format(dirty_label))
     lines.append('')
 
     environment = evidence.get('environment') or {}
@@ -1481,11 +1496,33 @@ def build_release(args, expectations):
     if args.certificate_pfx and not os.path.isabs(args.certificate_pfx):
         args.certificate_pfx = os.path.abspath(args.certificate_pfx)
 
+    # Fail before the two publishes rather than after: a missing inventory or signing key would otherwise
+    # surface only when the packages are inspected or signed. A dry run only prints the plan, so it stays
+    # exempt.
+    if not args.dry_run and args.inventory and not os.path.isfile(args.inventory):
+        print('ERROR: the dependency inventory {0} does not exist. Generate it with '
+              '"powershell -File scripts/licensing/New-DependencyInventory.ps1 -Configuration Release" '
+              '(run dotnet restore first) and pass it as --inventory.'.format(args.inventory), file=sys.stderr)
+        return EXIT_ENVIRONMENT
+    if not args.dry_run and args.certificate_pfx and not os.path.isfile(args.certificate_pfx):
+        print('ERROR: the signing certificate {0} does not exist. Pass the path to an existing .pfx file or '
+              'use --certificate-thumbprint.'.format(args.certificate_pfx), file=sys.stderr)
+        return EXIT_ENVIRONMENT
+
     environment = collect_environment(repo_root, args.dotnet, args.signtool, args.makeappx)
     source = environment.get('source') or {}
     if source.get('dirty') and not args.allow_dirty:
+        dirty = source.get('dirtyPaths') or []
         print('ERROR: the working tree has uncommitted changes; release evidence must come from a committed '
-              'revision. Commit the checkout, or pass --allow-dirty for a diagnostic run.', file=sys.stderr)
+              'revision. Commit or stash the changes below, or pass --allow-dirty for a diagnostic run.',
+              file=sys.stderr)
+        for entry in dirty[:10]:
+            print('  {0}'.format(entry), file=sys.stderr)
+        if len(dirty) > 10:
+            print('  ... and {0} more (git status --short lists them all).'.format(len(dirty) - 10),
+                  file=sys.stderr)
+        print('  Untracked build output is normally ignored; commit the remainder so the evidence names an '
+              'exact revision.', file=sys.stderr)
         return EXIT_INSPECTION_FAILED
     if not source.get('commit'):
         print('WARNING: the source commit could not be recorded (not a Git checkout); the evidence bundle will '

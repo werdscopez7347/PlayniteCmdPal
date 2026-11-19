@@ -36,6 +36,21 @@ about.
 Test-only fixtures are synthetic ZIP archives. They prove the checks work; they are not evidence about the
 product's own package.
 
+### The first Windows attempt (2026-11-17)
+
+The first run of the sequence in section 4 happened on the supported Windows build machine and stopped at the
+first step, so it produced no package. Recorded because it is real evidence about the tooling:
+
+| Step | Command | Observed result |
+| --- | --- | --- |
+| Restore | `dotnet restore .\PlayniteCmdPal.sln` | `Restore complete (5.0s)`, `Build succeeded in 5.5s`. |
+| Inventory | `pwsh -File scripts/licensing/New-DependencyInventory.ps1 -Configuration Release` | **Failed:** `pwsh` is not installed on that machine (`CommandNotFoundException`). No inventory was written, so the `--inventory` gate could not pass. The documented command is now `powershell -File ...` (Windows PowerShell 5.1), which is the host the generator was validated on. |
+| Preflight | `python scripts/release/release_tool.py preflight` | **PASS (33 checks)** against the real checkout: identity, `0.0.8.0`, `10.0.26100.84` pin, both publish profiles, notice copies, runtime-notice hashes and expectation coverage all agree. |
+| Build | `python scripts/release/release_tool.py build --inventory artifacts/dependency-inventory.json --certificate-pfx C:\secure\PlayniteCmdPal-test-signing.pfx` | **Refused:** the working tree had uncommitted changes, so no publish ran and no evidence bundle was written. The revision in use did not say which paths were dirty; `build` now prints them (at most ten, then a count) and records them in `environment.source.dirtyPaths`. |
+
+Nothing above is a substitute for the package run: the two MSIX files, the signatures and the inspection results
+are still missing.
+
 ## 3. Acceptance criteria
 
 | Criterion | Status | Evidence |
@@ -49,17 +64,22 @@ product's own package.
 
 ## 4. Completing the record on Windows
 
-Run from a clean checkout of the merge commit on the supported Windows build machine:
+Run from a clean checkout of the merge commit on the supported Windows build machine. `git status --short` must
+print nothing: `build` refuses an uncommitted revision, because evidence that cannot be tied to a commit is not
+reproducible.
 
 ```powershell
 dotnet restore .\PlayniteCmdPal.sln
-pwsh -File scripts/licensing/New-DependencyInventory.ps1 -Configuration Release
+powershell -File scripts\licensing\New-DependencyInventory.ps1 -Configuration Release
 python scripts/release/release_tool.py preflight
 $env:PLAYNITECMDPAL_MSIX_PFX_PASSWORD = '<pfx password>'
 python scripts/release/release_tool.py build `
     --inventory artifacts/dependency-inventory.json `
     --certificate-pfx C:\secure\PlayniteCmdPal-test-signing.pfx
 ```
+
+`build` validates the inventory and certificate paths before it starts publishing, so a missing file fails in
+seconds rather than after two MSIX builds.
 
 The run must exit `0`. Then copy the values below from `artifacts/release/0.0.8.0/evidence.md` and
 `evidence.json`, attach the bundle to the WERD-81 review, and leave the packages out of Git.

@@ -183,6 +183,11 @@ extension. It never uploads or publishes anything; it writes a self-contained ev
 - Windows 11 with the .NET 10 SDK, MSBuild, the Windows SDK build tools (`signtool.exe`, `makeappx.exe`) and the
   Visual Studio MSIX/WinUI components required by the project.
 - Python 3.9 or later on `PATH` (`python --version`).
+- A clean working tree: `build` refuses to record evidence for an uncommitted revision and prints the changed
+  paths. Commit or stash them first; `--allow-dirty` records a diagnostic run whose evidence names no usable
+  revision.
+- An existing dependency inventory and signing certificate. `build` checks both paths before it publishes
+  anything, so a missing file fails in seconds instead of after two MSIX builds.
 - A NuGet restore of the solution (the tool compares shipped dependency assemblies byte-for-byte with the
   restored packages in `%USERPROFILE%\.nuget\packages`).
 - A signing certificate whose subject matches the manifest Publisher, or the Partner Center Store submission
@@ -194,7 +199,7 @@ extension. It never uploads or publishes anything; it writes a self-contained ev
 ```powershell
 # 1. Restore, then regenerate the reviewed dependency inventory (WERD-78).
 dotnet restore .\PlayniteCmdPal.sln
-pwsh -File scripts/licensing/New-DependencyInventory.ps1 -Configuration Release
+powershell -File scripts\licensing\New-DependencyInventory.ps1 -Configuration Release
 
 # 2. Check that repository declarations match the reviewed expectations.
 python scripts/release/release_tool.py preflight
@@ -205,6 +210,10 @@ python scripts/release/release_tool.py build `
     --inventory artifacts/dependency-inventory.json `
     --certificate-pfx C:\secure\PlayniteCmdPal-test-signing.pfx
 ```
+
+`Windows PowerShell 5.1` (`powershell.exe`) is present on every supported Windows build machine and is what the
+inventory generator targets; substitute `pwsh -File ...` only when PowerShell 7 is installed. The inventory
+generator has been run successfully under 5.1 (see [Licensing and release](LICENSING-AND-RELEASE.md)).
 
 The `build` command runs `dotnet publish` with `-p:GenerateAppxPackageOnBuild=true`,
 `-p:UapAppxPackageBuildMode=SideloadOnly` and `-p:AppxBundle=Never` for `win-x64` and `win-arm64`, then signs each
