@@ -14,10 +14,10 @@ Observed from checked-in project files:
 - Runtime identifiers: `win-x64;win-arm64`.
 - Build platforms: `x64;ARM64`.
 - Central package management is enabled.
-- `Microsoft.CommandPalette.Extensions` 0.9.260303001.
-- `Microsoft.Windows.CsWinRT` 2.2.0.
-- `Shmuelie.WinRTServer` 2.1.1.
-- `Microsoft.Windows.SDK.BuildTools.MSIX` 1.7.20250829.1.
+- `Microsoft.CommandPalette.Extensions` 0.12.260812002.
+- `Microsoft.Windows.CsWinRT` 2.3.1.
+- `Shmuelie.WinRTServer` 2.2.1.
+- `Microsoft.Windows.SDK.BuildTools.MSIX` 1.7.261102100.
 - Additional versions are pinned in `Directory.Packages.props`.
 
 Sources: [project](../PlayniteCmdPal/PlayniteCmdPal.csproj), [package versions](../Directory.Packages.props), [shared build properties](../Directory.Build.props). These values describe the checked-in template; local restore/build/deployment validation is recorded below.

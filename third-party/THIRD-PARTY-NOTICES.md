@@ -33,9 +33,9 @@ copyright line is reproduced with the license text below it.
 
 | Component | Version | Copyright line | Source |
 | --- | --- | --- | --- |
-| Microsoft.CommandPalette.Extensions (Command Palette Extension SDK) | 0.9.260303001 | Copyright (c) Microsoft Corporation. | <https://www.nuget.org/packages/Microsoft.CommandPalette.Extensions/0.9.260303001/license> |
-| Microsoft.Windows.CsWinRT | 2.2.0 | Copyright (c) Microsoft Corporation. | <https://www.nuget.org/packages/Microsoft.Windows.CsWinRT/2.2.0/license> |
-| Shmuelie.WinRTServer | 2.1.1 | Copyright (c) 2022 Shmueli Englard | <https://www.nuget.org/packages/Shmuelie.WinRTServer/2.1.1/license> |
+| Microsoft.CommandPalette.Extensions (Command Palette Extension SDK) | 0.12.260812002 | Copyright (c) Microsoft Corporation. | <https://www.nuget.org/packages/Microsoft.CommandPalette.Extensions/0.12.260812002/license> |
+| Microsoft.Windows.CsWinRT | 2.3.1 | Copyright (c) Microsoft Corporation. | <https://www.nuget.org/packages/Microsoft.Windows.CsWinRT/2.3.1/license> |
+| Shmuelie.WinRTServer | 2.2.1 | Copyright (c) 2022 Shmueli Englard | <https://www.nuget.org/packages/Shmuelie.WinRTServer/2.2.1/license> |
 | Microsoft PowerToys template material (generated project files) | n/a | Copyright (c) Microsoft Corporation. All rights reserved. | [`Microsoft-PowerToys-LICENSE.txt`](Microsoft-PowerToys-LICENSE.txt) |
 
 ```text
@@ -67,14 +67,17 @@ headers and the PowerToys copyright notice. Do not remove those headers.
 
 `Microsoft.Windows.SDK.NET.Ref` 10.0.26100.84 is the selected Windows SDK targeting-pack package for the `net10.0-windows10.0.26100.0` extension. NuGet identifies it as a stable package with `lib/net8.0` assets compatible with the application's .NET 10 target. Package SHA-256: `2EFF36ACCB9D76466D36E27E7199D375C662818D2C1376E65125D48BA4BD1C96`. The archive contains five `lib/net8.0` files, 91 WinMD files, one analyzer and two data files. NuGet signature verification succeeded on Windows with `dotnet nuget verify --all` (exit code 0). The package is licensed under the Microsoft Windows SDK licence, not MIT; NuGet links to `https://aka.ms/WinSDKLicenseURL`.
 
-The two SDK-derived files present in both x64 and ARM64 MSIX payloads are byte-identical to their package-source files:
+The Windows SDK projection file present in both x64 and ARM64 MSIX payloads is byte-identical to its package-source file:
 
 | File | Version | Size | SHA-256 (package source and both MSIX architectures) |
 | --- | --- | ---: | --- |
 | `Microsoft.Windows.SDK.NET.dll` | 10.0.26100.82 | 27,196,448 bytes | `CFF6F50D9E25D5C8148EE47C0860B1E13D5826448C52C6FE677577D051C5A48F` |
-| `WinRT.Runtime.dll` | 2.2.0.48161 | 528,944 bytes | `BCF3A14E8712A90837FC5C0D8C8A24696AF2BD7F74E9767597EC81EDEDFB23DB` |
 
-The project sets `PublishTrimmed=false` and `PublishReadyToRun=false` for both x64 and ARM64 release profiles. This preserves the SDK projection DLLs unmodified, as required by the REDIST permission. The package's other Windows SDK assets (including XAML projection, WinMD, analyzer and data files) are not present in the MSIX. The Command Palette SDK WinMD is supplied by a separate package.
+`WinRT.Runtime.dll` ships from the separate `Microsoft.Windows.CsWinRT` 2.3.1 package. Each release
+inspection compares it byte-for-byte with its restored package source and records the observed size and
+SHA-256 in the release evidence bundle described in `docs/RELEASE-PACKAGING.md`.
+
+The project sets `PublishTrimmed=false` and `PublishReadyToRun=false` for both x64 and ARM64 release profiles. This preserves the SDK projection DLL unmodified, as required by the REDIST permission. The package's other Windows SDK assets (including XAML projection, WinMD, analyzer and data files) are not present in the MSIX. The Command Palette SDK WinMD is supplied by a separate package.
 
 Microsoft's official [Windows SDK REDIST.TXT](https://learn.microsoft.com/en-us/legal/windows-sdk/redist) has a dedicated `Microsoft.Windows.SDK.NET.Ref` entry. It lists the relevant `lib/net8.0` files, including `Microsoft.Windows.SDK.NET.dll` and `WinRT.Runtime.dll`, for unmodified redistribution as a NuGet package or as part of a WinRT-enabled program. The selected package path and the exact files shipped by this project align with those listed assets. Individual written Microsoft confirmation is not treated as an engineering prerequisite for this path. This is not a legal opinion or a guarantee that every distribution channel meets all separate conditions.
 
@@ -127,29 +130,23 @@ published artifact:
 
 | Component | Version | License |
 | --- | --- | --- |
-| Microsoft.NET.Test.Sdk | 17.13.0 | MIT |
-| Microsoft.TestPlatform.TestHost | 17.13.0 | MIT |
-| Microsoft.TestPlatform.ObjectModel | 17.13.0 | MIT |
-| Microsoft.CodeCoverage | 17.13.0 | MIT |
+| Microsoft.NET.Test.Sdk | 18.12.0 | MIT |
+| Microsoft.TestPlatform.TestHost | 18.12.0 | MIT |
+| Microsoft.TestPlatform.ObjectModel | 18.12.0 | MIT |
+| Microsoft.CodeCoverage | 18.12.0 | MIT |
 | xunit, xunit.core, xunit.assert, xunit.extensibility.core, xunit.extensibility.execution | 2.9.3 | Apache-2.0 |
 | xunit.analyzers | 1.18.0 | Apache-2.0 |
 | xunit.abstractions | 2.0.3 | Apache-2.0 |
-| xunit.runner.visualstudio | 3.0.1 | Apache-2.0 |
+| xunit.runner.visualstudio | 4.0.1 | Apache-2.0 |
 | Newtonsoft.Json (transitive, test host) | >= 13.0.1 | MIT |
 | System.Reflection.Metadata (transitive, test platform) | >= 1.6.0 | MIT |
 | NETStandard.Library (transitive, legacy `netstandard1.x` groups only) | 1.6.1 | MIT |
 | Microsoft.NETFramework.ReferenceAssemblies (including `.net462`) | 1.0.3 | MIT |
-| Microsoft.Windows.SDK.BuildTools.MSIX | 1.7.20250829.1 | Microsoft SDK license terms (`sdk_license.txt`) |
+| Microsoft.Windows.SDK.BuildTools.MSIX | 1.7.261102100 | Microsoft SDK license terms (`sdk_license.txt`) |
 
 The Apache-2.0 components do not require notices in a binary that does not contain
 them; no Apache-2.0 code is redistributed here. If a test project is ever published as
 an artifact, add the Apache-2.0 license text and any upstream `NOTICE` content.
-
-`Directory.Packages.props` also declares central versions for
-`Microsoft.CodeAnalysis.NetAnalyzers`, `Microsoft.Web.WebView2`, `Microsoft.Windows.CsWin32`,
-`Microsoft.Windows.SDK.BuildTools`, `Microsoft.WindowsAppSDK` and `StyleCop.Analyzers`.
-No project references them, so they are not restored and not distributed. See the audit
-open items for the recommendation to remove or justify them.
 
 ## Trademarks and artwork
 
