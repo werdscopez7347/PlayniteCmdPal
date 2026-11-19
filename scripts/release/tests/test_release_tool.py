@@ -410,7 +410,7 @@ if args[0] == 'verify':
         sys.stderr.write('SignTool Error: A certificate chain processed, but terminated in a root '
                          'certificate which is not trusted by the trust provider. (0x800B0109)\n')
         sys.exit(1)
-    print('Issued to: CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70')
+    print('Issued to: ' + os.environ.get('FAKE_SIGNTOOL_SUBJECT', 'CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70'))
     print('Successfully verified')
     sys.exit(0)
 sys.stderr.write('fake signtool: unsupported arguments\n')
@@ -488,6 +488,7 @@ class BuildOrchestrationTests(unittest.TestCase):
         os.environ.pop('FAKE_SDK_VERSION', None)
         os.environ.pop('FAKE_SIGNTOOL_UNTRUSTED', None)
         os.environ.pop('FAKE_SIGNTOOL_BAD_PASSWORD', None)
+        os.environ.pop('FAKE_SIGNTOOL_SUBJECT', None)
         self.temp.cleanup()
 
     def build_arguments(self, extra=None):
@@ -500,7 +501,7 @@ class BuildOrchestrationTests(unittest.TestCase):
             '--signtool', str(self.fake_signtool),
             '--makeappx', str(self.fake_makeappx),
             '--nuget-packages', str(self.nuget),
-            '--certificate-thumbprint', 'B5EE8A57B2274726A4E9AF40E9D47E70',
+            '--certificate-thumbprint', 'B5EE8A57B2274726A4E9AF40E9D47E70A1B2C3D4',
         ]
         arguments.extend(extra or [])
         return arguments
@@ -638,6 +639,35 @@ class BuildOrchestrationTests(unittest.TestCase):
         self.assertEqual(release_tool.EXIT_ENVIRONMENT, exit_code)
         self.assertIn('Import-Certificate', stderr.getvalue())
         self.assertIn('CurrentUser', stderr.getvalue())
+
+    def test_malformed_thumbprint_is_rejected_before_building(self):
+        arguments = self.build_arguments()
+        index = arguments.index('--certificate-thumbprint')
+        arguments[index + 1] = '<thumbprint>'
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            exit_code = release_tool.main(arguments)
+        self.assertEqual(release_tool.EXIT_USAGE, exit_code)
+        self.assertIn('40 hexadecimal characters', stderr.getvalue())
+        self.assertFalse(self.output.exists())
+
+    def test_thumbprint_spacing_is_normalised(self):
+        arguments = self.build_arguments()
+        index = arguments.index('--certificate-thumbprint')
+        arguments[index + 1] = 'b5ee 8a57 b227 4726 a4e9 af40 e9d4 7e70 a1b2 c3d4'
+        self.assertEqual(0, release_tool.main(arguments))
+        evidence = json.loads((self.output / 'evidence.json').read_text(encoding='utf-8'))
+        self.assertEqual(release_tool.PASS, evidence['status'])
+
+    def test_subject_mismatch_explains_the_identity_gate(self):
+        os.environ['FAKE_SIGNTOOL_SUBJECT'] = 'CN=PlayniteCmdPal'
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            exit_code = release_tool.main(self.build_arguments())
+        self.assertEqual(release_tool.EXIT_INSPECTION_FAILED, exit_code)
+        self.assertIn('manifest Publisher is CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70', stderr.getvalue())
+        evidence = json.loads((self.output / 'evidence.json').read_text(encoding='utf-8'))
+        self.assertEqual(release_tool.FAIL, evidence['status'])
 
     def test_wrong_pfx_password_points_at_the_variable_and_the_thumbprint(self):
         os.environ['FAKE_SIGNTOOL_BAD_PASSWORD'] = '1'

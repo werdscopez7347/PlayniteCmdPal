@@ -266,6 +266,8 @@ and a pass/fail table for each WERD-81 acceptance criterion.
 | `0x800B0109`, "not trusted by the trust provider" | The self-signed test certificate is not trusted by the machine | `Import-Certificate -FilePath <file.cer> -CertStoreLocation Cert:\CurrentUser\Root` (public certificate only) |
 | `SignTool Error: The specified PFX password is not correct` | The PFX is password-protected and the variable is unset or wrong | Set `PLAYNITECMDPAL_MSIX_PFX_PASSWORD`, or sign with `--certificate-thumbprint` from a certificate in `Cert:\CurrentUser\My`; if the password is lost, regenerate the test certificate — see [MSIX signing](MSIX-SIGNING.md#7-if-the-test-pfx-password-is-unknown) |
 | `signing certificate ... does not exist` | The PFX path is wrong or the file is outside the machine | Point `--certificate-pfx` at the real file, or use `--certificate-thumbprint` |
+| `--certificate-thumbprint must be the 40 hexadecimal characters ...` | A placeholder or truncated thumbprint was passed | Copy the value from `Get-ChildItem Cert:\CurrentUser\My \| Select-Object Subject, Thumbprint` |
+| `the signing certificate subject is CN=..., but the manifest Publisher is ...` | The certificate is a development certificate, not the package identity | Create a test certificate with the Publisher as subject (see [MSIX signing](MSIX-SIGNING.md#6-signing-a-package-when-the-pfx-password-is-unknown)) |
 
 ### Current status
 

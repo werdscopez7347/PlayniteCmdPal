@@ -1307,6 +1307,16 @@ def evaluate_msbuild_properties(dotnet, project, properties, log=None, cwd=None)
 # Signing helpers
 # --------------------------------------------------------------------------------------
 
+def normalize_thumbprint(value):
+    """Strip the grouping PowerShell and certutil add, and upper-case the digest."""
+    return (value or '').replace(' ', '').replace(':', '').strip().upper()
+
+
+def is_thumbprint(value):
+    normalized = normalize_thumbprint(value)
+    return len(normalized) == 40 and all(character in '0123456789ABCDEF' for character in normalized)
+
+
 def signing_arguments(args):
     if args.certificate_pfx:
         password = os.environ.get(args.certificate_password_env, '') if args.certificate_password_env else ''
@@ -1569,6 +1579,20 @@ def build_release(args, expectations):
               'use --certificate-thumbprint.'.format(args.certificate_pfx), file=sys.stderr)
         return EXIT_ENVIRONMENT
 
+    if args.certificate_thumbprint:
+        if not is_thumbprint(args.certificate_thumbprint):
+            print('ERROR: --certificate-thumbprint must be the 40 hexadecimal characters of a SHA-1 certificate '
+                  'thumbprint; list them with "Get-ChildItem Cert:\\CurrentUser\\My | Select-Object Subject, '
+                  'Thumbprint". Got {0!r}.'.format(args.certificate_thumbprint), file=sys.stderr)
+            return EXIT_USAGE
+        args.certificate_thumbprint = normalize_thumbprint(args.certificate_thumbprint)
+
+    if args.certificate_pfx:
+        print('Signing with PFX: {0}'.format(args.certificate_pfx))
+    elif args.certificate_thumbprint:
+        print('Signing with the certificate in Cert:\\CurrentUser\\My with thumbprint {0}.'.format(
+            args.certificate_thumbprint))
+
     if args.certificate_pfx and not os.environ.get(args.certificate_password_env or '', ''):
         print('WARNING: {0} is empty, so signtool runs without /p. A password-protected PFX then fails with '
               '"The specified PFX password is not correct".'.format(
@@ -1729,6 +1753,12 @@ def build_release(args, expectations):
         if signer_subject:
             expected_subject = package_expectation['publisher']
             matches = signer_subject.replace(' ', '').lower() == expected_subject.replace(' ', '').lower()
+            if not matches:
+                print('ERROR: the signing certificate subject is {0}, but the manifest Publisher is {1}. '
+                      'A package signed with a different subject fails the identity gate. Create a test '
+                      'certificate whose subject is exactly {1} and sign with its thumbprint; '
+                      'docs/MSIX-SIGNING.md has the command.'.format(signer_subject, expected_subject),
+                      file=sys.stderr)
             inspection['checks'].append(check(
                 'package.signature-publisher',
                 PASS if matches else FAIL,

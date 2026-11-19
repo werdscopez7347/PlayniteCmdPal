@@ -108,7 +108,15 @@ validation, not a production certificate, Store certification, or a trust claim 
 ## 6. Signing a package when the PFX password is unknown
 
 The local test certificate is disposable: the release gate checks that the signer subject equals the manifest
-Publisher, not that a particular key survives. Two paths, in order of preference:
+Publisher, not that a particular key survives. **Only a certificate whose subject is exactly
+`CN=B5EE8A57-B227-4726-A4E9-AF40E9D47E70` can sign a release candidate.** Development certificates named
+`CN=PlayniteCmdPal` sign fine but fail the identity gate, so they are not an option here.
+
+`--certificate-thumbprint` takes the 40 hexadecimal characters of a SHA-1 thumbprint; the spacing that
+`Get-ChildItem` or `certutil` prints is tolerated. A placeholder or a truncated value is rejected before anything
+is built.
+
+Two paths, in order of preference:
 
 1. **Use the certificate copy in the user store.** If the certificate used to create the PFX is still installed,
    signing needs no password at all:
