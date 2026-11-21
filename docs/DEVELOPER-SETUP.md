@@ -46,7 +46,7 @@ The following was reported from a separate x64 Windows 11 laptop. The OS identit
 | .NET 10 runtime | 10.0.15 |
 | Python | 3.13.17 |
 | Developer Mode | Enabled (`AllowDevelopmentWithoutDevLicense=1`) |
-| PowerToys | 0.101.2362.0; Command Palette enabled state not yet recorded |
+| PowerToys | 0.101.2362.0; Command Palette confirmed enabled by successful extension activation |
 | Playnite | 10.65; test games imported |
 | Visual Studio | Visual Studio 2026 Community, version 18.12.1, Stable channel, November 2026 Feature Update; WinUI application development workload installed |
 
@@ -312,7 +312,7 @@ Recorded run identifiers, with what each run actually proves:
 
 Earlier runs that matter for context: [40351115311](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40351115311) (Windows CI, default-branch push), [40351115315](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40351115315) (CodeQL, default-branch push), [40833436815](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40833436815) (Windows CI, pull request, first core test), [40833436859](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40833436859) (CodeQL, pull request), [40835007856](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40835007856) (shared-script implementation), [40835007751](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40835007751) (CodeQL on the shared script), and [40490182715](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40490182715) (scheduled CodeQL).
 
-What these runs do **not** prove: that a clean machine follows this page successfully (deferred, see [operating-system requirements](#operating-system-requirements-and-what-has-actually-been-tested)), that the extension renders a working search page, that the companion plugin behaves correctly against a specific real library, or that any minimum version of Windows, Visual Studio, PowerToys, or Playnite is supported. Those are covered by manual steps in [Catalog Bridge](CATALOG-BRIDGE.md) and tracked under known gaps in [Testing](TESTING.md).
+What these runs do **not** prove: that the extension renders a working search page, that the companion plugin behaves correctly against every Playnite library, or that any minimum version of Windows, Visual Studio, PowerToys, or Playnite is supported. The independent Windows 11 setup and integration walkthrough is recorded above. Those are covered by manual steps in [Catalog Bridge](CATALOG-BRIDGE.md) and tracked under known gaps in [Testing](TESTING.md).
 
 ## Dependabot
 
