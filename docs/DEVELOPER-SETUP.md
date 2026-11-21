@@ -402,6 +402,19 @@ For Playnite-side diagnostics, Playnite writes host loading errors to `playnite.
 - [PowerToys Command Palette source](https://github.com/microsoft/PowerToys/tree/main/src/modules/cmdpal)
 - [MSIX manifest generation](https://learn.microsoft.com/en-us/uwp/schemas/appxpackage/uapmanifestschema/generate-package-manifest)
 
+## Independent Windows 11 machine validation (2026-11-21)
+
+A separate Windows 11 machine was used to replay the setup and deployment workflow. The machine reports Windows 11 26H2, build 26300.9974.
+
+- [x] Local CI completed successfully on this machine: 59 Python release-tooling tests (21 skipped), 203 Core tests, 265 Playnite adapter tests, 52 Command Palette tests, and the .NET Framework bridge smoke test. The script ended with `All local CI checks passed.`
+- [x] Visual Studio Debug build initially reported missing project reference metadata assemblies. Running `dotnet clean .\PlayniteCmdPal.sln -c Debug`, restore, and a Debug solution build resolved the issue.
+- [x] Visual Studio MSIX deployment succeeded.
+- [x] The PlayniteCmdPal extension appeared in Command Palette and its page opened successfully.
+- [ ] The real Playnite catalog was not yet available in Command Palette because the Playnite companion `.pext` had not been installed. This is a missing integration prerequisite, not a failed MSIX deployment or extension activation.
+- [ ] Install `artifacts/playnite-plugin/PlayniteCmdPalBridge.pext` using the instructions in section 8, restart Playnite, reload Command Palette extensions, and verify real-game search, metadata/artwork, and game launch. Record the Playnite and PowerToys versions and capture sanitized evidence before marking the clean-machine walkthrough complete.
+
+This is an in-progress independent-machine validation. Do not mark the full clean-machine walkthrough passed until the companion plugin is installed and the real-library checks succeed.
+
 ## Validation status
 
 - [x] Checked-in solution, project, shared props, package versions, manifest, provider, page, extension lifecycle, and package launch profile inspected.
