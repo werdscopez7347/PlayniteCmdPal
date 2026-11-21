@@ -81,14 +81,16 @@ From the repository root in PowerShell:
 
 This is the same entry point Windows CI and the CodeQL workflow call. It runs, in order:
 
-1. `dotnet --info`
-2. `dotnet restore .\PlayniteCmdPal.sln`
-3. `dotnet build .\PlayniteCmdPal.sln --configuration Release --no-restore`
-4. `dotnet test .\PlayniteCmdPal.Core.Tests\PlayniteCmdPal.Core.Tests.csproj --configuration Release --no-build --no-restore`
-5. `dotnet test .\PlayniteCmdPal.Playnite.Tests\PlayniteCmdPal.Playnite.Tests.csproj --configuration Release --no-build --no-restore`
-6. `scripts/test-playnite-snapshot-netfx.ps1` against the built `net462` assemblies, in Windows PowerShell 5.1
+1. Python release-tooling self-tests: `python -m unittest discover -s scripts/release/tests`.
+2. `dotnet --info`.
+3. `dotnet restore .\\PlayniteCmdPal.sln`.
+4. `dotnet build .\\PlayniteCmdPal.sln --configuration Release --no-restore`.
+5. `dotnet test .\\PlayniteCmdPal.Core.Tests\\PlayniteCmdPal.Core.Tests.csproj --configuration Release --no-build --no-restore`.
+6. `dotnet test .\\PlayniteCmdPal.Playnite.Tests\\PlayniteCmdPal.Playnite.Tests.csproj --configuration Release --no-build --no-restore`.
+7. `dotnet test .\\PlayniteCmdPal.Command.Tests\\PlayniteCmdPal.Command.Tests.csproj --configuration Release --no-build --no-restore`.
+8. `scripts/test-playnite-snapshot-netfx.ps1` against the built `net462` assemblies, in Windows PowerShell 5.1
 
-It stops at the first failure, prints the step name and exit code, and returns that code. No Visual Studio, Playnite installation, personal library, PowerToys install, or secret is needed for these six steps.
+It stops at the first failure, prints the step name and exit code, and returns that code. The local CI prerequisites are Python 3.9 or later, the .NET 10 SDK, Windows PowerShell 5.1, and network access for NuGet restore. Visual Studio, Playnite installation, a personal library, PowerToys, and secrets are not needed to run this CI script.
 
 Expected outcome: each step reports success and the script ends with `All local CI checks passed.` Each `dotnet test` summary should read `Failed: 0`.
 
@@ -212,7 +214,7 @@ The repository does not pin an SDK with `global.json`. The maintainer reports us
 
 ## Shared local CI checks
 
-The exact steps and expected outcome are in [step 5](#5-restore-build-and-test-with-one-command). Requirements: Windows with Windows PowerShell 5.1 (the script itself may be launched from `pwsh` 7), the .NET 10 SDK, and network access for NuGet restore.
+The exact steps and expected outcome are in [step 5](#5-restore-build-and-test-with-one-command). Requirements: Python 3.9 or later on `PATH` (standard library only; no pip packages), the .NET 10 SDK, Windows with Windows PowerShell 5.1 (the script itself may be launched from `pwsh` 7), and network access for NuGet restore. Node.js is not required by `scripts/ci.ps1`.
 
 The Windows CI and CodeQL workflows install the SDK on `windows-latest` and invoke `scripts/ci.ps1`; CodeQL initializes its analyzer before running it. Neither workflow deploys the MSIX package, installs the Playnite plugin, or reads a real library.
 
