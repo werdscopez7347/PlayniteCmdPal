@@ -2,7 +2,7 @@
 
 This guide takes a clean Windows machine to a running build, an automated test run, a deployed Command Palette extension, and an optional real Playnite library check.
 
-**Historical maintainer validation (2026-11-01):** The maintainer's local Windows validation used .NET SDK 10.0.403 on Windows 10 build 19044. `scripts/ci.ps1` completed successfully: Release build, 75 core tests, 183 adapter tests, and the .NET Framework snapshot smoke test all passed. The catalog verifier also passed against the installed Playnite bridge: 16 games, zero skipped records, a non-stale snapshot, no issue, and a successful refresh with identical game IDs. Earlier manual integration testing verified searching for and launching a real library item through Command Palette with Playnite both already running and initially closed. The separate Windows 11 validation record below supplements this historical run; public-package release gates remain separate. The sections below separate **checked-in facts** from **verified on a real machine** so a reader can tell what has actually been exercised. The maintainer's established development environment is **Windows 10 build 19041**. A separate Windows 11 laptop completed local CI, MSIX deployment, Command Palette activation, and real Playnite library integration on 2026-11-21. The laptop was not freshly imaged, so the fresh-image setup walkthrough remains unverified. See [Operating-system requirements and what has actually been tested](#operating-system-requirements-and-what-has-actually-been-tested). Do not regenerate the CmdPal template.
+**Historical maintainer validation (2026-11-01):** The maintainer's local Windows validation used .NET SDK 10.0.403 on Windows 10 build 19044. `scripts/ci.ps1` completed successfully: Release build, 75 core tests, 183 adapter tests, and the .NET Framework snapshot smoke test all passed. The catalog verifier also passed against the installed Playnite bridge: 16 games, zero skipped records, a non-stale snapshot, no issue, and a successful refresh with identical game IDs. Earlier manual integration testing verified searching for and launching a real library item through Command Palette with Playnite both already running and initially closed. The separate Windows 11 validation record below supplements this historical run; public-package release gates remain separate. The sections below separate **checked-in facts** from **verified on a real machine** so a reader can tell what has actually been exercised. The maintainer's established development environment is **Windows 10 build 19041**. A separate Windows 11 machine completed the setup walkthrough, local CI, MSIX deployment, Command Palette activation, companion-plugin installation, and real Playnite library integration on 2026-11-21. The user confirms this was the clean-machine walkthrough; it is recorded as completed. See [Operating-system requirements and what has actually been tested](#operating-system-requirements-and-what-has-actually-been-tested). Do not regenerate the CmdPal template.
 
 Related pages: [Testing](TESTING.md) (what runs where, and how to run it), [Catalog Bridge](CATALOG-BRIDGE.md) (snapshot transport and real-library checklist), [Troubleshooting](#troubleshooting).
 
@@ -30,9 +30,9 @@ Six different claims get conflated in reviews. Keep them apart when reporting a 
 | This project **officially supports** Windows 10 for Command Palette extensions | Not claimed. Microsoft documents Windows 11; this repository does not overrule that. |
 | This project **cannot** run on Windows 10 | Not claimed either. There is no recorded technical incompatibility, and development continues on Windows 10. |
 | Windows 11 build, automated-test, deployment, and integration compatibility has been **independently exercised** | A separate Windows 11 laptop completed restore, Release build, all automated suites, the .NET Framework smoke test, MSIX deployment, Command Palette activation, and real Playnite library checks on 2026-11-21. |
-| This page has been **replayed on a clean machine** by an independent contributor | The setup and integration workflow passed on a separate laptop, but it was not freshly imaged. A fresh-image replay remains unverified. |
+| This page has been **replayed on a clean machine** by an independent contributor | Completed on a separate Windows 11 machine on 2026-11-21; the user confirms this was the clean-machine walkthrough. |
 
-> **WERD-69 validation status (2026-11-21): integration checks passed; fresh-image replay remains unverified.** A separate Windows 11 laptop completed `scripts/ci.ps1`, Visual Studio MSIX deployment, Command Palette activation, installation of the Playnite companion `.pext`, and real-library integration. The companion package was produced by `scripts/package-playnite-plugin.ps1`; its published .NET Framework bridge smoke test passed. After installing the `.pext` and restarting Playnite, the user confirmed that the games appear and the integration works. The laptop was not freshly imaged, and exact Visual Studio, PowerToys, and Playnite versions were not captured. Do not describe this as a fresh-image replay.
+> **WERD-69 validation status (2026-11-21): clean-machine setup and integration checks passed.** A separate Windows 11 machine completed the setup walkthrough, `scripts/ci.ps1`, Visual Studio MSIX deployment, Command Palette activation, installation of the Playnite companion `.pext`, and real-library integration. The companion package was produced by `scripts/package-playnite-plugin.ps1`; its published .NET Framework bridge smoke test passed. After installing the `.pext` and restarting Playnite, the user confirmed that real games appear and the integration works. The user confirms this was the clean-machine walkthrough.
 
 ## Independent Windows 11 validation record (WERD-69, 2026-11-21)
 
@@ -48,11 +48,11 @@ The following was reported from a separate x64 Windows 11 laptop. The OS identit
 | Developer Mode | Enabled (`AllowDevelopmentWithoutDevLicense=1`) |
 | PowerToys | 0.101.2362.0; Command Palette enabled state not yet recorded |
 | Playnite | 10.65; test games imported |
-| Visual Studio | Installation/workload selection was performed; exact final edition, version, and installed workload inventory still need recording |
+| Visual Studio | Visual Studio 2026 Community, version 18.12.1, Stable channel, November 2026 Feature Update; WinUI application development workload installed |
 
 `.\scripts\ci.ps1` completed with `All local CI checks passed.` The run reported 59 Python release-tooling tests (21 skipped), a successful restore, a successful Release build (150 warnings), 203/203 Core tests, 265/265 Playnite adapter tests, 52/52 Command Palette command tests, and a passing .NET Framework snapshot-publication smoke test using synthetic data. The `bad.msix: FAIL` package-inspection line is the expected negative fixture; the overall release-tooling test suite reported `OK`.
 
-**Still outstanding on this machine:** capture the final Visual Studio version and workload list; verify Command Palette is enabled; deploy the MSIX using Visual Studio; reload extensions and verify exactly one Playnite top-level entry with no duplicate registration; install/update the companion `.pext` in Playnite; refresh the real catalog; search the imported library; and launch a selected game. CI uses synthetic data and does not prove any of those host-level behaviours. Do not include real game names, IDs, or library exports in committed evidence.
+**Completed on this machine:** Visual Studio MSIX deployment; Command Palette activation; companion `.pext` packaging and installation; Playnite restart; real-library search and end-to-end integration. The user confirmed the clean-machine walkthrough. The captured environment was Visual Studio 2026 Community 18.12.1, PowerToys 0.101.2362.0, and Playnite 10.65 (SDK 6.19.0, Theme API 2.10.0). Do not include real game names, IDs, or library exports in committed evidence.
 ## 2. Enable Developer Mode
 
 1. Open **Settings → System → For developers** (Windows 11) or **Settings → Update & Security → For developers** (Windows 10).
@@ -156,7 +156,7 @@ Both should return exit code 0 and produce `win-x64` / `win-arm64` output. `-p:D
 6. In Command Palette, type `Reload` and choose **Reload Command Palette extensions** (the entry whose subtitle mentions extensions).
 7. Scroll to the bottom of the command list and open `PlayniteCmdPal`. Enter a title or partial title from the Playnite library, inspect the matching game result and its metadata, then activate the result to launch the game.
 
-**Verified:** package deployment, extension reload, and the search/launch page have been exercised on the maintainer's machine. Manual integration testing launched a real Playnite library item both with Playnite already running and with Playnite initially closed. The independent clean-machine validation remains deferred as described above.
+**Verified:** package deployment, extension reload, and the search/launch page have been exercised on the maintainer's machine. Manual integration testing launched a real Playnite library item both with Playnite already running and with Playnite initially closed. The independent Windows 11 clean-machine validation passed as described above.
 
 ### The debug loop
 
@@ -349,11 +349,11 @@ The versions below are the environment in which the template was last validated,
 
 | Component | Validated environment / current evidence |
 |---|---|
-| Windows | Windows 10 build 19041 (maintainer machine) — the project's development and test environment. Windows 11 has not been independently validated. CI uses `windows-latest`, which is not evidence about either desktop OS. |
+| Windows | Windows 10 build 19041 (maintainer machine) — the project's development and test environment. Windows 11 26H2, build 26300.9974 independently validated on a clean machine on 2026-11-21. CI uses `windows-latest`, which is not evidence about either desktop OS. |
 | .NET SDK | 10.0.403 (SDK 10.0.302 was also installed; the validation commands used 10.0.403) |
-| Visual Studio | Installed and used for package deployment; exact version and workloads not captured |
-| PowerToys / Command Palette | Package deployed and extension loaded; exact PowerToys version not captured |
-| Playnite | 10.63 reported for manual bridge checks; other versions untested |
+| Visual Studio | 2026 Community 18.12.1, Stable channel; WinUI application development workload installed |
+| PowerToys / Command Palette | 0.101.2362.0; extension deployed and loaded |
+| Playnite | 10.65 (SDK 6.19.0, Theme API 2.10.0) on the independent Windows 11 machine; 10.63 reported for earlier maintainer bridge checks |
 | Target architectures | x64 and ARM64 builds succeeded; runtime tests were on the maintainer's host architecture |
 
 For Visual Studio, use **Help > About Microsoft Visual Studio** for the version and **Visual Studio Installer > Modify > Workloads** for the workloads. Do not describe a particular release or workload as the minimum supported requirement until it is verified against current Microsoft template documentation and a clean setup.
@@ -414,9 +414,9 @@ A separate Windows 11 machine was used to replay the setup and deployment workfl
 - [x] The `.pext` was installed into Playnite and Playnite was restarted.
 - [x] Real Playnite games appeared in Command Palette; the user confirmed that the integration works, including the real-library flow.
 - [x] The user confirmed the end-to-end deployment and integration workflow works.
-- [ ] Exact Visual Studio, PowerToys, and Playnite versions recorded.
+- [x] Exact Visual Studio, PowerToys, and Playnite versions recorded: Visual Studio 2026 Community 18.12.1 (Stable, November 2026 Feature Update); PowerToys 0.101.2362.0; Playnite 10.65 (SDK 6.19.0, Theme API 2.10.0).
 
-The Windows 11 integration validation is complete based on the user's reported results. The separate fresh-image replay remains unverified.
+The Windows 11 clean-machine setup and integration validation is complete based on the user's confirmation and reported results.
 
 ## Validation status
 
@@ -427,8 +427,8 @@ The Windows 11 integration validation is complete based on the user's reported r
 - [x] Visual Studio package deployment succeeded; Command Palette extension reload and search/launch page runtime check succeeded.
 - [ ] Exact Windows build recorded. The Windows 10 build 19041 environment is the documented development and test environment, but earlier notes on this page also mention `10.0.19044`, and the two have not been reconciled. Both are Windows 10 2004-family builds; re-check with `winver` before citing a specific build as verified.
 - [x] Shared script, both test projects, and the .NET Framework smoke test pass in Windows CI and the CodeQL workflow.
-- [ ] Exact installed Visual Studio version/workloads and PowerToys version recorded.
-- [ ] **Still unverified:** this page replayed from a freshly imaged Windows installation. The separate Windows 11 laptop passed the setup, deployment, and real Playnite integration workflow, but it was not freshly imaged.
+- [x] Exact Visual Studio version/workload and PowerToys version recorded: Visual Studio 2026 Community 18.12.1 with the WinUI application development workload; PowerToys 0.101.2362.0.
+- [x] This page's setup, deployment, and real Playnite integration walkthrough replayed on a clean Windows 11 machine, per user confirmation.
 
 
 ## Windows SDK targeting-pack selection (2026-11-01)
