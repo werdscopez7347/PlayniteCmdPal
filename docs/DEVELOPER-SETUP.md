@@ -71,6 +71,25 @@ You need a `10.0.x` SDK on `PATH`. The repository does not pin an SDK with `glob
 
 The `net462` companion plugin builds with `Microsoft.NETFramework.ReferenceAssemblies`, so you do **not** need a separately installed .NET Framework 4.6.2 targeting pack. You **do** need Windows PowerShell 5.1 for the framework smoke test; it ships with Windows.
 
+### Install Python for CI and release tooling
+
+`scripts/ci.ps1` runs the release-tooling unit tests before it invokes .NET. Python 3.9 or later must be installed and `python.exe` must be available on `PATH`; the tests use only Python's standard library, so no `pip` packages are required.
+
+For example, install the tested Python 3.13 line with:
+
+```powershell
+winget install --id Python.Python.3.13 --exact --source winget
+```
+
+Open a new PowerShell window and verify:
+
+```powershell
+python --version
+Get-Command python
+```
+
+The version must be 3.9 or later. If Windows resolves `python` to the Microsoft Store app-execution alias, install Python and ensure its installation directory is on `PATH`. Node.js and npm are **not** prerequisites for `scripts/ci.ps1`, the .NET solution build, or the Playnite companion-plugin packaging script; those workflows do not invoke them.
+
 ## 5. Restore, build, and test with one command
 
 From the repository root in PowerShell:
@@ -79,19 +98,18 @@ From the repository root in PowerShell:
 .\scripts\ci.ps1
 ```
 
-This is the same entry point Windows CI and the CodeQL workflow call. It runs, in order:
+This is the same entry point Windows CI and the CodeQL workflow call. It requires Python 3.9 or later, the .NET 10 SDK, Windows PowerShell 5.1, and network access for NuGet restore. It runs, in order:
 
-1. Python release-tooling self-tests: `python -m unittest discover -s scripts/release/tests`.
-2. `dotnet --info`.
-3. `dotnet restore .\\PlayniteCmdPal.sln`.
-4. `dotnet build .\\PlayniteCmdPal.sln --configuration Release --no-restore`.
-5. `dotnet test .\\PlayniteCmdPal.Core.Tests\\PlayniteCmdPal.Core.Tests.csproj --configuration Release --no-build --no-restore`.
-6. `dotnet test .\\PlayniteCmdPal.Playnite.Tests\\PlayniteCmdPal.Playnite.Tests.csproj --configuration Release --no-build --no-restore`.
-7. `dotnet test .\\PlayniteCmdPal.Command.Tests\\PlayniteCmdPal.Command.Tests.csproj --configuration Release --no-build --no-restore`.
+1. `python -m unittest discover -s scripts/release/tests` (release-tooling self-tests)
+2. `dotnet --info`
+3. `dotnet restore .\PlayniteCmdPal.sln`
+4. `dotnet build .\PlayniteCmdPal.sln --configuration Release --no-restore`
+5. `dotnet test .\PlayniteCmdPal.Core.Tests\PlayniteCmdPal.Core.Tests.csproj --configuration Release --no-build --no-restore`
+6. `dotnet test .\PlayniteCmdPal.Playnite.Tests\PlayniteCmdPal.Playnite.Tests.csproj --configuration Release --no-build --no-restore`
+7. `dotnet test .\PlayniteCmdPal.Command.Tests\PlayniteCmdPal.Command.Tests.csproj --configuration Release --no-build --no-restore`
 8. `scripts/test-playnite-snapshot-netfx.ps1` against the built `net462` assemblies, in Windows PowerShell 5.1
 
-It stops at the first failure, prints the step name and exit code, and returns that code. The local CI prerequisites are Python 3.9 or later, the .NET 10 SDK, Windows PowerShell 5.1, and network access for NuGet restore. Visual Studio, Playnite installation, a personal library, PowerToys, and secrets are not needed to run this CI script.
-
+It stops at the first failure, prints the step name and exit code, and returns that code. Visual Studio, Playnite, a personal library, PowerToys, Node.js/npm, and secrets are not needed for these automated checks. Visual Studio and PowerToys are needed later for MSIX deployment and Command Palette integration; Playnite is needed for the real-library checks.
 Expected outcome: each step reports success and the script ends with `All local CI checks passed.` Each `dotnet test` summary should read `Failed: 0`.
 
 Do not maintain a second copy of these commands in your workflow: if you need a new check, add a step to `scripts/ci.ps1` so CI and local runs stay identical. See [Testing](TESTING.md) for per-project and per-test invocation, plus the coverage map.
