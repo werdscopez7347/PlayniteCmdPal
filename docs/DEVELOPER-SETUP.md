@@ -1,440 +1,161 @@
 # Developer Setup
 
-This guide takes a clean Windows machine to a running build, an automated test run, a deployed Command Palette extension, and an optional real Playnite library check.
+Follow this guide to build, test, and run PlayniteCmdPal on Windows.
 
-**Historical maintainer validation (2026-11-01):** The maintainer's local Windows validation used .NET SDK 10.0.403 on Windows 10 build 19044. `scripts/ci.ps1` completed successfully: Release build, 75 core tests, 183 adapter tests, and the .NET Framework snapshot smoke test all passed. The catalog verifier also passed against the installed Playnite bridge: 16 games, zero skipped records, a non-stale snapshot, no issue, and a successful refresh with identical game IDs. Earlier manual integration testing verified searching for and launching a real library item through Command Palette with Playnite both already running and initially closed. The separate Windows 11 validation record below supplements this historical run; public-package release gates remain separate. The sections below separate **checked-in facts** from **verified on a real machine** so a reader can tell what has actually been exercised. The maintainer's established development environment is **Windows 10 build 19041**. A separate Windows 11 machine completed the setup walkthrough, local CI, MSIX deployment, Command Palette activation, companion-plugin installation, and real Playnite library integration on 2026-11-21. The user confirms this was the clean-machine walkthrough; it is recorded as completed. See [Operating-system requirements and what has actually been tested](#operating-system-requirements-and-what-has-actually-been-tested). Do not regenerate the CmdPal template.
+## 1. Prerequisites
 
-Related pages: [Testing](TESTING.md) (what runs where, and how to run it), [Catalog Bridge](CATALOG-BRIDGE.md) (snapshot transport and real-library checklist), [Troubleshooting](#troubleshooting).
+Install these before cloning the repository:
 
-## 1. Hardware, OS, and account prerequisites
-
-| Requirement | Why | Source |
-|---|---|---|
-| Windows with build 19041 or later | Matches `TargetPlatformMinVersion`/`SupportedOSPlatformVersion` in `PlayniteCmdPal/PlayniteCmdPal.csproj`, and PowerToys' own minimum, which is also Windows 10 build 19041. Windows 10 build 19041 is the environment this project is developed and tested on. | Checked in; see [operating-system requirements](#operating-system-requirements-and-what-has-actually-been-tested) |
-| x64 or ARM64 Windows | The project declares `win-x64;win-arm64` runtime identifiers and `x64;ARM64` MSBuild platforms. There is no 32-bit target. | Checked in |
-| A non-administrator or administrator account that can enable Developer Mode | Local MSIX deployment requires Developer Mode or a trusted signing certificate. | [Microsoft: Developer Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development) |
-| PowerToys installed, with Command Palette **enabled** | The extension is loaded by Command Palette, not by Windows. | [Command Palette overview](https://learn.microsoft.com/en-us/windows/powertoys/command-palette/overview) |
-| Playnite (only for real-library checks) | Playnite supplies the SDK assembly at runtime and owns the library. | [Playnite docs](https://api.playnite.link/docs/manual/) |
-| Python 3.9 or later (release tooling and `scripts/ci.ps1`) | `scripts/release/release_tool.py` builds, signs, inspects and records release-Msix evidence, and its self-tests run from `scripts/ci.ps1`. Standard library only; no packages to install. | Checked in; see [Release packaging](RELEASE-PACKAGING.md#10-release-msix-build-and-inspection) |
-
-Microsoft's Command Palette documentation lists "Windows 11 with PowerToys installed" as its prerequisites, while PowerToys itself supports Windows 10 build 19041 and later. Command Palette shipped in PowerToys 0.90; treat that as the floor and update PowerToys if an extension fails to appear.
-
-### Operating-system requirements and what has actually been tested
-
-Six different claims get conflated in reviews. Keep them apart when reporting a result.
-
-| Claim | Status |
+| Requirement | Used for |
 |---|---|
-| Windows 10 build 19041 or later is the **maintainer's development and test environment** | Current practice. The project is developed and tested on Windows 10 build 19041; see the contributor environment table below. |
-| Microsoft's Command Palette documentation **states Windows 11** as a prerequisite | An upstream documentation requirement, recorded as such. It is not evidence that this project fails on Windows 10, and this project has no evidence that it does. |
-| This project **officially supports** Windows 10 for Command Palette extensions | Not claimed. Microsoft documents Windows 11; this repository does not overrule that. |
-| This project **cannot** run on Windows 10 | Not claimed either. There is no recorded technical incompatibility, and development continues on Windows 10. |
-| Windows 11 build, automated-test, deployment, and integration compatibility has been **independently exercised** | A separate Windows 11 laptop completed restore, Release build, all automated suites, the .NET Framework smoke test, MSIX deployment, Command Palette activation, and real Playnite library checks on 2026-11-21. |
-| This page has been **replayed on a clean machine** by an independent contributor | Completed on a separate Windows 11 machine on 2026-11-21; the user confirms this was the clean-machine walkthrough. |
+| Windows 11, x64 or ARM64 | Running PowerToys Command Palette and the extension |
+| Git | Cloning the repository |
+| .NET 10 SDK (10.0.x) | Restoring, building, and testing the solution |
+| Python 3.9 or later | Running the repository's CI script |
+| Visual Studio with the **WinUI application development** workload | Deploying the MSIX package from the IDE |
+| PowerToys with **Command Palette** enabled | Loading and using the extension |
+| Developer Mode enabled in Windows | Installing the locally built MSIX package |
+| Playnite | Optional: testing against a real game library |
 
-> **WERD-69 validation status (2026-11-21): clean-machine setup and integration checks passed.** A separate Windows 11 machine completed the setup walkthrough, `scripts/ci.ps1`, Visual Studio MSIX deployment, Command Palette activation, installation of the Playnite companion `.pext`, and real-library integration. The companion package was produced by `scripts/package-playnite-plugin.ps1`; its published .NET Framework bridge smoke test passed. After installing the `.pext` and restarting Playnite, the user confirmed that real games appear and the integration works. The user confirms this was the clean-machine walkthrough.
+Playnite is only required for the real-library integration steps. You do not need it to build or run the automated tests.
 
-## Independent Windows 11 validation record (WERD-69, 2026-11-21)
+### Install the .NET SDK
 
-The following was reported from a separate x64 Windows 11 laptop. The OS identity was confirmed with `winver` as Windows 11 26H2, build `26300.9974`; `Get-ComputerInfo` separately returned the legacy product label "Windows 10 Pro", so the `winver` result is the recorded OS identification.
-
-| Component | Observed |
-|---|---|
-| Windows | Windows 11 26H2, build 26300.9974, x64 |
-| .NET SDKs installed | 10.0.404 and 11.0.100 |
-| SDK selected by `dotnet --info` during CI | 11.0.100 |
-| .NET 10 runtime | 10.0.15 |
-| Python | 3.13.17 |
-| Developer Mode | Enabled (`AllowDevelopmentWithoutDevLicense=1`) |
-| PowerToys | 0.101.2362.0; Command Palette confirmed enabled by successful extension activation |
-| Playnite | 10.65; test games imported |
-| Visual Studio | Visual Studio 2026 Community, version 18.12.1, Stable channel, November 2026 Feature Update; WinUI application development workload installed |
-
-`.\scripts\ci.ps1` completed with `All local CI checks passed.` The run reported 59 Python release-tooling tests (21 skipped), a successful restore, a successful Release build (150 warnings), 203/203 Core tests, 265/265 Playnite adapter tests, 52/52 Command Palette command tests, and a passing .NET Framework snapshot-publication smoke test using synthetic data. The `bad.msix: FAIL` package-inspection line is the expected negative fixture; the overall release-tooling test suite reported `OK`.
-
-**Completed on this machine:** Visual Studio MSIX deployment; Command Palette activation; companion `.pext` packaging and installation; Playnite restart; real-library search and end-to-end integration. The user confirmed the clean-machine walkthrough. The captured environment was Visual Studio 2026 Community 18.12.1, PowerToys 0.101.2362.0, and Playnite 10.65 (SDK 6.19.0, Theme API 2.10.0). Do not include real game names, IDs, or library exports in committed evidence.
-## 2. Enable Developer Mode
-
-1. Open **Settings → System → For developers** (Windows 11) or **Settings → Update & Security → For developers** (Windows 10).
-2. Turn on **Developer Mode** and accept the prompt.
-
-Developer Mode is what lets Visual Studio register the signed MSIX package locally. Without it, **Build > Deploy** fails with a deployment/developer-license error rather than a useful compile error.
-
-## 3. Install the Visual Studio workload
-
-The solution targets .NET 10 with Windows App SDK and MSIX packaging. The current official guidance is to install Visual Studio with the **WinUI application development** workload, which pulls in the Windows App SDK and Windows SDK components.
-
-1. Install [Visual Studio](https://visualstudio.microsoft.com/downloads/) (2026 release or a version that ships the .NET 10 tooling).
-2. In the **Visual Studio Installer**, choose **Modify** and select:
-   - **WinUI application development** (this is the documented workload for WinUI / Windows App SDK projects).
-   - On the **Individual components** tab, confirm the **Windows 10/11 SDK** matching the project's target (the project restores stable targeting pack `Microsoft.Windows.SDK.NET.Ref 10.0.26100.84`; install the matching stable 26100 SDK or newer).
-3. Finish the install and confirm `dotnet --version` reports 10.x in a new terminal.
-
-Alternatives and shortcuts:
-
-- `winget install --id Microsoft.DotNet.SDK.10 --exact --source winget` installs only the SDK. That is enough for restore, build, and tests, but not for MSIX deployment from the IDE.
-- `winget configure -f https://aka.ms/winui-config` installs the documented WinUI workload set and enables Developer Mode.
-
-Record what you installed; the reporting checklist in [section 9](#9-reporting-a-setup-problem) asks for it.
-
-**Verified:** Visual Studio was installed and used for package deployment on the maintainer's machine. The exact version and workload list were not captured, so this page does not claim a minimum version.
-
-## 4. Install the .NET 10 SDK
+Install the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0). Then open a new PowerShell window and verify:
 
 ```powershell
-dotnet --info
 dotnet --list-sdks
+dotnet --version
 ```
 
-You need a `10.0.x` SDK on `PATH`. The repository does not pin an SDK with `global.json`, so any current 10.0.x works; the maintainer used `10.0.403`. If more than one SDK is installed, `dotnet --info` shows which one the repository resolves to — include that in any bug report.
+At least one `10.0.x` SDK must be installed and selected.
 
-The `net462` companion plugin builds with `Microsoft.NETFramework.ReferenceAssemblies`, so you do **not** need a separately installed .NET Framework 4.6.2 targeting pack. You **do** need Windows PowerShell 5.1 for the framework smoke test; it ships with Windows.
+### Install Python
 
-### Install Python for CI and release tooling
-
-`scripts/ci.ps1` runs the release-tooling unit tests before it invokes .NET. Python 3.9 or later must be installed and `python.exe` must be available on `PATH`; the tests use only Python's standard library, so no `pip` packages are required.
-
-For example, install the tested Python 3.13 line with:
-
-```powershell
-winget install --id Python.Python.3.13 --exact --source winget
-```
-
-Open a new PowerShell window and verify:
+Install [Python 3.9 or later](https://www.python.org/downloads/) and make sure it is available on `PATH`:
 
 ```powershell
 python --version
-Get-Command python
 ```
 
-The version must be 3.9 or later. If Windows resolves `python` to the Microsoft Store app-execution alias, install Python and ensure its installation directory is on `PATH`. Node.js and npm are **not** prerequisites for `scripts/ci.ps1`, the .NET solution build, or the Playnite companion-plugin packaging script; those workflows do not invoke them.
+The CI script uses only Python's standard library. No `pip` packages are required.
 
-## 5. Restore, build, and test with one command
+### Install Visual Studio
 
-From the repository root in PowerShell:
+Install [Visual Studio](https://visualstudio.microsoft.com/downloads/) with the **WinUI application development** workload.
+
+If Visual Studio is already installed, open Visual Studio Installer, select **Modify**, and add that workload.
+
+### Enable Developer Mode
+
+Open **Settings → System → For developers**, turn on **Developer Mode**, and accept the prompt. This allows Visual Studio to deploy the locally built MSIX package.
+
+Install [PowerToys](https://learn.microsoft.com/en-us/windows/powertoys/install) and make sure **Command Palette** is enabled in PowerToys settings.
+
+## 2. Clone the repository
+
+Open PowerShell and run:
+
+```powershell
+git clone https://github.com/werdscopez7347/PlayniteCmdPal.git
+cd PlayniteCmdPal
+```
+
+Use the `dev` branch for development:
+
+```powershell
+git switch dev
+git pull
+```
+
+## 3. Restore and build
+
+From the repository root, restore the solution:
+
+```powershell
+dotnet restore .\PlayniteCmdPal.sln
+```
+
+Build the solution:
+
+```powershell
+dotnet build .\PlayniteCmdPal.sln --configuration Release --no-restore
+```
+
+To run the complete local CI checks instead, use the repository's script:
 
 ```powershell
 .\scripts\ci.ps1
 ```
 
-This is the same entry point Windows CI and the CodeQL workflow call. It requires Python 3.9 or later, the .NET 10 SDK, Windows PowerShell 5.1, and network access for NuGet restore. It runs, in order:
+The script runs the release-tooling checks, restores and builds the solution, runs the automated test suites, and runs the .NET Framework bridge smoke test. A successful run ends with:
 
-1. `python -m unittest discover -s scripts/release/tests` (release-tooling self-tests)
-2. `dotnet --info`
-3. `dotnet restore .\PlayniteCmdPal.sln`
-4. `dotnet build .\PlayniteCmdPal.sln --configuration Release --no-restore`
-5. `dotnet test .\PlayniteCmdPal.Core.Tests\PlayniteCmdPal.Core.Tests.csproj --configuration Release --no-build --no-restore`
-6. `dotnet test .\PlayniteCmdPal.Playnite.Tests\PlayniteCmdPal.Playnite.Tests.csproj --configuration Release --no-build --no-restore`
-7. `dotnet test .\PlayniteCmdPal.Command.Tests\PlayniteCmdPal.Command.Tests.csproj --configuration Release --no-build --no-restore`
-8. `scripts/test-playnite-snapshot-netfx.ps1` against the built `net462` assemblies, in Windows PowerShell 5.1
-
-It stops at the first failure, prints the step name and exit code, and returns that code. Visual Studio, Playnite, a personal library, PowerToys, Node.js/npm, and secrets are not needed for these automated checks. Visual Studio and PowerToys are needed later for MSIX deployment and Command Palette integration; Playnite is needed for the real-library checks.
-Expected outcome: each step reports success and the script ends with `All local CI checks passed.` Each `dotnet test` summary should read `Failed: 0`.
-
-Do not maintain a second copy of these commands in your workflow: if you need a new check, add a step to `scripts/ci.ps1` so CI and local runs stay identical. See [Testing](TESTING.md) for per-project and per-test invocation, plus the coverage map.
-
-## 6. Debug builds and architecture variants (optional)
-
-The shared script builds the solution's default configuration. To reproduce the maintainer's architecture-specific builds:
-
-```powershell
-dotnet build .\PlayniteCmdPal.sln --no-restore -c Debug -p:Platform=x64
-dotnet build .\PlayniteCmdPal.sln --no-restore -c Debug -p:Platform=ARM64
+```
+All local CI checks passed.
 ```
 
-Both should return exit code 0 and produce `win-x64` / `win-arm64` output. `-p:DefaultLanguage=en-US` is no longer required because the source manifest pins `<Resource Language="en-US"/>`; see [Manifest language fix](#manifest-language-fix). Only add the override when you are diagnosing a localization-related `APPX1685` failure.
+You need network access for NuGet restore. Visual Studio, PowerToys, and Playnite are not required to run these automated checks.
 
-**Verified:** restore plus all four build commands (x64 and ARM64, with and without the override) returned exit code 0 on the maintainer's machine.
+For individual test commands and details about the test projects, see [Testing](TESTING.md).
 
-## 7. Deploy the extension and reload Command Palette
+## 4. Deploy the extension
+
+Deployment registers the extension with Windows. A normal build alone does not do this.
 
 1. Open `PlayniteCmdPal.sln` in Visual Studio.
-2. Select **Debug** and the platform that matches your machine (`x64` or `ARM64`).
-3. **Build > Deploy PlayniteCmdPal**. A plain build does not register or update the MSIX package.
-4. Select the `PlayniteCmdPal (Package)` launch profile. It sets `doNotLaunchApp: true` because Command Palette activates the extension as an out-of-process COM server; launching it directly does nothing useful.
-5. Start PowerToys and make sure Command Palette is enabled.
-6. In Command Palette, type `Reload` and choose **Reload Command Palette extensions** (the entry whose subtitle mentions extensions).
-7. Scroll to the bottom of the command list and open `PlayniteCmdPal`. Enter a title or partial title from the Playnite library, inspect the matching game result and its metadata, then activate the result to launch the game.
+2. Select **Debug** and the platform matching your machine: **x64** or **ARM64**.
+3. Select **Build → Deploy PlayniteCmdPal**.
+4. Select the `PlayniteCmdPal (Package)` launch profile.
+5. Start PowerToys and confirm Command Palette is enabled.
+6. Open Command Palette, search for `Reload`, and select **Reload Command Palette extensions**.
+7. Find and open **PlayniteCmdPal** in the command list.
 
-**Verified:** package deployment, extension reload, and the search/launch page have been exercised on the maintainer's machine. Manual integration testing launched a real Playnite library item both with Playnite already running and with Playnite initially closed. The independent Windows 11 clean-machine validation passed as described above.
+The extension should now open in Command Palette.
 
-### The debug loop
+### After changing code
 
-1. Edit code, then redeploy with **Build > Deploy**.
-2. Reload Command Palette extensions (step 6 above). Command Palette caches extension instances; without a reload your change is not visible.
-3. Watch **View > Output > Debug** in Visual Studio, and the Windows **Event Viewer** if the process fails to start.
-4. For breakpoints in the extension process, attach to the `PlayniteCmdPal` process after Command Palette has loaded it, or start the packaged profile under the debugger if your Visual Studio configuration supports it.
+Repeat **Build → Deploy PlayniteCmdPal**, then reload Command Palette extensions. Command Palette caches loaded extensions, so changes may not appear until you reload.
 
-## 8. Package and install the Playnite companion plugin (optional, Windows)
+## 5. Connect your Playnite library (optional)
 
-Only needed to exercise a real Playnite library:
+Skip this section if you only want to build, test, or open the extension.
 
-```powershell
-.\scripts\package-playnite-plugin.ps1
-```
+The Playnite companion plugin supplies the game-library data used by the extension.
 
-The script first runs the synthetic .NET Framework smoke test against the published assemblies, then writes `artifacts/playnite-plugin/PlayniteCmdPalBridge.pext`.
+1. Install [Playnite](https://playnite.link/).
+2. From the repository root, package the companion plugin:
 
-Install it by dragging the `.pext` onto the main Playnite window and confirming the prompts, or run `Playnite.DesktopApp.exe --installext <path-to.pext>`. For iterative work you can instead register `artifacts/playnite-plugin/publish` under **Settings → For developers → External extensions → Add**, enable it, and restart Playnite.
+   ```powershell
+   .\scripts\package-playnite-plugin.ps1
+   ```
 
-Then follow the real-library checklist in [Catalog Bridge](CATALOG-BRIDGE.md#manual-playnite-verification-still-required) and, if you want an aggregate-only readout, run:
+3. When the script succeeds, find the package here:
 
-```powershell
-dotnet run --project .\tools\CatalogVerifier\CatalogVerifier.csproj --configuration Release
-```
+   ```
+   artifacts\playnite-plugin\PlayniteCmdPalBridge.pext
+   ```
 
-The verifier prints availability, counts, staleness, and an issue code — never titles, IDs, or file contents. Do not commit the `.pext`, publish output, or any catalog export.
+4. Drag `PlayniteCmdPalBridge.pext` onto the Playnite window and confirm the installation.
+5. Restart Playnite.
+6. Open PlayniteCmdPal in Command Palette and search for a game in your library.
 
-## 9. Reporting a setup problem
+For the bridge architecture, diagnostics, and more detailed verification steps, see [Catalog Bridge](CATALOG-BRIDGE.md).
 
-Run this and include the output, along with the failing step from `scripts/ci.ps1` and the full error text:
+## 6. Troubleshooting
 
-```powershell
-dotnet --info
-dotnet --list-sdks
-winver
-
-$vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-if (Test-Path $vswhere) { & $vswhere -all -products * -format json -utf8 } else {
-    'vswhere.exe not found; record the Visual Studio version from Help > About and workloads from Visual Studio Installer.'
-}
-
-Get-AppxPackage Microsoft.PowerToys | Select-Object Name, Version, Architecture
-```
-
-When opening an issue, state your Windows build, .NET SDK, Visual Studio version and workloads, PowerToys version, target platform (`x64`/`ARM64`), the exact command, and the sanitized error. Redact local paths, account names, and anything from a real library.
-
-## Checked-in toolchain
-
-Source of truth: `PlayniteCmdPal.sln`, `PlayniteCmdPal/PlayniteCmdPal.csproj`, `Directory.Build.props`, and `Directory.Packages.props`.
-
-- Target framework: `net10.0-windows10.0.26100.0`.
-- Target Windows SDK package property: `10.0.26100.84` (selected by `WindowsSdkPackageVersion` in `Directory.Build.props`; the release preflight enforces it).
-- Minimum and supported OS platform version: `10.0.19041.0` (Windows 10, build 19041).
-- Runtime identifiers: `win-x64;win-arm64`.
-- MSBuild platforms: `x64;ARM64`; the solution also declares `x86` configurations, but the shared props list only `x64;ARM64`.
-- Central package management is enabled (`Directory.Packages.props`).
-- Package versions pinned in `Directory.Packages.props`:
-
-| Package | Version |
+| Problem | Fix |
 |---|---|
-| `Microsoft.CommandPalette.Extensions` | `0.12.260812002` |
-| `Microsoft.NET.Test.Sdk` | `18.12.0` |
-| `Microsoft.NETFramework.ReferenceAssemblies` | `1.0.3` |
-| `Microsoft.Windows.CsWinRT` | `2.3.1` |
-| `Microsoft.Windows.SDK.BuildTools.MSIX` | `1.7.261102100` |
-| `PlayniteSDK` | `6.18.0` (companion plugin; runtime assembly supplied by Playnite) |
-| `Shmuelie.WinRTServer` | `2.2.1` |
-| `xunit` | `2.9.3` |
-| `xunit.runner.visualstudio` | `4.0.1` |
+| `dotnet` is not recognized | Open a new PowerShell window and check that the .NET 10 SDK is installed and on `PATH`. |
+| NuGet restore fails | Check your network connection, then run `dotnet restore .\PlayniteCmdPal.sln` again. |
+| Visual Studio cannot deploy the package | Confirm Developer Mode is enabled and the WinUI application development workload is installed. |
+| The extension does not appear | Confirm PowerToys and Command Palette are enabled. Run **Build → Deploy PlayniteCmdPal**, then reload Command Palette extensions. |
+| Code changes do not appear | Deploy again and reload Command Palette extensions. |
+| The extension opens but no games appear | Install and enable the Playnite companion plugin, then restart Playnite. |
 
-No project references an analyzer, WebView2, CsWin32 or WindowsAppSDK package, so none of those has a central
-version. The Windows SDK targeting pack is not a `PackageReference`: it is selected by the
-`WindowsSdkPackageVersion` property in `Directory.Build.props` and pinned to `10.0.26100.84`;
-`scripts/release/release_tool.py preflight` fails if the pin changes.
+When reporting a problem, include the command or Visual Studio action that failed and the complete error message. Remove personal paths and any private Playnite library data.
 
-The repository does not pin an SDK with `global.json`. The maintainer reports using .NET SDK `10.0.403`, which the checked-in target framework requires because .NET 10 SDK support is needed for the `net10.0-windows` target.
+## More documentation
 
-## Solution layout
-
-| Path | Target | Purpose |
-|---|---|---|
-| `PlayniteCmdPal/` | `net10.0-windows10.0.26100.0` | Generated CmdPal extension host (out-of-process COM server) |
-| `PlayniteCmdPal.Core/` | `net10.0` | SDK-independent game model and deterministic search |
-| `PlayniteCmdPal.Snapshot/` | `net462;net10.0` | Shared v1 snapshot contract, serializer, publisher, export coordinator |
-| `PlayniteCmdPal.Playnite/` | `net10.0` | Strict parser and read-only catalog adapter/cache |
-| `PlayniteCmdPal.PlaynitePlugin/` | `net462` | Playnite companion plugin (generic plugin) |
-| `PlayniteCmdPal.Core.Tests/` | `net10.0` | Domain and search tests (no Playnite) |
-| `PlayniteCmdPal.Playnite.Tests/` | `net10.0` | Snapshot/adapter/publisher contract tests (no Playnite) |
-| `tools/CatalogVerifier/` | `net10.0` | Aggregate-only real-library diagnostic |
-| `scripts/` | PowerShell | `ci.ps1`, plugin packaging, framework smoke test, bridge diagnostics, release helpers |
-
-## Shared local CI checks
-
-The exact steps and expected outcome are in [step 5](#5-restore-build-and-test-with-one-command). Requirements: Python 3.9 or later on `PATH` (standard library only; no pip packages), the .NET 10 SDK, Windows with Windows PowerShell 5.1 (the script itself may be launched from `pwsh` 7), and network access for NuGet restore. Node.js is not required by `scripts/ci.ps1`.
-
-The Windows CI and CodeQL workflows install the SDK on `windows-latest` and invoke `scripts/ci.ps1`; CodeQL initializes its analyzer before running it. Neither workflow deploys the MSIX package, installs the Playnite plugin, or reads a real library.
-
-## Playnite catalog bridge
-
-The companion plugin targets `net462` and uses `PlayniteSDK` 6.18.0 with `ExcludeAssets="runtime"` so Playnite supplies the SDK assembly at runtime. Build-time targeting uses `Microsoft.NETFramework.ReferenceAssemblies`. The shared snapshot contract targets both `net462` and `net10.0`; the adapter and strict parser target `net10.0`. The plugin's writer uses framework-provided JSON APIs instead of `System.Text.Json` to avoid the reported extension dependency-binding failure. No Playnite installation or personal library is required for restore, build, or the automated tests.
-
-Packaging, installation, and the real-library checklist are in [step 8](#8-package-and-install-the-playnite-companion-plugin-optional-windows) and [Catalog Bridge](CATALOG-BRIDGE.md). The adapter is consumed by the Command Palette presentation layer; this bridge does not add search/launch UI.
-
-## Manifest language fix
-
-The manifest originally used `<Resource Language="x-generate"/>`. The reported build selected `en-AE` as its default language and failed with `APPX1685`. This extension has no localized resources; `en-US` is a valid BCP-47 language tag and a suitable explicit default. The source manifest now declares `<Resource Language="en-US"/>`, removing dependence on the build machine's locale. Packaging validation remains enabled; no warning or error is suppressed.
-
-Microsoft documents that `x-generate` is expanded using project resource qualifiers and that the first generated resource language is the package default. See [manifest generation](https://learn.microsoft.com/en-us/uwp/schemas/appxpackage/uapmanifestschema/generate-package-manifest) and [language/region management](https://github.com/MicrosoftDocs/windows-dev-docs/blob/docs/hub/apps/design/globalizing/manage-language-and-region.md).
-
-## Restore and build verification
-
-Run from a clean Windows checkout using PowerShell and capture exit codes with the complete output.
-
-```powershell
-dotnet --info
-dotnet restore .\PlayniteCmdPal.sln
-$restoreExit = $LASTEXITCODE
-dotnet build .\PlayniteCmdPal.sln --no-restore -c Debug -p:DefaultLanguage=en-US -p:Platform=x64
-$x64Exit = $LASTEXITCODE
-dotnet build .\PlayniteCmdPal.sln --no-restore -c Debug -p:DefaultLanguage=en-US -p:Platform=ARM64
-$arm64Exit = $LASTEXITCODE
-"$restoreExit $x64Exit $arm64Exit"
-```
-
-The explicit `DefaultLanguage=en-US` is kept here only as a deterministic diagnostic. Run the normal builds without it to prove the source fix is sufficient:
-
-```powershell
-dotnet build .\PlayniteCmdPal.sln --no-restore -c Debug -p:Platform=x64
-dotnet build .\PlayniteCmdPal.sln --no-restore -c Debug -p:Platform=ARM64
-```
-
-**Observed on the maintainer's Windows machine (SDK 10.0.403, Windows 10 build 19041):** restore completed with exit code 0, and all four builds returned exit code 0. Outputs targeted `win-x64` and `win-arm64`. The earlier `APPX1685` failure with default language `en-AE` was resolved by the explicit `en-US` manifest resource language. These results were produced locally by the maintainer, not by an independent reviewer.
-
-## Verification evidence
-
-Recorded run identifiers, with what each run actually proves:
-
-| Run | Workflow | Commit/branch | Outcome | Proves |
-|---|---|---|---|---|
-| [41177945707](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41177945707) | Windows CI | `arena/496569d8-playnitecmdpal` | success, 122 s | The shared script passed restore, Release build, both test projects, and the .NET Framework smoke test on a GitHub-hosted Windows runner. |
-| [41177945516](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41177945516) | CodeQL | `arena/496569d8-playnitecmdpal` | success | The shared script plus CodeQL analysis passed in the same PR. |
-| [41179024025](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41179024025) | Windows CI | `sync-main-pr-template-policy` | success | The baseline check still passes after the policy sync. |
-| [41179024026](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41179024026) | CodeQL | `sync-main-pr-template-policy` | success | Analysis is clean after the policy sync. |
-| [41184115994](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41184115994) | Windows CI | `arena/c6f57282-playnitecmdpal`, commit `aec765b` | success | The shared script passed restore, Release build, 66 core tests, 183 adapter tests, and the .NET Framework smoke step — the first green run with the expanded suites from [Testing](TESTING.md). |
-| [41184115933](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41184115933) | CodeQL | `arena/c6f57282-playnitecmdpal`, commit `aec765b` | success | The same shared script plus CodeQL analysis passed with the expanded suites. |
-| [41184813275](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41184813275) | Windows CI | `arena/c6f57282-playnitecmdpal`, commit `ad1caa5` | success, 1 m 57 s | The final pull-request head still passes every step after the documentation updates and the removal of the temporary diagnostic workflow. |
-| [41184813264](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41184813264) | CodeQL | `arena/c6f57282-playnitecmdpal`, commit `ad1caa5` | success | Analysis also passes on the final head. |
-| [41190710365](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41190710365) | Windows CI | `arena/c6f57282-playnitecmdpal`, commit `82d5afa` | success | Still 66 core and 183 adapter tests passing after the concurrency tests were rewritten to use completion signals instead of fixed sleeps. |
-| [41190710362](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41190710362) | CodeQL | `arena/c6f57282-playnitecmdpal`, commit `82d5afa` | success | The same shared script plus analysis passes on that commit. |
-| [41016300900](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41016300900) | Windows CI | PR #10 head | success | The catalog bridge implementation passed the shared checks before merge. |
-| [41016300844](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/41016300844) | CodeQL | PR #10 head | success | Analysis passed for the merged bridge change. |
-
-Earlier runs that matter for context: [40351115311](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40351115311) (Windows CI, default-branch push), [40351115315](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40351115315) (CodeQL, default-branch push), [40833436815](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40833436815) (Windows CI, pull request, first core test), [40833436859](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40833436859) (CodeQL, pull request), [40835007856](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40835007856) (shared-script implementation), [40835007751](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40835007751) (CodeQL on the shared script), and [40490182715](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40490182715) (scheduled CodeQL).
-
-What these runs do **not** prove: that the extension renders a working search page, that the companion plugin behaves correctly against every Playnite library, or that any minimum version of Windows, Visual Studio, PowerToys, or Playnite is supported. The independent Windows 11 setup and integration walkthrough is recorded above. Those are covered by manual steps in [Catalog Bridge](CATALOG-BRIDGE.md) and tracked under known gaps in [Testing](TESTING.md).
-
-## Dependabot
-
-### NuGet Central Package Management verification
-
-**Status (2026-10-31): configuration inspected; a NuGet update has not yet been observed.** At `dev` commit `ed3d2991abd1a0f55409c8cba4db9b622ad0e2b7`, the root `Directory.Packages.props` enables Central Package Management and defines 15 versions. The eight project files include nine distinct directly referenced package IDs, all with matching central versions and no project-level `Version` or `VersionOverride`. Six central entries are not directly referenced; do not assume they will generate update PRs. The root solution contains the seven application and test projects; `tools/CatalogVerifier` is outside the solution and currently has no package references. The root `nuget.config` maps all packages to nuget.org. `WindowsSdkPackageVersion` is a separate project property, not a `PackageReference`.
-
-The default branch is `main`, whose `.github/dependabot.yml` currently matches this checkout: NuGet uses `/`, targets `dev`, runs weekly, allows five open version-update PRs, and groups minor and patch updates. The root contains both the solution and the central props file. Dependabot's upstream [NuGet discovery tests](https://github.com/dependabot/dependabot-core/blob/main/nuget/helpers/lib/NuGetUpdater/NuGetUpdater.Core.Test/Discover/DiscoveryWorkerTests.Project.cs) cover centrally managed packages; that is not proof of a successful run in this repository. Dependabot reads its configuration from the **default branch**, so changes on `dev` alone do not activate a new configuration. See [GitHub's configuration documentation](https://docs.github.com/en/code-security/concepts/supply-chain-security/about-the-dependabot-yml-file).
-
-GitHub's PR list showed only three Dependabot PRs, all for Actions ([#1](https://github.com/werdscopez7347/PlayniteCmdPal/pull/1), [#2](https://github.com/werdscopez7347/PlayniteCmdPal/pull/2), [#3](https://github.com/werdscopez7347/PlayniteCmdPal/pull/3)). The dependency-graph SBOM on the default branch listed some NuGet IDs but displayed `>= 0`, not their central versions; it does not demonstrate version-update behavior on `dev`. The Dependabot alerts API returned HTTP 403 `Resource not accessible by integration`; this is a permissions limitation, not evidence that alerts are disabled. Alerts and security updates are separate from scheduled version updates; see [repository governance](REPO-GOVERNANCE.md) for previously recorded settings. No NuGet job log or update PR was available to verify discovery, registry access, or a central-version edit. No config change is justified solely by this absence.
-
-To complete verification, a maintainer with repository access should:
-
-1. On GitHub, check **Insights → Dependency graph → Dependabot**, select the NuGet `/` configuration, and inspect the latest update job and logs; use **Check for updates** if available, or wait for the weekly run. Confirm it is processing `dev`, the root solution/projects and `Directory.Packages.props`, and record the date, job result, discovered package/version and any errors. If the job or button is unavailable, check repository permissions, the default-branch config and Dependabot version-update settings; record the limitation rather than asserting success.
-2. Look for a NuGet PR against `dev`. Pick a directly referenced package such as `Microsoft.NET.Test.Sdk` (currently `18.12.0` on the inspected commit), and confirm from the job or registry that a newer eligible release exists. A grouped PR can contain several minor/patch updates; major releases may be separate, and the five-PR limit can delay new PRs. No eligible update or no PR is not proof of failed discovery.
-3. Inspect the PR's changed files and diff: the expected package's `PackageVersion` in root `Directory.Packages.props` should change to the proposed version, while consuming `PackageReference` entries remain versionless and no project-level `Version`/`VersionOverride` is introduced. Record the PR URL, old/new version and diff. Run the Windows CI checks described above and review compatibility before any merge. Do not merge merely to perform this verification.
-4. If no eligible update is available, repeat when one exists. If a controlled test is needed sooner, obtain maintainer approval before temporarily downgrading one directly referenced package on `dev` to a known older, compatible version, verify that a newer eligible version exists, then rerun the NuGet job and inspect its PR as above. This changes a shared branch and may expose it to an older dependency: do not do it on production/release branches; restore the original central version and close the test PR afterwards. If that is not acceptable, leave verification pending. Do not alter project-level versions to manufacture a test.
-
-Record the evidence or blocker in this section. Until an actual update is inspected, do not claim that this repository's NuGet CPM update behavior is verified.
-
-## Windows build warning notes (captured 2026-10-27)
-
-Windows CI run [40514661047](https://github.com/werdscopez7347/PlayniteCmdPal/actions/runs/40514661047) used .NET SDK 10.0.403 on a GitHub-hosted Windows x64 runner. Restore and Release build succeeded with exit code 0, targeting `win-arm64`, and reported one `APPX1707` and two `IL2104` warnings.
-
-- **APPX1707:** the MSIX packaging targets report that `Microsoft.CommandPalette.Extensions.winmd` has no implementation file metadata. The build succeeds and the extension was deployed and loaded. Do not invent an implementation file or add `Implementation` metadata for a contract WinMD just to silence it; change this only if documented SDK/template guidance requires a mapping.
-- **IL2104:** trim analysis warnings from `Microsoft.Windows.SDK.NET` and `WinRT.Runtime` reference assemblies during the Release build. They are dependency warnings, not build errors. Keep them visible; revisit if trimming becomes part of release acceptance.
-- **NETSDK1198:** not present in the captured output for that run. Do not state it was reproduced or fixed. If it appears locally, record the exact command, the selected `Platform`, and the referenced `Properties\PublishProfiles\win-*.pubxml`; the project sets `PublishProfile` from `$(Platform)`, so check for a profile/platform mismatch before changing packaging settings.
-
-The manifest language fix was validated by that CI build without a `DefaultLanguage` override: it used the checked-in `en-US` manifest. CI builds the default solution configuration and does not replace architecture-specific local builds or the manual deployment check.
-
-## Contributor environment reporting
-
-The versions below are the environment in which the template was last validated, not a universal minimum. Record your own versions when reporting results.
-
-| Component | Validated environment / current evidence |
-|---|---|
-| Windows | Windows 10 build 19041 (maintainer machine) — the project's development and test environment. Windows 11 26H2, build 26300.9974 independently validated on a clean machine on 2026-11-21. CI uses `windows-latest`, which is not evidence about either desktop OS. |
-| .NET SDK | 10.0.403 (SDK 10.0.302 was also installed; the validation commands used 10.0.403) |
-| Visual Studio | 2026 Community 18.12.1, Stable channel; WinUI application development workload installed |
-| PowerToys / Command Palette | 0.101.2362.0; extension deployed and loaded |
-| Playnite | 10.65 (SDK 6.19.0, Theme API 2.10.0) on the independent Windows 11 machine; 10.63 reported for earlier maintainer bridge checks |
-| Target architectures | x64 and ARM64 builds succeeded; runtime tests were on the maintainer's host architecture |
-
-For Visual Studio, use **Help > About Microsoft Visual Studio** for the version and **Visual Studio Installer > Modify > Workloads** for the workloads. Do not describe a particular release or workload as the minimum supported requirement until it is verified against current Microsoft template documentation and a clean setup.
-
-## Deploy, reload, and debug
-
-Covered step by step in [section 7](#7-deploy-the-extension-and-reload-command-palette). In short: **Build > Deploy** (not just Build) → use the `(Package)` launch profile → `Reload` the Command Palette extensions → open `PlayniteCmdPal` → attach the debugger and watch **Output > Debug**. Record the PowerToys version, Windows build, Visual Studio version/workloads, deploy result, and runtime behavior after each loop.
-
-## Template lifecycle and search behavior
-
-- `PlayniteCmdPal` implements `IExtension` and `IDisposable`; `GetProvider(ProviderType.Commands)` returns the single `PlayniteCmdPalCommandsProvider`. Disposal signals the hosting event.
-- The manifest registers the extension as an out-of-process COM server and an app extension named `com.microsoft.commandpalette`. Its CLSID must match the `[Guid]` in the extension class and the manifest registrations.
-- `PlayniteCmdPalCommandsProvider` derives from `CommandProvider` and returns one cached top-level `CommandItem` from `TopLevelCommands()`. It does not override `FallbackCommands()`.
-- `PlayniteCmdPalPage` derives from static `ListPage`; `GetItems()` returns the placeholder item. It does not override `UpdateSearchText` and does not implement dynamic filtering. For a search-reactive list, Microsoft documents `DynamicListPage.UpdateSearchText(oldSearch, newSearch)`; after changing backing items, call `RaiseItemsChanged()` so the host fetches the new list.
-- The official overview says only the Commands provider type is currently supported. Top-level commands come from `TopLevelCommands()`; fallback commands are optional. Context actions are attached to command items and return a `CommandResult` to control dismissal/navigation.
-
-Sources: [create an extension](https://learn.microsoft.com/en-us/windows/powertoys/command-palette/creating-an-extension), [extensibility overview](https://learn.microsoft.com/en-us/windows/powertoys/command-palette/extensibility-overview), [DynamicListPage.UpdateSearchText](https://learn.microsoft.com/en-us/windows/powertoys/command-palette/microsoft-commandpalette-extensions-toolkit/dynamiclistpage_updatesearchtext), [updating a list of commands](https://learn.microsoft.com/en-us/windows/powertoys/command-palette/update-a-list-of-commands).
-
-## Troubleshooting
-
-| Symptom | Check |
-|---|---|
-| `dotnet` not found, or an unexpected SDK version | Open a new terminal after installing; run `dotnet --list-sdks` and confirm a `10.0.x` entry. |
-| NuGet restore fails | Confirm network/proxy access to your configured feeds (`nuget.config`). Re-run `dotnet restore .\PlayniteCmdPal.sln` alone to isolate it. |
-| `APPX1685` mentioning `en-AE` or another locale | Verify the manifest declares `<Resource Language="en-US"/>`; do not disable packaging validation. |
-| `NETSDK1198` (publish profile) | Record the command, `Platform`, and referenced `Properties\PublishProfiles\win-*.pubxml`. The project derives `PublishProfile` from `$(Platform)`, so a mismatched `Platform` is the usual cause. |
-| Deploy fails with a developer-license or registration error | Enable **Developer Mode** ([section 2](#2-enable-developer-mode)), then retry **Build > Deploy**. |
-| Extension does not appear in Command Palette | **Build > Deploy**, then `Reload` → **Reload Command Palette extensions**. Confirm PowerToys is running and Command Palette is enabled. Launching the `(Unpackaged)` profile does not register the package. |
-| Extension loads but nothing happens | Verify the three CLSID occurrences agree (C# `[Guid]`, manifest COM server, manifest app extension). |
-| Change has no effect after redeploy | Command Palette caches the extension instance; reload extensions after every deploy. |
-| Snapshot missing or adapter reports `Missing` | Install/enable the companion plugin ([section 8](#8-package-and-install-the-playnite-companion-plugin-optional-windows)); run `scripts\diagnose-playnite-bridge.ps1`. See [Catalog Bridge troubleshooting](CATALOG-BRIDGE.md#troubleshooting-a-missing-snapshot). |
-| Test failure only in CI | Compare `dotnet --info` locally with the CI log; the script prints it first. Check for a path or culture assumption in the new test. |
-
-Diagnostics to capture: **View > Output > Debug**, Windows **Event Viewer**, package registration state (`Get-AppxPackage *PlayniteCmdPal*`), and the architecture you selected. Redact local paths and library data before sharing.
-
-For Playnite-side diagnostics, Playnite writes host loading errors to `playnite.log` and extension logger output to `extensions.log`, under `%APPDATA%\Playnite` for a normal per-user install (or the configured data root for portable installs).
-
-## References
-
-- [Create a Command Palette extension](https://learn.microsoft.com/en-us/windows/powertoys/command-palette/creating-an-extension)
-- [Extensibility overview](https://learn.microsoft.com/en-us/windows/powertoys/command-palette/extensibility-overview)
-- [Command Palette overview](https://learn.microsoft.com/en-us/windows/powertoys/command-palette/overview)
-- [Set up your Windows development environment](https://learn.microsoft.com/en-us/windows/apps/get-started/start-here)
-- [Enable Developer Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development)
-- [Install the .NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-- [PowerToys Command Palette source](https://github.com/microsoft/PowerToys/tree/main/src/modules/cmdpal)
-- [MSIX manifest generation](https://learn.microsoft.com/en-us/uwp/schemas/appxpackage/uapmanifestschema/generate-package-manifest)
-
-## Independent Windows 11 machine validation (2026-11-21)
-
-A separate Windows 11 machine was used to replay the setup and deployment workflow. The machine reports Windows 11 26H2, build 26300.9974.
-
-- [x] Local CI completed successfully on this machine: 59 Python release-tooling tests (21 skipped), 203 Core tests, 265 Playnite adapter tests, 52 Command Palette tests, and the .NET Framework bridge smoke test. The script ended with `All local CI checks passed.`
-- [x] Visual Studio Debug build initially reported missing project reference metadata assemblies. Running `dotnet clean .\PlayniteCmdPal.sln -c Debug`, restore, and a Debug solution build resolved the issue.
-- [x] Visual Studio MSIX deployment succeeded.
-- [x] The PlayniteCmdPal extension appeared in Command Palette and its page opened successfully.
-- [x] The Playnite companion plugin was packaged successfully with `scripts/package-playnite-plugin.ps1`; the script's published .NET Framework bridge smoke test passed.
-- [x] The `.pext` was installed into Playnite and Playnite was restarted.
-- [x] Real Playnite games appeared in Command Palette; the user confirmed that the integration works, including the real-library flow.
-- [x] The user confirmed the end-to-end deployment and integration workflow works.
-- [x] Exact Visual Studio, PowerToys, and Playnite versions recorded: Visual Studio 2026 Community 18.12.1 (Stable, November 2026 Feature Update); PowerToys 0.101.2362.0; Playnite 10.65 (SDK 6.19.0, Theme API 2.10.0).
-
-The Windows 11 clean-machine setup and integration validation is complete based on the user's confirmation and reported results.
-
-## Validation status
-
-- [x] Checked-in solution, project, shared props, package versions, manifest, provider, page, extension lifecycle, and package launch profile inspected.
-- [x] Deterministic manifest language fix applied.
-- [x] Windows restore succeeded after the fix (`dotnet restore .\PlayniteCmdPal.sln`, exit code 0).
-- [x] x64 and ARM64 builds succeeded with and without the `DefaultLanguage=en-US` override (all four builds exit code 0).
-- [x] Visual Studio package deployment succeeded; Command Palette extension reload and search/launch page runtime check succeeded.
-- [ ] Exact Windows build recorded. The Windows 10 build 19041 environment is the documented development and test environment, but earlier notes on this page also mention `10.0.19044`, and the two have not been reconciled. Both are Windows 10 2004-family builds; re-check with `winver` before citing a specific build as verified.
-- [x] Shared script, both test projects, and the .NET Framework smoke test pass in Windows CI and the CodeQL workflow.
-- [x] Exact Visual Studio version/workload and PowerToys version recorded: Visual Studio 2026 Community 18.12.1 with the WinUI application development workload; PowerToys 0.101.2362.0.
-- [x] This page's setup, deployment, and real Playnite integration walkthrough replayed on a clean Windows 11 machine, per user confirmation.
-
-
-## Windows SDK targeting-pack selection (2026-11-01)
-
-The project now uses stable `Microsoft.Windows.SDK.NET.Ref 10.0.26100.84`, selected by `WindowsSdkPackageVersion` in `Directory.Build.props`. This is the REDIST-cleared package; `10.0.26100.87` was evaluated but is not the release pin (see [Release packaging](RELEASE-PACKAGING.md#release-pin-reconciliation-2026-11-17)). The previous `10.0.26100.68-preview` project-level override has been removed. The 26100 SDK family matches the project's `net10.0-windows10.0.26100.0` target; the minimum OS remains build 19041. The package metadata includes .NET 10 compatibility. The targeting pack is restored from NuGet and is distinct from the Visual Studio-installed Windows SDK/build tools.
-
-Install a current .NET 10 SDK and the Visual Studio WinUI/MSIX components required by the project. Do not install or select a preview targeting pack. Official references: [stable targeting-pack package](https://www.nuget.org/packages/Microsoft.Windows.SDK.NET.Ref/10.0.26100.84), [Microsoft Windows SDK downloads](https://learn.microsoft.com/en-us/windows/apps/windows-sdk/downloads), and [Windows SDK versioning](https://learn.microsoft.com/en-us/windows/apps/get-started/versioning-overview).
-
-**Validated on Windows 11 build 26200** with .NET SDK 10.0.403 and MSBuild 18.9.15: clean restore, Release solution build, both automated test projects, the .NET Framework snapshot smoke test, Visual Studio x64 MSIX deployment and Command Palette activation, and Release publishing for both x64 and ARM64 all succeeded. Evaluated MSBuild properties confirmed the then-selected `Microsoft.Windows.SDK.NET.Ref 10.0.26100.87`, the unchanged `net10.0-windows10.0.26100.0` target, and minimum OS `10.0.19041.0`. The x64 installed-package notice check and both publish-output notice checks also succeeded. PR #40 later generated and inspected an ARM64 MSIX archive on the x64 Windows machine (manifest architecture, runtime notice, project license and third-party notices), so archive inspection does not require ARM64 hardware. That artifact used the `.87` evaluation pin and predates the merged dependency bumps, so it is not a release candidate; the signed x64/ARM64 packages for the `.84` release pin are recorded in the [release candidate record](RELEASE-PACKAGING.md#release-candidate-record), and the clean-machine install/update/uninstall/rollback walkthrough remains outstanding. See [Release Packaging](RELEASE-PACKAGING.md).
+- [Testing](TESTING.md) — test projects and commands.
+- [Catalog Bridge](CATALOG-BRIDGE.md) — Playnite integration and diagnostics.
+- [Release Packaging](RELEASE-PACKAGING.md) — release builds and package inspection.
