@@ -6,6 +6,8 @@ This page explains what is tested, where each check runs, and how to run it. For
 
 **Prior verification context (2026-11-11):** Automated coverage is synthetic and runs without Playnite, PowerToys, a personal game library, or secrets. The earlier Windows CI ([run 42948025706](https://github.com/shxo07/PlayniteCmdPal/actions/runs/42948025706)) and CodeQL ([run 42948025712](https://github.com/shxo07/PlayniteCmdPal/actions/runs/42948025712)) results predate the unified navigation and do not validate this revision. The test commands below are executed by `scripts/ci.ps1`. The previously verified Recently Played list and relative badges are historical context, not a manual pass for the unified page. See [Developer Setup](DEVELOPER-SETUP.md) for the evidence trail and its limits.
 
+**Independent Windows 11 CI run (WERD-69, 2026-11-21):** On Windows 11 26H2 build 26300.9974, the local `scripts/ci.ps1` run completed successfully with Python 3.13.17 and .NET SDKs 10.0.404/11.0.100 installed (11.0.100 was selected by `dotnet --info`). Results: 59 Python release-tooling tests (21 skipped), 203 Core tests passed, 265 Playnite adapter tests passed, 52 Command Palette command tests passed, Release build succeeded with 150 warnings, and the synthetic .NET Framework snapshot smoke test passed. This verifies the automated build/test path on that Windows 11 machine; it does not verify MSIX deployment, Command Palette registration/UI, or live Playnite catalog/launch behaviour. See [Developer Setup](DEVELOPER-SETUP.md#independent-windows-11-validation-record-werd-69-2026-11-21) for the environment record and remaining manual checks.
+
 ## Test projects
 
 | Project | Target | References | Needs Playnite installed? |
@@ -164,13 +166,13 @@ The real-library and launch smoke tests are intentionally outside the automated 
 
 ### Everything CI runs
 
-From the repository root in PowerShell on Windows:
+From the repository root in PowerShell on Windows, with Python 3.9 or later and the .NET 10 SDK installed:
 
 ```powershell
 .\scripts\ci.ps1
 ```
 
-It prints the exact `dotnet` command it runs before each step, stops at the first failure, reports the step name and exit code, and returns that exit code.
+The script runs the standard-library Python release-tooling tests first, then .NET restore/build, the Core, Playnite adapter, and Command Palette command test projects, and the Windows PowerShell 5.1 .NET Framework snapshot smoke test. Python must be callable as `python` on `PATH`; no third-party Python packages are needed. Node.js/npm are not used by this workflow. It prints the exact command for each step, stops at the first failure, reports the step name and exit code, and returns that exit code.
 
 ### Release tooling self-tests
 
