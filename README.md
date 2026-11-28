@@ -102,4 +102,3 @@ Release and operations:
 - [Command Palette extensibility overview](https://learn.microsoft.com/en-us/windows/powertoys/command-palette/extensibility-overview)
 - [Playnite command-line arguments and URI commands](https://api.playnite.link/docs/manual/advanced/cmdlineArguments.html)
 
-A clock/timer Command Palette extension is a separate future project and intentionally out of scope here.
